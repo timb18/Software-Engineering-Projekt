@@ -6,6 +6,10 @@ names of variables, classes etc must be in english
 
 variable names should be descriptive
 
+* use **PascalCase** for React - Components
+* use **camelCase** for other TypeScript functions
+* use **PascalCase** for C# functions / methods and Classes
+
 * Backend: use **PascalCase** for file names
 * Frontend: use **kebab-case** for file names
 
