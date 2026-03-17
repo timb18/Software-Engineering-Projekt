@@ -28,3 +28,19 @@ the corresponding PR names are
 * chore(<scope\>): \<tedious task>
 
 Conversations / Comments in PRs must always be resolved by the author of the Conversation / Comment and **NOT** by the author of the PR
+
+## How to
+
+### Start the Backend Api
+
+open the C# Project folder in a Terminal and run the command
+~~~
+dotnet run
+~~~
+or
+```
+dontnet run {path to project}/Programm.cs
+```
+note: .Net 10 SDK needs to be installed
+
+alternatively start it with a .Net capable IDE e.g. VS Code with C# extension, Visual Studio, Rider
