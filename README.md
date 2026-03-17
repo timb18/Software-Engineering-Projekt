@@ -33,14 +33,26 @@ Conversations / Comments in PRs must always be resolved by the author of the Con
 
 ### Start the Backend Api
 
-open the C# Project folder in a Terminal and run the command
-~~~
+open the C# project directory in a terminal and run the command (note: .Net 10 SDK needs to be installed)
+
+~~~ cmd
 dotnet run
 ~~~
+
 or
-```
-dontnet run {path to project}/Programm.cs
-```
-note: .Net 10 SDK needs to be installed
+
+~~~ cmd
+dontnet run {path-to-project}/Programm.cs
+~~~
 
 alternatively start it with a .Net capable IDE e.g. VS Code with C# extension, Visual Studio, Rider
+
+### Start the Web UI
+
+Open the React project directory in a terminal and run the command (note: node needs to be installed)
+
+~~~ cmd
+npm run dev
+~~~
+
+afterwards enter the url shown in the terminal into a browser
