@@ -1,0 +1,23 @@
+export type User = {
+  username: string;
+  teams: string[];
+	role: Role
+};
+
+export type Team = {
+	name: string;
+	users: User[]
+};
+
+export type Calendar = {
+	tasks: Task[]
+}
+
+export type Task = {
+	startDate: Date;
+	endDate: Date;
+	name:string;
+	description: string;
+}
+
+export type Role = "admin" | "user"
