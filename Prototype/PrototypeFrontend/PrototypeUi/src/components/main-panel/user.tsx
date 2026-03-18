@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-const Team: FC = () => {
+const User: FC = () => {
   return (
     <div>
       <div></div>
@@ -8,4 +8,4 @@ const Team: FC = () => {
   );
 };
 
-export default Team;
+export default User;
