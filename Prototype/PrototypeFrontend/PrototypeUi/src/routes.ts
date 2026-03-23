@@ -3,7 +3,8 @@ import App from "./app";
 import Login from "./components/login";
 import Home from "./components/main-panel/home";
 import User from "./components/main-panel/user";
-import Team from "./components/main-panel/team";
+import Teams from "./components/main-panel/teams";
+import Tasks from "./components/main-panel/tasks";
 
 const router = createBrowserRouter([
   {
@@ -19,9 +20,13 @@ const router = createBrowserRouter([
         Component: User,
       },
       {
-        path: "team",
-        Component: Team,
+        path: "teams",
+        Component: Teams,
       },
+      {
+        path: "tasks",
+        Component: Tasks
+      }
     ],
   },
   { path: "/login", Component: Login },
