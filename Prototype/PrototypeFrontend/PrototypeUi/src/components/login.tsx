@@ -28,7 +28,7 @@ const Login: FC = () => {
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center">
-      <div className="flex h-1/2 min-h-100 w-1/5 min-w-110 flex-col items-center gap-10 rounded-4xl bg-lime-600 p-10">
+      <div className="flex h-1/2 min-h-100 w-1/5 min-w-110 flex-col items-center gap-10 rounded-4xl bg-emerald-200 p-10">
         <h1 className="text-4xl font-bold">Welcome</h1>
         <form
           className="flex flex-col items-center gap-2"
@@ -62,7 +62,7 @@ const Login: FC = () => {
           </div>
           <button
             type="submit"
-            className="cursor-pointer rounded-2xl disabled:cursor-default"
+            className="cursor-pointer rounded-2xl disabled:cursor-default bg-emerald-300 hover:bg-emerald-400 px-5 text-xl"
           >
             Login
           </button>

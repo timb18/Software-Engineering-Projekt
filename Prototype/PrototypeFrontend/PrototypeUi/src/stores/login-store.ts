@@ -31,6 +31,7 @@ const useLoginStore = () => {
 
   const logout = () => {
     loginStore.setState({ email: "", password: "" });
+    setUser();
   };
 
   return { tryLogin, logout, ...state };

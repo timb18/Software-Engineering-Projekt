@@ -1,10 +1,25 @@
-import type { FC } from "react";
+import { useEffect, type FC } from "react";
 import { useNavigate } from "react-router";
+import useLoginStore from "../../stores/login-store";
+import useUserStore from "../../stores/user-store";
 
 const User: FC = () => {
+  const { logout } = useLoginStore();
+  const { user } = useUserStore();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [navigate, user]);
+
+  if (!user) {
+    return <></>;
+  }
+
   const logOut = () => {
+    logout();
     navigate("/login");
   };
 
@@ -19,7 +34,7 @@ const User: FC = () => {
         </div>
         <div className="flex flex-row gap-x-2">
           <div>email:</div>
-          <div>admin@example.de</div>
+          <div>{user.email}</div>
         </div>
         <button onClick={logOut} className="cursor-pointer">
           Logout

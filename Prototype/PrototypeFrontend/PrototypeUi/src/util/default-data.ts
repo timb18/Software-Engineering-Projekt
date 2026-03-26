@@ -5,12 +5,14 @@ const adminA: User = {
   email: "admin@company-a.de",
   role: "admin",
   teams: [],
+  tasks: [],
 };
 const userA1: User = {
   username: "userA",
   email: "user@company-a.de",
   role: "user",
   teams: [],
+  tasks: [],
 };
 
 const adminB: User = {
@@ -18,12 +20,14 @@ const adminB: User = {
   email: "admin@company-b.de",
   role: "admin",
   teams: [],
+  tasks: [],
 };
 const userB1: User = {
   username: "userB",
   email: "user@company-b.de",
   role: "user",
   teams: [],
+  tasks: [],
 };
 
 const companyA: Team = {
@@ -57,4 +61,5 @@ export const defaultUser: User = {
   role: "user",
   username: "defaultUser123",
   teams: [],
+  tasks: [],
 };

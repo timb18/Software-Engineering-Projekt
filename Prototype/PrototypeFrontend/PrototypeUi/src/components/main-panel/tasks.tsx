@@ -1,9 +1,24 @@
 import dayjs from "dayjs";
-import type { FC } from "react";
+import { useEffect, type FC } from "react";
+import useUserStore from "../../stores/user-store";
+import { useNavigate } from "react-router";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const Tasks: FC = () => {
+  const { user } = useUserStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [navigate, user]);
+
+  if (!user) {
+    return <></>;
+  }
+
   const date = new Date();
   const currentDay = date.getDay() + 1;
   const weekStart = dayjs().startOf("day").subtract(currentDay, "day");
@@ -34,7 +49,7 @@ const Tasks: FC = () => {
           {weekEnd.format("DD.MM.YYYY")}
         </div>
         <div className="overflow-x-hidden overflow-y-auto">
-          <div className="h-[70vh] grid auto-rows-[2rem] grid-cols-[4rem_repeat(7,1fr)]">
+          <div className="grid h-[70vh] auto-rows-[2rem] grid-cols-[4rem_repeat(7,1fr)]">
             {weekDays.map((day, i) => (
               <div
                 key={day}
@@ -47,14 +62,15 @@ const Tasks: FC = () => {
             {Array.from({ length: timeIntervalCount }).map((_, i) => {
               const time = weekStart.add(15 * i, "minute").format("HH:mm");
               return (
-                <div
-                  key={time}
-                  style={{ gridRow: i + 2 }}
-                  className="border-t border-r"
-                >
+                <div key={time} style={{ gridRow: i + 2 }} className="border-t">
                   {time}
                 </div>
               );
+            })}
+            {Array.from({ length: 7 }).map((_, d) => {
+              return Array.from({ length: timeIntervalCount }).map((_, t) => {
+                return <div className="border-l" key={`${d} ${t}`}></div>;
+              });
             })}
           </div>
         </div>

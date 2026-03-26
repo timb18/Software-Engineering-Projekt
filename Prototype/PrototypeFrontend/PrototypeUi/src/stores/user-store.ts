@@ -1,5 +1,6 @@
 import { createStore } from "zustand";
 import type { User } from "../util/types";
+import { useStore } from "zustand";
 
 type UserStore = {
   user?: User;
@@ -8,9 +9,9 @@ type UserStore = {
 const userStore = createStore<UserStore>(() => ({}));
 
 const useUserStore = () => {
-  const state = userStore.getState();
+  const state = useStore(userStore);
 
-  const setUser = (newUser: User) => {
+  const setUser = (newUser?: User) => {
     userStore.setState({ user: newUser });
   };
 

@@ -2,6 +2,7 @@ export type User = {
   username: string;
   email: string;
   teams: Team[];
+  tasks: Task[];
   role: Role;
 };
 
