@@ -5,6 +5,7 @@ import Home from "./components/main-panel/home";
 import User from "./components/main-panel/user";
 import Teams from "./components/main-panel/teams";
 import Tasks from "./components/main-panel/tasks";
+import TaskBoard from "./components/main-panel/task-board";
 
 const router = createBrowserRouter([
   {
@@ -22,13 +23,21 @@ const router = createBrowserRouter([
         Component: User,
       },
       {
+        path: "settings",
+        Component: User,
+      },
+      {
         path: "teams",
         Component: Teams,
       },
       {
+        path: "planner",
+        Component: Tasks,
+      },
+      {
         path: "tasks",
-        Component: Tasks
-      }
+        Component: TaskBoard,
+      },
     ],
   },
   { path: "/login", Component: Login },

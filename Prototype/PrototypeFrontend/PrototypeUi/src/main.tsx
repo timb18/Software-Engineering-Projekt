@@ -6,7 +6,7 @@ import router from "./routes.ts";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <div className="h-screen w-screen bg-mist-900">
+    <div className="min-h-screen w-screen bg-slate-950">
       <RouterProvider router={router} />
     </div>
   </StrictMode>,
