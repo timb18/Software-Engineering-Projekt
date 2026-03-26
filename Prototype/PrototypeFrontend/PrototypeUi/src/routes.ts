@@ -10,6 +10,8 @@ const router = createBrowserRouter([
   {
     path: "/",
     Component: App,
+    loader: () => {
+    },
     children: [
       {
         index: true,

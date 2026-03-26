@@ -1,7 +1,7 @@
 export type User = {
   username: string;
   email: string;
-  teams: string[];
+  teams: Team[];
   role: Role;
 };
 
