@@ -1,0 +1,137 @@
+@startuml ""
+
+skinparam classAttributeIconSize 0
+
+package Api {
+
+    class Programm {
+        {static} +Main(args: string [])
+    }
+
+    static class EndpointsExtensions {
+        {static} +MapGroups(app: this IEndpointRouteBuilder): IEndpointRouteBuilder
+        {static} -MapUserEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
+        {static} -MapTaskEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
+        {static} -MapPlanningEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
+    }
+}
+
+package PlanningEngine {
+
+    IMissionPlanner <|.. MissionPlanner
+
+    interface IMissionPlanner {
+        +PlanMissions(user: User, forcePlan: bool = false): List<Missions>
+    }
+
+    class MissionPlanner {
+        +MissionPlanner(timeprovider: TimeProvider)
+    }
+}
+
+package UserService {
+
+    IUserService <|.. UserService
+
+    interface IUserService {
+        +GetUser(userId: Guid): UserDto
+        +AddUser(user: UserDto): void
+        +UpdateUser(user: UserDto): void
+        +DeleteUser(userId: Guid): void
+    }
+
+    class UserService {
+        +UserService(dbContext: DbContext)
+    }
+
+    class UserDto {
+        +UserName: string
+        +Email: string
+        +Missions: List<Mission>
+        +WorkProfile: WorkProfile
+    }
+}
+
+package MissionService {
+
+    IMissionService <|.. MissionService
+
+    interface IMissionService {
+        +GetMissions(userId: Guid): MissionDto[]
+        +AddMission(userId: Guid, newMission MissionDto): void
+        +UpdateMission(userId: Guid, updatedMission: MissionDto): void
+        +UpdateMissions(userId: Guid, updatedMissions: List<MissionDto>)
+        +DeleteMission(userId: Guid, MissionId: Guid): void
+    }
+
+    class MissionService{
+        +MissionService(dbContext: DbContext)
+    }
+
+    class MissionDto {
+        +TimeIntervals: List<TimeInterval>
+        +TimeEstimate: TimeSpan
+        +Name: string
+        +Description: string
+        +Deadline: DateTimeOffset?
+        +Priority: Priority
+    }
+}
+
+package Datamodels {
+
+    User *-> Mission
+    User -- WorkProfile : has >
+    WorkProfile *-> TimeInterval
+    Mission *-> TimeInterval
+
+    class User {
+        +Id: Guid {init;}
+        +UserName: string
+        +Email: string
+        +CreatedAt: DateTimeOffset
+        +UpdatedAt: DateTimeOffset
+        -- Navigation Properties --
+        +Missions: ICollection<Mission>
+        +WorkProfile: WorkProfile
+    }
+
+    class WorkProfile {
+        +Id: Guid
+        +UserId: Guid
+        +WorkHours: List<TimeInterval>
+        +MaxDailyLoad: TimeSpan
+        --Navigation Properties--
+        +User: User
+    }
+
+    class Mission {
+        +Id: Guid {init;}
+        +TimeIntervals: List<TimeInterval>
+        +TimeEstimate: TimeSpan
+        +Name: string
+        +Description: string
+        +Deadline: DateTime?
+        +Priority: Priority
+        --Navigation Properties--
+        +User: User
+        +Dependencies: ICollection<Mission>
+    }
+
+    class MissionDependency {
+        +TaskId: Guid
+        +DependsOnTaskId: Guid
+    }
+
+    class TimeInterval {
+        +startDate: DateTimeOffset
+        +endDate: DateTimeOffset
+    }
+
+    enum Priority {
+        Low
+        Medium
+        High
+    }
+}
+@enduml
