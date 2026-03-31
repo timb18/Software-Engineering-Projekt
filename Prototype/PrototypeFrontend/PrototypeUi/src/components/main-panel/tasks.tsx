@@ -167,6 +167,7 @@ const Tasks: FC = () => {
       description: "",
       durationMinutes: 60,
       priority: "medium",
+      status: "todo",
       deadline: "",
       dependencies: [],
       isFixed: false,
@@ -364,7 +365,6 @@ const Tasks: FC = () => {
                 >
                   {tasksThisWeek.map((task) => {
                     const start = dayjs(task.startDate);
-                    const end = dayjs(task.endDate);
                     const dayIndex = start.startOf("day").diff(weekStart.startOf("day"), "day");
 
                     if (dayIndex < 0 || dayIndex > 6) {
@@ -440,8 +440,6 @@ const Tasks: FC = () => {
                   style={{ gridTemplateRows: `2.5rem repeat(${intervalsPerDay}, minmax(0,1fr))` }}
                 >
                   {tasksToday.map((task) => {
-                    const start = dayjs(task.startDate);
-                    const end = dayjs(task.endDate);
                     const startSlot = getStartSlot(task.startDate);
                     const endSlot = getEndSlot(task.endDate);
 

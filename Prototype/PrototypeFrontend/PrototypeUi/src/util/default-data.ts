@@ -201,7 +201,7 @@ export const getDefaults = () => {
   };
 };
 
-export const teamms: Team[] = [{ name: "Company A", users: [adminA] }];
+export const teamms: Team[] = [{ id: "team-company-a", name: "Company A", users: [adminA] }];
 
 export const defaultUser: User = {
   email: "example@default.com",
