@@ -1,12 +1,10 @@
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState, type FC } from "react";
-import { useNavigate } from "react-router";
+import { useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Task } from "../../util/types";
 
 const TaskBoard: FC = () => {
   const { user, setUser } = useUserStore();
-  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     name: "",
@@ -22,12 +20,6 @@ const TaskBoard: FC = () => {
   const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "done">("all");
   const [error, setError] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [navigate, user]);
 
   if (!user) return <></>;
 
@@ -248,7 +240,7 @@ const TaskBoard: FC = () => {
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="min-h-[90px] rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+              className="min-h-22.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
               placeholder="What needs to be done"
             />
           </div>

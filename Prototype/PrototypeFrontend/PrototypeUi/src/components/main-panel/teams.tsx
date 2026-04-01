@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type FC } from "react";
-import { useNavigate } from "react-router";
 import useUserStore from "../../stores/user-store";
 import type { Invitation, Team, User } from "../../util/types";
 
@@ -8,7 +7,6 @@ type Tab = (typeof tabOptions)[number];
 
 const Teams: FC = () => {
   const { user, setUser } = useUserStore();
-  const navigate = useNavigate();
 
   const [teams, setTeams] = useState<Team[]>(user?.teams ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
@@ -17,12 +15,6 @@ const Teams: FC = () => {
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [navigate, user]);
 
   useEffect(() => {
     if (teams.length > 0 && !selectedTeamId) {

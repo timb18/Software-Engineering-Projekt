@@ -1,17 +1,9 @@
 import dayjs from "dayjs";
-import { useEffect, type FC } from "react";
-import { useNavigate } from "react-router";
+import { type FC } from "react";
 import useUserStore from "../../stores/user-store";
 
 const Home: FC = () => {
   const { user } = useUserStore();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [navigate, user]);
 
   if (!user) {
     return <></>;

@@ -53,7 +53,7 @@ const Sidebar: FC = () => {
   }, [user.profileImage]);
 
   return (
-    <aside className="flex h-full flex-col gap-6 border-r border-slate-800 bg-slate-900/70 p-6">
+    <aside className="flex h-full flex-col gap-6 border-r rounded-l-4xl border-slate-800 bg-slate-900/70 p-6">
       <button
         onClick={goToProfile}
         className="w-full cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-left shadow-sm transition hover:border-emerald-300/50 hover:bg-emerald-400/5"

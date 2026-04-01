@@ -1,6 +1,5 @@
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState, type FC } from "react";
-import { useNavigate } from "react-router";
+import { useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Task } from "../../util/types";
 
@@ -22,7 +21,6 @@ const getEndSlot = (date: Date) => {
 
 const Tasks: FC = () => {
   const { user, setUser } = useUserStore();
-  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -50,12 +48,6 @@ const Tasks: FC = () => {
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "done">("all");
   const [filterAssignee, setFilterAssignee] = useState<string | "all">("all");
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [navigate, user]);
 
   if (!user) {
     return <></>;
@@ -235,7 +227,7 @@ const Tasks: FC = () => {
   };
 
   return (
-    <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
+    <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs uppercase tracking-[0.28em] text-emerald-300">Planner</span>
@@ -303,7 +295,7 @@ const Tasks: FC = () => {
       </div>
 
       <div className="grid grid-cols-[1.35fr_0.65fr] gap-5 max-lg:grid-cols-1">
-        <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/80 to-slate-950/80 shadow-2xl backdrop-blur">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-linear-to-b from-slate-900/80 to-slate-950/80 shadow-2xl backdrop-blur">
           <div className="flex items-center justify-between px-6 pt-4 pb-3 text-sm text-slate-300">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
@@ -389,7 +381,7 @@ const Tasks: FC = () => {
                             {task.name}
                           </div>
                           {task.isFixed && (
-                            <span className="rounded-full bg-emerald-500/15 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
                               Fixed
                             </span>
                           )}
@@ -458,7 +450,7 @@ const Tasks: FC = () => {
                             {task.name}
                           </div>
                           {task.isFixed && (
-                            <span className="rounded-full bg-emerald-500/15 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
                               Fixed
                             </span>
                           )}
@@ -519,7 +511,7 @@ const Tasks: FC = () => {
           </div>
         </div>
 
-        <div className="flex h-full min-h-[62vh] flex-col gap-4 rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/80 to-slate-950/80 p-6 shadow-xl backdrop-blur">
+        <div className="flex h-full min-h-[62vh] flex-col gap-4 rounded-3xl border border-slate-800 bg-linear-to-b from-slate-900/80 to-slate-950/80 p-6 shadow-xl backdrop-blur">
           <div className="flex items-center justify-between">
             <div className="text-lg font-semibold text-slate-50">Upcoming</div>
             <button className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100">
@@ -607,7 +599,7 @@ const Tasks: FC = () => {
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="min-h-[90px] rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  className="min-h-22.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                   placeholder="What needs to be done"
                 />
               </div>
@@ -800,7 +792,7 @@ const Tasks: FC = () => {
                 <textarea
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  className="min-h-[90px] rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  className="min-h-22.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                 />
               </div>
 
