@@ -80,14 +80,14 @@ package ServiceLayer <<Rectangle>>{
     package PlanningEngine{
     package PlanningService {
 
-    IMissionPlanner <|.. MissionPlanner
+    IUserTaskPlanner <|.. UserTaskPlanner
 
-    interface IMissionPlanner {
-        +PlanMissions(user: User, forcePlan: bool = false): List<Missions>
+    interface IUserTaskPlanner {
+        +PlanUserTasks(user: User, forcePlan: bool = false): List<UserTasks>
     }
 
-    class MissionPlanner {
-        +MissionPlanner(timeprovider: TimeProvider)
+    class UserTaskPlanner {
+        +UserTaskPlanner(timeprovider: TimeProvider)
     }
     } 
 
@@ -122,28 +122,28 @@ package UserService {
     class UserDto {
         +UserName: string
         +Email: string
-        +Missions: List<Mission>
+        +UserTasks: List<UserTask>
         +WorkProfile: WorkProfile
     }
 }
 
-package MissionService {
+package UserTaskService {
 
-    IMissionService <|.. MissionService
+    IUserTaskService <|.. UserTaskService
 
-    interface IMissionService {
-        +GetMissions(userId: Guid): MissionDto[]
-        +AddMission(userId: Guid, newMission MissionDto): void
-        +UpdateMission(userId: Guid, updatedMission: MissionDto): void
-        +UpdateMissions(userId: Guid, updatedMissions: List<MissionDto>)
-        +DeleteMission(userId: Guid, MissionId: Guid): void
+    interface IUserTaskService {
+        +GetUserTasks(userId: Guid): UserTaskDto[]
+        +AddUserTask(userId: Guid, newUserTask UserTaskDto): void
+        +UpdateUserTask(userId: Guid, updatedUserTask: UserTaskDto): void
+        +UpdateUserTasks(userId: Guid, updatedUserTasks: List<UserTaskDto>)
+        +DeleteUserTask(userId: Guid, UserTaskId: Guid): void
     }
 
-    class MissionService{
-        +MissionService(dbContext: DbContext)
+    class UserTaskService{
+        +UserTaskService(dbContext: DbContext)
     }
 
-    class MissionDto {
+    class UserTaskDto {
         +TimeIntervals: List<TimeInterval>
         +TimeEstimate: TimeSpan
         +Name: string
@@ -163,13 +163,13 @@ package RepositoryLayer <<Rectangle>> {
         +DeleteUser(Guid id): returns bool
     }
 
-    class MissionRepo{
-        +CreateMission(Mission mission): returns bool
-        +GetMission(): returns Mission
-        +UpdateMission(): returns bool
-        +UpdateMission(): returns bool
-        +DeleteMission(): returns bool
-        +GetMissionDependenciesForMission(Guid missionId): returns MissionDependency
+    class UserTaskRepo{
+        +CreateUserTask(UserTask UserTask): returns bool
+        +GetUserTask(): returns UserTask
+        +UpdateUserTask(): returns bool
+        +UpdateUserTask(): returns bool
+        +DeleteUserTask(): returns bool
+        +GetUserTaskDependenciesForUserTask(Guid UserTaskId): returns UserTaskDependency
     }
 
     class WorkProfileRepo{
@@ -182,10 +182,10 @@ package RepositoryLayer <<Rectangle>> {
 
 package Datamodels {
 
-    User *-> Mission
+    User *-> UserTask
     User -- WorkProfile : has >
     WorkProfile *-> TimeInterval
-    Mission *-> TimeInterval
+    UserTask *-> TimeInterval
 
     class User {
         +Id: Guid {init;}
@@ -194,7 +194,7 @@ package Datamodels {
         +CreatedAt: DateTimeOffset
         +UpdatedAt: DateTimeOffset
         -- Navigation Properties --
-        +Missions: ICollection<Mission>
+        +UserTasks: ICollection<UserTask>
         +WorkProfile: WorkProfile
     }
 
@@ -207,7 +207,7 @@ package Datamodels {
         +User: User
     }
 
-    class Mission {
+    class UserTask {
         +Id: Guid {init;}
         +TimeIntervals: List<TimeInterval>
         +TimeEstimate: TimeSpan
@@ -217,10 +217,10 @@ package Datamodels {
         +Priority: Priority
         --Navigation Properties--
         +User: User
-        +Dependencies: ICollection<Mission>
+        +Dependencies: ICollection<UserTask>
     }
 
-    class MissionDependency {
+    class UserTaskDependency {
         +TaskId: Guid
         +DependsOnTaskId: Guid
     }
