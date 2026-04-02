@@ -1,0 +1,241 @@
+@startuml ""
+
+skinparam classAttributeIconSize 0
+
+package FrontendLayer <<Rectangle>> {
+    package Components {
+        class GUI_Login{
+            -WelcomeLabel:
+            -EmailLabe
+            -EmailTextbox
+            -PassowrdLabel
+            -PasswordTextbox
+            -LoginButton
+        }
+
+        class GUI_Mainpage{
+            -OverviewButton
+            -MyTeamsButton
+            -PlannerButton
+            -TasksButton
+            -SettingsButton
+            -ProfileButton
+        }
+
+        class GUI_ProfileButton{
+            -ProfilePicture
+            -SignedInLabel
+            -NameLabel
+            -emailLabel
+        }
+
+        class GUI_Overview{
+            -WelcomeMessageGridElement
+            -OrganizationsAmountGridElement
+            -TaskWeekAmountGridElement
+            -UpcomingTaskAmountGridElement
+            -UpcomingTaskDetailsGridElement
+            -DeadlinesGridElement
+        }
+
+        class GUI_MyTeams{
+            -MyTeamsHeadlineFlexContainer
+            -MyTeamsListFlexContainer
+        }
+    }
+}
+
+package Api {
+
+    class Programm {
+        {static} +Main(args: string [])
+    }
+
+    static class EndpointsExtensions {
+        {static} +MapGroups(app: this IEndpointRouteBuilder): IEndpointRouteBuilder
+        {static} -MapUserEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
+        {static} -MapTaskEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
+        {static} -MapPlanningEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
+    }
+
+    class AuthController{
+        +LoginUser()
+        +RegisterUser()
+    }
+
+    class TaskController{
+        +CreateTask()
+        +GetTask()
+        +UpdateTask()
+        +DeleteTask()
+    }
+
+    class PlanningController{
+        +GeneratePlan()
+    }
+}
+Api -- ServiceLayer
+
+package ServiceLayer <<Rectangle>>{
+    package PlanningEngine{
+    package PlanningService {
+
+    IUserTaskPlanner <|.. UserTaskPlanner
+
+    interface IUserTaskPlanner {
+        +PlanUserTasks(user: User, forcePlan: bool = false): List<UserTasks>
+    }
+
+    class UserTaskPlanner {
+        +UserTaskPlanner(timeprovider: TimeProvider)
+    }
+    } 
+
+    package SchedulingAlgorithm{
+        class Placeholder {
+
+        }
+    }
+
+    package WorkloadCalculator{
+        class Placeholder {
+
+        }
+    }   
+}
+
+package UserService {
+
+    IUserService <|.. UserService
+
+    interface IUserService {
+        +GetUser(userId: Guid): UserDto
+        +AddUser(user: UserDto): void
+        +UpdateUser(user: UserDto): void
+        +DeleteUser(userId: Guid): void
+    }
+
+    class UserService {
+        +UserService(dbContext: DbContext)
+    }
+
+    class UserDto {
+        +UserName: string
+        +Email: string
+        +UserTasks: List<UserTask>
+        +WorkProfile: WorkProfile
+    }
+}
+
+package UserTaskService {
+
+    IUserTaskService <|.. UserTaskService
+
+    interface IUserTaskService {
+        +GetUserTasks(userId: Guid): UserTaskDto[]
+        +AddUserTask(userId: Guid, newUserTask UserTaskDto): void
+        +UpdateUserTask(userId: Guid, updatedUserTask: UserTaskDto): void
+        +UpdateUserTasks(userId: Guid, updatedUserTasks: List<UserTaskDto>)
+        +DeleteUserTask(userId: Guid, UserTaskId: Guid): void
+    }
+
+    class UserTaskService{
+        +UserTaskService(dbContext: DbContext)
+    }
+
+    class UserTaskDto {
+        +TimeIntervals: List<TimeInterval>
+        +TimeEstimate: TimeSpan
+        +Name: string
+        +Description: string
+        +Deadline: DateTimeOffset?
+        +Priority: Priority
+    }
+    }
+}
+
+ServiceLayer -- RepositoryLayer
+package RepositoryLayer <<Rectangle>> {
+    class UserRepo{
+        +CreateUser(User user): returns bool
+        +GetUser(Guid id): returns User
+        +UpdateUser(User user): returns bool
+        +DeleteUser(Guid id): returns bool
+    }
+
+    class UserTaskRepo{
+        +CreateUserTask(UserTask UserTask): returns bool
+        +GetUserTask(): returns UserTask
+        +UpdateUserTask(): returns bool
+        +UpdateUserTask(): returns bool
+        +DeleteUserTask(): returns bool
+        +GetUserTaskDependenciesForUserTask(Guid UserTaskId): returns UserTaskDependency
+    }
+
+    class WorkProfileRepo{
+        +CreateWorkProfileForUser(User user): returns bool
+        +GetWorkProfileForUser(Guid userId): returns WorkProfile
+        +UpdateWorkProfileForUser(User user): returns bool
+        +DeleteWorkprofileForUser(Guid userId): returns bool
+    }
+}
+
+package Datamodels {
+
+    User *-> UserTask
+    User -- WorkProfile : has >
+    WorkProfile *-> TimeInterval
+    UserTask *-> TimeInterval
+
+    class User {
+        +Id: Guid {init;}
+        +UserName: string
+        +Email: string
+        +CreatedAt: DateTimeOffset
+        +UpdatedAt: DateTimeOffset
+        -- Navigation Properties --
+        +UserTasks: ICollection<UserTask>
+        +WorkProfile: WorkProfile
+    }
+
+    class WorkProfile {
+        +Id: Guid
+        +UserId: Guid
+        +WorkHours: List<TimeInterval>
+        +MaxDailyLoad: TimeSpan
+        --Navigation Properties--
+        +User: User
+    }
+
+    class UserTask {
+        +Id: Guid {init;}
+        +TimeIntervals: List<TimeInterval>
+        +TimeEstimate: TimeSpan
+        +Name: string
+        +Description: string
+        +Deadline: DateTime?
+        +Priority: Priority
+        --Navigation Properties--
+        +User: User
+        +Dependencies: ICollection<UserTask>
+    }
+
+    class UserTaskDependency {
+        +TaskId: Guid
+        +DependsOnTaskId: Guid
+    }
+
+    class TimeInterval {
+        +startDate: DateTimeOffset
+        +endDate: DateTimeOffset
+    }
+
+    enum Priority {
+        Low
+        Medium
+        High
+    }
+}
+
+
+@enduml
