@@ -2,6 +2,49 @@
 
 skinparam classAttributeIconSize 0
 
+package FrontendLayer <<Rectangle>> {
+    package Components {
+        class GUI_Login{
+            -WelcomeLabel:
+            -EmailLabe
+            -EmailTextbox
+            -PassowrdLabel
+            -PasswordTextbox
+            -LoginButton
+        }
+
+        class GUI_Mainpage{
+            -OverviewButton
+            -MyTeamsButton
+            -PlannerButton
+            -TasksButton
+            -SettingsButton
+            -ProfileButton
+        }
+
+        class GUI_ProfileButton{
+            -ProfilePicture
+            -SignedInLabel
+            -NameLabel
+            -emailLabel
+        }
+
+        class GUI_Overview{
+            -WelcomeMessageGridElement
+            -OrganizationsAmountGridElement
+            -TaskWeekAmountGridElement
+            -UpcomingTaskAmountGridElement
+            -UpcomingTaskDetailsGridElement
+            -DeadlinesGridElement
+        }
+
+        class GUI_MyTeams{
+            -MyTeamsHeadlineFlexContainer
+            -MyTeamsListFlexContainer
+        }
+    }
+}
+
 package Api {
 
     class Programm {
@@ -14,9 +57,28 @@ package Api {
         {static} -MapTaskEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
         {static} -MapPlanningEndponts(builder: this RouteGroupBuilder): RouteGroupBuilder
     }
-}
 
-package PlanningEngine {
+    class AuthController{
+        +LoginUser()
+        +RegisterUser()
+    }
+
+    class TaskController{
+        +CreateTask()
+        +GetTask()
+        +UpdateTask()
+        +DeleteTask()
+    }
+
+    class PlanningController{
+        +GeneratePlan()
+    }
+}
+Api -- ServiceLayer
+
+package ServiceLayer <<Rectangle>>{
+    package PlanningEngine{
+    package PlanningService {
 
     IMissionPlanner <|.. MissionPlanner
 
@@ -27,6 +89,19 @@ package PlanningEngine {
     class MissionPlanner {
         +MissionPlanner(timeprovider: TimeProvider)
     }
+    } 
+
+    package SchedulingAlgorithm{
+        class Placeholder {
+
+        }
+    }
+
+    package WorkloadCalculator{
+        class Placeholder {
+
+        }
+    }   
 }
 
 package UserService {
@@ -75,6 +150,33 @@ package MissionService {
         +Description: string
         +Deadline: DateTimeOffset?
         +Priority: Priority
+    }
+    }
+}
+
+ServiceLayer -- RepositoryLayer
+package RepositoryLayer <<Rectangle>> {
+    class UserRepo{
+        +CreateUser(User user): returns bool
+        +GetUser(Guid id): returns User
+        +UpdateUser(User user): returns bool
+        +DeleteUser(Guid id): returns bool
+    }
+
+    class MissionRepo{
+        +CreateMission(Mission mission): returns bool
+        +GetMission(): returns Mission
+        +UpdateMission(): returns bool
+        +UpdateMission(): returns bool
+        +DeleteMission(): returns bool
+        +GetMissionDependenciesForMission(Guid missionId): returns MissionDependency
+    }
+
+    class WorkProfileRepo{
+        +CreateWorkProfileForUser(User user): returns bool
+        +GetWorkProfileForUser(Guid userId): returns WorkProfile
+        +UpdateWorkProfileForUser(User user): returns bool
+        +DeleteWorkprofileForUser(Guid userId): returns bool
     }
 }
 
@@ -134,4 +236,6 @@ package Datamodels {
         High
     }
 }
+
+
 @enduml
