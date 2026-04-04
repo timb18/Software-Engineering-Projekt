@@ -1,0 +1,6 @@
+@TeapotApi_HostAddress = http://localhost:5186
+
+GET {{TeapotApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
