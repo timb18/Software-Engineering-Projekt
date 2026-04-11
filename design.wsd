@@ -42,6 +42,47 @@ package FrontendLayer <<Rectangle>> {
             -MyTeamsHeadlineFlexContainer
             -MyTeamsListFlexContainer
         }
+
+        class GUI_Planner{
+            -PlannerHeadlineFlexContainer
+            -DayButtonFlexElement
+            -WeekButtonFlexElement
+            -MonthButtonFlexElement
+            -CallendarGridContainer
+            -UpcomingTasksFlexContainer
+            -AddTasksFlexContainer
+            -TitleInputFlexElement
+            -DescriptionInputFlexElement
+            -DurationInputFlexElement
+            -PriorityInputFlexElement
+            -StatusInputFlexElement
+            -OrganizationInputFlexElement
+            -FixedTimeSlotInputFlexElement
+            -DeadlineInputFlexElement
+            -DependenciesInputFlexElement
+            -AddTaskButton
+        }
+
+        class GUI_Tasks{
+            -TasksHeadlineFlexContainer
+            -OrganizationFilterComboBox
+            -DifficultyFilterCombobox
+            -DeadlineFilterInput
+            -DurationFilterInput
+            -DependencyFilterCombobox
+            -TaskListFLexContainer
+            -AddTasksFlexContainer
+            -TitleInputFlexElement
+            -DescriptionInputFlexElement
+            -DurationInputFlexElement
+            -PriorityInputFlexElement
+            -StatusInputFlexElement
+            -OrganizationInputFlexElement
+            -FixedTimeSlotInputFlexElement
+            -DeadlineInputFlexElement
+            -DependenciesInputFlexElement
+            -AddTaskButton
+        }
     }
 }
 
@@ -78,79 +119,73 @@ Api -- ServiceLayer
 
 package ServiceLayer <<Rectangle>>{
     package PlanningEngine{
-    package PlanningService {
+        package PlanningService {
 
-    IUserTaskPlanner <|.. UserTaskPlanner
+            IUserTaskPlanner <|.. UserTaskPlanner
 
-    interface IUserTaskPlanner {
-        +PlanUserTasks(user: User, forcePlan: bool = false): List<UserTasks>
+            interface IUserTaskPlanner {
+                +PlanUserTasks(user: User, forcePlan: bool = false): List<UserTasks>
+            }
+
+            class UserTaskPlanner {
+                +UserTaskPlanner(timeprovider: TimeProvider)
+            }
+        }
+
+
+        class SchedulingAlgorithm{
+            +GenerateSchedule(user: User): List<Task>
+        }
+
     }
 
-    class UserTaskPlanner {
-        +UserTaskPlanner(timeprovider: TimeProvider)
-    }
-    } 
+    package UserService {
 
-    package SchedulingAlgorithm{
-        class Placeholder {
+        IUserService <|.. UserService
 
+        interface IUserService {
+            +GetUser(userId: Guid): UserDto
+            +AddUser(user: UserDto): void
+            +UpdateUser(user: UserDto): void
+            +DeleteUser(userId: Guid): void
+        }
+
+        class UserService {
+            +UserService(dbContext: DbContext)
+        }
+
+        class UserDto {
+            +UserName: string
+            +Email: string
+            +UserTasks: List<UserTask>
+            +WorkProfile: WorkProfile
         }
     }
 
-    package WorkloadCalculator{
-        class Placeholder {
+    package UserTaskService {
 
+        IUserTaskService <|.. UserTaskService
+
+        interface IUserTaskService {
+            +GetUserTasks(userId: Guid): UserTaskDto[]
+            +AddUserTask(userId: Guid, newUserTask UserTaskDto): void
+            +UpdateUserTask(userId: Guid, updatedUserTask: UserTaskDto): void
+            +UpdateUserTasks(userId: Guid, updatedUserTasks: List<UserTaskDto>)
+            +DeleteUserTask(userId: Guid, UserTaskId: Guid): void
         }
-    }   
-}
 
-package UserService {
+        class UserTaskService{
+            +UserTaskService(dbContext: DbContext)
+        }
 
-    IUserService <|.. UserService
-
-    interface IUserService {
-        +GetUser(userId: Guid): UserDto
-        +AddUser(user: UserDto): void
-        +UpdateUser(user: UserDto): void
-        +DeleteUser(userId: Guid): void
-    }
-
-    class UserService {
-        +UserService(dbContext: DbContext)
-    }
-
-    class UserDto {
-        +UserName: string
-        +Email: string
-        +UserTasks: List<UserTask>
-        +WorkProfile: WorkProfile
-    }
-}
-
-package UserTaskService {
-
-    IUserTaskService <|.. UserTaskService
-
-    interface IUserTaskService {
-        +GetUserTasks(userId: Guid): UserTaskDto[]
-        +AddUserTask(userId: Guid, newUserTask UserTaskDto): void
-        +UpdateUserTask(userId: Guid, updatedUserTask: UserTaskDto): void
-        +UpdateUserTasks(userId: Guid, updatedUserTasks: List<UserTaskDto>)
-        +DeleteUserTask(userId: Guid, UserTaskId: Guid): void
-    }
-
-    class UserTaskService{
-        +UserTaskService(dbContext: DbContext)
-    }
-
-    class UserTaskDto {
-        +TimeIntervals: List<TimeInterval>
-        +TimeEstimate: TimeSpan
-        +Name: string
-        +Description: string
-        +Deadline: DateTimeOffset?
-        +Priority: Priority
-    }
+        class UserTaskDto {
+            +TimeIntervals: List<TimeInterval>
+            +TimeEstimate: TimeSpan
+            +Name: string
+            +Description: string
+            +Deadline: DateTimeOffset?
+            +Priority: Priority
+        }
     }
 }
 
