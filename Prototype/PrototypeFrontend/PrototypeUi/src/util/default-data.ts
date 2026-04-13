@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { Task, Team, User } from "./types";
+import type { Task, Org, User } from "./types";
 
 const startOfThisWeek = dayjs().startOf("week").add(1, "day");
 
@@ -34,19 +34,68 @@ const createTask = (
     isFixed,
     priority,
     status,
-    assigneeEmail: "admin@company-a.de",
+    org: companyA,
     recurrence: "none",
     dependencies: [],
   };
 };
+
+const companyA: Org = {
+  id: "org-a",
+  name: "company a",
+  users: [],
+  adminEmails: ["admin@company-a.de"],
+  invites: [],
+};
+const companyB: Org = {
+  id: "org-b",
+  name: "company b",
+  users: [],
+  adminEmails: ["admin@company-b.de"],
+  invites: [
+    {
+      orgId: "org-b",
+      orgName: "company b",
+      email: "user@company-a.de",
+      status: "pending",
+    },
+  ],
+};
+
+const defaultTasks: Task[] = [
+  {
+    name: "Sprint planning",
+    description: "Lock scope and capacity for the week.",
+    dependencies: [],
+    startDate: new Date("2026-04-13T09:00:00Z"),
+    endDate: new Date("2026-04-13T11:30:00Z"),
+    org: companyA,
+  },
+  {
+    name: "Backend Sync",
+    description: "Align on API for time tracking entries.",
+    dependencies: [],
+    startDate: new Date("2026-04-14T14:00:00Z"),
+    endDate: new Date("2026-04-14T15:00:00Z"),
+    org: companyA,
+  },
+  {
+    name: "Client review",
+    description: "Walk through the latest planner prototype.",
+    dependencies: [],
+    startDate: new Date("2026-04-16T10:30:00Z"),
+    endDate: new Date("2026-04-16T12:00:00Z"),
+    org: companyA,
+  },
+];
 
 const adminA: User = {
   username: "admin",
   displayName: "Admin A",
   email: "admin@company-a.de",
   role: "admin",
-  teams: [],
-  tasks: [],
+  orgs: [],
+  tasks: defaultTasks,
   invites: [],
   timezone: "Europe/Berlin",
   workCapacityHours: 8,
@@ -61,12 +110,12 @@ const userA1: User = {
   displayName: "Anna A",
   email: "user@company-a.de",
   role: "user",
-  teams: [],
+  orgs: [],
   tasks: [],
   invites: [
     {
-      teamId: "team-b",
-      teamName: "company b",
+      orgId: "org-b",
+      orgName: "company b",
       email: "user@company-a.de",
       status: "pending",
     },
@@ -85,7 +134,7 @@ const adminB: User = {
   displayName: "Admin B",
   email: "admin@company-b.de",
   role: "admin",
-  teams: [],
+  orgs: [],
   tasks: [],
   invites: [],
   timezone: "Europe/Berlin",
@@ -101,7 +150,7 @@ const userB1: User = {
   displayName: "Ben B",
   email: "user@company-b.de",
   role: "user",
-  teams: [],
+  orgs: [],
   tasks: [],
   invites: [],
   timezone: "Europe/Berlin",
@@ -111,28 +160,6 @@ const userB1: User = {
   workEnd: "18:00",
   breakRules: "10m after 60m, 45m lunch",
   notifications: { emailInvites: true, emailDeadlines: true },
-};
-
-const companyA: Team = {
-  id: "team-a",
-  name: "company a",
-  users: [],
-  adminEmails: ["admin@company-a.de"],
-  invites: [],
-};
-const companyB: Team = {
-  id: "team-b",
-  name: "company b",
-  users: [],
-  adminEmails: ["admin@company-b.de"],
-  invites: [
-    {
-      teamId: "team-b",
-      teamName: "company b",
-      email: "user@company-a.de",
-      status: "pending",
-    },
-  ],
 };
 
 const adminATasks: Task[] = [
@@ -183,12 +210,12 @@ const userATasks: Task[] = [
 
 export const getDefaults = () => {
   companyA.users = [adminA, userA1];
-  adminA.teams = [companyA];
-  userA1.teams = [companyA];
+  adminA.orgs = [companyA];
+  userA1.orgs = [companyA];
 
   companyB.users = [adminB, userB1];
-  adminB.teams = [companyB];
-  userB1.teams = [companyB];
+  adminB.orgs = [companyB];
+  userB1.orgs = [companyB];
 
   adminA.tasks = adminATasks;
   userA1.tasks = userATasks;
@@ -197,17 +224,19 @@ export const getDefaults = () => {
 
   return {
     users: [adminA, adminB, userA1, userB1],
-    teams: [companyA, companyB],
+    orgs: [companyA, companyB],
   };
 };
 
-export const teamms: Team[] = [{ id: "team-company-a", name: "Company A", users: [adminA] }];
+export const orgs: Org[] = [
+  { id: "org-company-a", name: "Company A", users: [adminA] },
+];
 
 export const defaultUser: User = {
   email: "example@default.com",
   role: "user",
   username: "defaultUser123",
-  teams: [],
+  orgs: [],
   tasks: [],
   invites: [],
   displayName: "Default User",

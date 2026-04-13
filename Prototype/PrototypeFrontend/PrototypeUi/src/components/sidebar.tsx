@@ -1,20 +1,10 @@
-import { useEffect, useMemo, type FC } from "react";
+import { useMemo, type FC } from "react";
 import { useNavigate } from "react-router";
 import useUserStore from "../stores/user-store";
 
 const Sidebar: FC = () => {
   const { user } = useUserStore();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [navigate, user]);
-
-  if (!user) {
-    return <></>;
-  }
 
   const goToProfile = () => {
     navigate("/user");
@@ -28,7 +18,7 @@ const Sidebar: FC = () => {
     navigate("/");
   };
 
-  const goToMyTeams = () => {
+  const goToMyOrgs = () => {
     navigate("/teams");
   };
 
@@ -79,10 +69,10 @@ const Sidebar: FC = () => {
           Overview
         </button>
         <button
-          onClick={goToMyTeams}
+          onClick={goToMyOrgs}
           className="w-full cursor-pointer rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-left text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-100"
         >
-          My Teams
+          My Orgs
         </button>
         <button
           onClick={goToPlanner}

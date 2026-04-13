@@ -1,66 +1,62 @@
 import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
-import type { Invitation, Team, User } from "../../util/types";
+import type { Invitation, Org, User } from "../../util/types";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
 
-const Teams: FC = () => {
+const Orgs: FC = () => {
   const { user, setUser } = useUserStore();
 
-  const [teams, setTeams] = useState<Team[]>(user?.teams ?? []);
+  const [orgs, setOrgs] = useState<Org[]>(user?.orgs ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(teams[0]?.id ?? null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgs[0]?.id ?? null);
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
   useEffect(() => {
-    if (teams.length > 0 && !selectedTeamId) {
-      setSelectedTeamId(teams[0].id);
+    if (orgs.length > 0 && !selectedOrgId) {
+      setSelectedOrgId(orgs[0].id);
     }
-  }, [teams, selectedTeamId]);
-
-  if (!user) {
-    return <></>;
-  }
+  }, [orgs, selectedOrgId]);
 
   const persist = (nextUser: User) => {
     setUser(nextUser);
-    setTeams(nextUser.teams ?? []);
+    setOrgs(nextUser.orgs ?? []);
     setInvites(nextUser.invites ?? []);
   };
 
-  const currentRole = (team: Team): "Admin" | "Member" =>
-    team.adminEmails?.includes(user.email) ? "Admin" : "Member";
+  const currentRole = (org: Org): "Admin" | "Member" =>
+    org.adminEmails?.includes(user.email) ? "Admin" : "Member";
 
   const acceptInvite = (invite: Invitation) => {
     const remainingInvites = invites.filter((i) => i !== invite);
-    const existingTeam = teams.find((t) => t.id === invite.teamId);
-    let nextTeams = teams;
-    if (existingTeam) {
-      const alreadyInTeam = existingTeam.users.some((u) => u.email === user.email);
-      nextTeams = teams.map((t) =>
-        t.id === existingTeam.id
+    const existingOrg = orgs.find((t) => t.id === invite.orgId);
+    let nextOrg = orgs;
+    if (existingOrg) {
+      const alreadyInOrg = existingOrg.users.some((u) => u.email === user.email);
+      nextOrg = orgs.map((t) =>
+        t.id === existingOrg.id
           ? {
               ...t,
-              users: alreadyInTeam ? t.users : [...t.users, user],
+              users: alreadyInOrg ? t.users : [...t.users, user],
               invites: (t.invites ?? []).filter((i) => i.email !== user.email),
             }
           : t,
       );
     } else {
-      const newTeam: Team = {
-        id: invite.teamId,
-        name: invite.teamName,
+      const newOrg: Org = {
+        id: invite.orgId,
+        name: invite.orgName,
         users: [user],
         adminEmails: [],
         invites: [],
       };
-      nextTeams = [...teams, newTeam];
+      nextOrg = [...orgs, newOrg];
     }
-    persist({ ...user, teams: nextTeams, invites: remainingInvites });
+    persist({ ...user, orgs: nextOrg, invites: remainingInvites });
   };
 
   const declineInvite = (invite: Invitation) => {
@@ -68,135 +64,135 @@ const Teams: FC = () => {
     persist({ ...user, invites: remainingInvites });
   };
 
-  const leaveTeam = (teamId: string) => {
-    const nextTeams = teams.filter((t) => t.id !== teamId);
-    persist({ ...user, teams: nextTeams });
-    if (selectedTeamId === teamId) {
-      setSelectedTeamId(nextTeams[0]?.id ?? null);
+  const leaveOrg = (orgId: string) => {
+    const nextOrgs = orgs.filter((t) => t.id !== orgId);
+    persist({ ...user, orgs: nextOrgs });
+    if (selectedOrgId === orgId) {
+      setSelectedOrgId(nextOrgs[0]?.id ?? null);
     }
   };
 
-  const toggleRole = (team: Team, email: string) => {
-    const isAdmin = team.adminEmails?.includes(email) ?? false;
-    const updatedTeam: Team = {
-      ...team,
+  const toggleRole = (org: Org, email: string) => {
+    const isAdmin = org.adminEmails?.includes(email) ?? false;
+    const updatedOrg: Org = {
+      ...org,
       adminEmails: isAdmin
-        ? (team.adminEmails ?? []).filter((e) => e !== email)
-        : [...(team.adminEmails ?? []), email],
+        ? (org.adminEmails ?? []).filter((e) => e !== email)
+        : [...(org.adminEmails ?? []), email],
     };
-    const nextTeams = teams.map((t) => (t.id === team.id ? updatedTeam : t));
-    persist({ ...user, teams: nextTeams });
+    const nextOrgss = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+    persist({ ...user, orgs: nextOrgss });
   };
 
-  const kickUser = (team: Team, email: string) => {
-    const updatedTeam: Team = {
-      ...team,
-      users: team.users.filter((u) => u.email !== email),
-      adminEmails: (team.adminEmails ?? []).filter((e) => e !== email),
+  const kickUser = (org: Org, email: string) => {
+    const updatedOrg: Org = {
+      ...org,
+      users: org.users.filter((u) => u.email !== email),
+      adminEmails: (org.adminEmails ?? []).filter((e) => e !== email),
     };
-    let nextTeams = teams.map((t) => (t.id === team.id ? updatedTeam : t));
+    let nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
     if (email === user.email) {
-      nextTeams = nextTeams.filter((t) => t.id !== team.id);
-      setSelectedTeamId(nextTeams[0]?.id ?? null);
+      nextOrgs = nextOrgs.filter((t) => t.id !== org.id);
+      setSelectedOrgId(nextOrgs[0]?.id ?? null);
     }
-    persist({ ...user, teams: nextTeams });
+    persist({ ...user, orgs: nextOrgs });
   };
 
-  const sendInvite = (team: Team) => {
+  const sendInvite = (org: Org) => {
     if (!newInviteEmail.trim()) return;
     const invite: Invitation = {
-      teamId: team.id,
-      teamName: team.name,
+      orgId: org.id,
+      orgName: org.name,
       email: newInviteEmail.trim(),
       status: "pending",
     };
-    const updatedTeam: Team = {
-      ...team,
-      invites: [...(team.invites ?? []), invite],
+    const updatedOrg: Org = {
+      ...org,
+      invites: [...(org.invites ?? []), invite],
     };
-    const nextTeams = teams.map((t) => (t.id === team.id ? updatedTeam : t));
+    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
     setNewInviteEmail("");
-    persist({ ...user, teams: nextTeams });
+    persist({ ...user, orgs: nextOrgs });
   };
 
-  const withdrawInvite = (team: Team, email: string) => {
-    const updatedTeam: Team = {
-      ...team,
-      invites: (team.invites ?? []).filter((i) => i.email !== email),
+  const withdrawInvite = (org: Org, email: string) => {
+    const updatedOrg: Org = {
+      ...org,
+      invites: (org.invites ?? []).filter((i) => i.email !== email),
     };
-    const nextTeams = teams.map((t) => (t.id === team.id ? updatedTeam : t));
-    persist({ ...user, teams: nextTeams });
+    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+    persist({ ...user, orgs: nextOrgs });
   };
 
-  const renameTeam = (team: Team) => {
+  const renameOrg = (org: Org) => {
     if (!renameValue.trim()) return;
-    const updatedTeam: Team = { ...team, name: renameValue.trim() };
-    const nextTeams = teams.map((t) => (t.id === team.id ? updatedTeam : t));
-    persist({ ...user, teams: nextTeams });
+    const updatedOrg: Org = { ...org, name: renameValue.trim() };
+    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+    persist({ ...user, orgs: nextOrgs });
     setRenameValue("");
   };
 
-  const deleteTeam = (team: Team) => {
-    if (deleteConfirm !== team.name) return;
-    const nextTeams = teams.filter((t) => t.id !== team.id);
-    const nextInvites = (user.invites ?? []).filter((i) => i.teamId !== team.id);
-    persist({ ...user, teams: nextTeams, invites: nextInvites });
-    setSelectedTeamId(nextTeams[0]?.id ?? null);
+  const deleteOrg = (org: Org) => {
+    if (deleteConfirm !== org.name) return;
+    const nextOrgs = orgs.filter((t) => t.id !== org.id);
+    const nextInvites = (user.invites ?? []).filter((i) => i.orgId !== org.id);
+    persist({ ...user, orgs: nextOrgs, invites: nextInvites });
+    setSelectedOrgId(nextOrgs[0]?.id ?? null);
     setDeleteConfirm("");
   };
 
-  const selectedTeam = useMemo(() => teams.find((t) => t.id === selectedTeamId) ?? null, [teams, selectedTeamId]);
-  const isSelectedAdmin = selectedTeam ? selectedTeam.adminEmails?.includes(user.email) : false;
+  const selectedOrg = useMemo(() => orgs.find((t) => t.id === selectedOrgId) ?? null, [orgs, selectedOrgId]);
+  const isSelectedAdmin = selectedOrg ? selectedOrg.adminEmails?.includes(user.email) : false;
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.28em] text-emerald-300">Teams</span>
-          <h1 className="text-4xl font-semibold leading-tight">My teams</h1>
+          <span className="text-xs uppercase tracking-[0.28em] text-emerald-300">Orgs</span>
+          <h1 className="text-4xl font-semibold leading-tight">My orgs</h1>
           <span className="text-sm text-slate-400">Manage memberships, invites, and settings.</span>
         </div>
       </div>
 
       <div className="grid grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
         <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-          <div className="text-lg font-semibold text-slate-50">Meine Teams</div>
-          {teams.length === 0 && (
+          <div className="text-lg font-semibold text-slate-50">Meine Orgs</div>
+          {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
-              Du bist noch in keinem Team.
+              Du bist noch in keinem Org.
             </div>
           )}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {teams.map((team) => (
+            {orgs.map((org) => (
               <div
-                key={team.id}
-                className={`rounded-2xl border ${selectedTeamId === team.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
+                key={org.id}
+                className={`rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-sm uppercase tracking-[0.16em] text-slate-400">Team</div>
-                    <div className="text-lg font-semibold text-slate-50">{team.name}</div>
+                    <div className="text-sm uppercase tracking-[0.16em] text-slate-400">Org</div>
+                    <div className="text-lg font-semibold text-slate-50">{org.name}</div>
                   </div>
                   <div className="flex flex-col items-end gap-1 text-right">
                     <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-200">
-                      {currentRole(team)}
+                      {currentRole(org)}
                     </span>
-                    <span className="text-xs text-slate-400">{team.users.length} Mitglieder</span>
+                    <span className="text-xs text-slate-400">{org.users.length} Mitglieder</span>
                   </div>
                 </div>
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={() => setSelectedTeamId(team.id)}
+                    onClick={() => setSelectedOrgId(org.id)}
                     className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-                      currentRole(team) === "Admin"
+                      currentRole(org) === "Admin"
                         ? "border-emerald-300/60 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
                         : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700"
                     }`}
                   >
-                    {currentRole(team) === "Admin" ? "Verwalten" : "Ansehen"}
+                    {currentRole(org) === "Admin" ? "Verwalten" : "Ansehen"}
                   </button>
                   <button
-                    onClick={() => leaveTeam(team.id)}
+                    onClick={() => leaveOrg(org.id)}
                     className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-300 transition hover:border-rose-400/60 hover:text-rose-200"
                   >
                     Austreten
@@ -207,21 +203,21 @@ const Teams: FC = () => {
           </div>
 
           <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-            <div className="text-sm font-semibold text-slate-100">Offene Einladungen</div>
+            <div className="text-sm font-semibold text-slate-100">Pending invitations</div>
             {invites.filter((i) => i.status === "pending").length === 0 && (
-              <div className="mt-2 text-sm text-slate-500">Keine offenen Einladungen.</div>
+              <div className="mt-2 text-sm text-slate-500">No pending invitations.</div>
             )}
             <div className="mt-3 flex flex-col gap-3">
               {invites
                 .filter((i) => i.status === "pending")
                 .map((invite) => (
                   <div
-                    key={`${invite.teamId}-${invite.email}`}
+                    key={`${invite.orgId}-${invite.email}`}
                     className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200"
                   >
                     <div>
-                      <div className="font-semibold text-slate-50">{invite.teamName}</div>
-                      <div className="text-xs text-slate-400">Eingeladen als Mitglied</div>
+                      <div className="font-semibold text-slate-50">{invite.orgName}</div>
+                      <div className="text-xs text-slate-400">Invited as member</div>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -244,15 +240,15 @@ const Teams: FC = () => {
         </div>
 
         <div className="flex h-full min-h-[62vh] flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur">
-          {!selectedTeam && (
-            <div className="text-sm text-slate-400">Wähle ein Team zum Verwalten.</div>
+          {!selectedOrg && (
+            <div className="text-sm text-slate-400">Chose your organization to manage.</div>
           )}
-          {selectedTeam && (
+          {selectedOrg && (
             <>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Team verwalten</div>
-                  <div className="text-2xl font-semibold text-slate-50">{selectedTeam.name}</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Org verwalten</div>
+                  <div className="text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
                 </div>
                 {!isSelectedAdmin && (
                   <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-300">
@@ -282,7 +278,7 @@ const Teams: FC = () => {
 
               {activeTab === "members" && (
                 <div className="mt-4 flex flex-col gap-3">
-                  {selectedTeam.users.map((member) => (
+                  {selectedOrg.users.map((member) => (
                     <div
                       key={member.email}
                       className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200"
@@ -293,18 +289,18 @@ const Teams: FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] uppercase tracking-wide text-slate-300">
-                          {selectedTeam.adminEmails?.includes(member.email) ? "Admin" : "Mitglied"}
+                          {selectedOrg.adminEmails?.includes(member.email) ? "Admin" : "Mitglied"}
                         </span>
                         {isSelectedAdmin && member.email !== user.email && (
                           <>
                             <button
-                              onClick={() => toggleRole(selectedTeam, member.email)}
+                              onClick={() => toggleRole(selectedOrg, member.email)}
                               className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                             >
                               Rolle ändern
                             </button>
                             <button
-                              onClick={() => kickUser(selectedTeam, member.email)}
+                              onClick={() => kickUser(selectedOrg, member.email)}
                               className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                             >
                               Kick
@@ -314,20 +310,20 @@ const Teams: FC = () => {
                       </div>
                     </div>
                   ))}
-                  {selectedTeam.users.length === 0 && (
-                    <div className="text-sm text-slate-500">Keine Mitglieder im Team.</div>
+                  {selectedOrg.users.length === 0 && (
+                    <div className="text-sm text-slate-500">Keine Mitglieder im Org.</div>
                   )}
                 </div>
               )}
 
               {activeTab === "invites" && (
                 <div className="mt-4 flex flex-col gap-3">
-                  {(selectedTeam.invites ?? []).length === 0 && (
+                  {(selectedOrg.invites ?? []).length === 0 && (
                     <div className="text-sm text-slate-500">Keine offenen Einladungen.</div>
                   )}
-                  {(selectedTeam.invites ?? []).map((inv) => (
+                  {(selectedOrg.invites ?? []).map((inv) => (
                     <div
-                      key={`${inv.email}-${inv.teamId}`}
+                      key={`${inv.email}-${inv.orgId}`}
                       className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200"
                     >
                       <div>
@@ -336,7 +332,7 @@ const Teams: FC = () => {
                       </div>
                       {isSelectedAdmin && inv.status === "pending" && (
                         <button
-                          onClick={() => withdrawInvite(selectedTeam, inv.email)}
+                          onClick={() => withdrawInvite(selectedOrg, inv.email)}
                           className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                         >
                           Zurückziehen
@@ -358,7 +354,7 @@ const Teams: FC = () => {
                       className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                     />
                     <button
-                      onClick={() => sendInvite(selectedTeam)}
+                      onClick={() => sendInvite(selectedOrg)}
                       disabled={!isSelectedAdmin}
                       className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                     >
@@ -374,16 +370,16 @@ const Teams: FC = () => {
               {activeTab === "settings" && (
                 <div className="mt-4 flex flex-col gap-4">
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                    <div className="text-sm font-semibold text-slate-100">Team umbenennen</div>
+                    <div className="text-sm font-semibold text-slate-100">Org umbenennen</div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
-                        placeholder={selectedTeam.name}
+                        placeholder={selectedOrg.name}
                         className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                       />
                       <button
-                        onClick={() => renameTeam(selectedTeam)}
+                        onClick={() => renameOrg(selectedOrg)}
                         disabled={!isSelectedAdmin}
                         className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                       >
@@ -394,21 +390,21 @@ const Teams: FC = () => {
                   </div>
 
                   <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4">
-                    <div className="text-sm font-semibold text-rose-50">Team auflösen</div>
-                    <div className="mt-1 text-xs text-rose-100/80">Gib den Teamnamen ein, um zu bestätigen.</div>
+                    <div className="text-sm font-semibold text-rose-50">Org auflösen</div>
+                    <div className="mt-1 text-xs text-rose-100/80">Gib den Orgnamen ein, um zu bestätigen.</div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
                         value={deleteConfirm}
                         onChange={(e) => setDeleteConfirm(e.target.value)}
-                        placeholder={selectedTeam.name}
+                        placeholder={selectedOrg.name}
                         className="flex-1 rounded-xl border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-50 outline-none ring-rose-400/40 focus:border-rose-300/80 focus:ring"
                       />
                       <button
-                        onClick={() => deleteTeam(selectedTeam)}
-                        disabled={!isSelectedAdmin || deleteConfirm !== selectedTeam.name}
+                        onClick={() => deleteOrg(selectedOrg)}
+                        disabled={!isSelectedAdmin || deleteConfirm !== selectedOrg.name}
                         className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                       >
-                        Team löschen
+                        Org löschen
                       </button>
                     </div>
                     {!isSelectedAdmin && <div className="text-xs text-rose-100/80">Nur Admins dürfen löschen.</div>}
@@ -423,4 +419,4 @@ const Teams: FC = () => {
   );
 };
 
-export default Teams;
+export default Orgs;

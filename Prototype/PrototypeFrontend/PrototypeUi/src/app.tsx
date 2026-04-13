@@ -2,13 +2,14 @@ import { Outlet, useNavigate } from "react-router";
 import Sidebar from "./components/sidebar";
 import useUserStore from "./stores/user-store";
 import { useEffect } from "react";
+import { defaultUser } from "./util/default-data";
 
 function App() {
   const {user} = useUserStore();
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!user) {
+    if (user === defaultUser) {
       navigate("/login")
     }
   }, [navigate, user])
