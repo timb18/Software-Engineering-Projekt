@@ -12,8 +12,19 @@ type Filter = {
 };
 
 type Sort = {
-  criteria: "deadline" | "org" | "timeSlot" | "priority";
-  direction: "ascending" | "descending";
+  criteria: SortCriteria;
+  direction: SortDirection;
+};
+
+type SortCriteria = "deadline" | "org" | "timeSlot" | "priority";
+
+type SortDirection = "ascending" | "descending";
+
+const filterDefault: Filter = {};
+
+const sortDefault: Sort = {
+  criteria: "timeSlot",
+  direction: "ascending",
 };
 
 const TaskBoard: FC = () => {
@@ -30,11 +41,9 @@ const TaskBoard: FC = () => {
     isFixed: false,
   });
   const [filterAssignee, setFilterAssignee] = useState<string | "all">("all");
-  const [listFilter, setListfilter] = useState<Filter>({});
-  const [listSort, setListSort] = useState<Sort>({
-    criteria: "timeSlot",
-    direction: "ascending",
-  });
+  const [listFilter, setListfilter] = useState<Filter>(filterDefault);
+  const [listSort, setListSort] = useState<Sort>(sortDefault);
+
   const [error, setError] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
 
@@ -121,6 +130,93 @@ const TaskBoard: FC = () => {
     });
     setStatus("Task created");
   };
+
+  const sortFn = (t1: Task, t2: Task) => {
+    const sortDirectionMultiplier = listSort.direction === "ascending" ? 1 : -1;
+    switch (listSort.criteria) {
+      case "timeSlot":
+        return (
+          (t1.startDate.valueOf() - t2.startDate.valueOf()) *
+          sortDirectionMultiplier
+        );
+      case "deadline":
+        return (
+          ((t1.deadline?.valueOf() ?? 0) - (t2.deadline?.valueOf() ?? 0)) *
+          sortDirectionMultiplier
+        );
+
+      case "org":
+        if (t1.org.name < t2.org.name) {
+          return -1 * sortDirectionMultiplier;
+        }
+        if (t1.org.name > t2.org.name) {
+          return 1 * sortDirectionMultiplier;
+        }
+        return 0;
+
+      case "priority":
+        if (
+          (t1.priority === "low" && t2.priority === "medium") ||
+          (t1.priority === "medium" && t2.priority === "high") ||
+          (t1.priority === "low" && t2.priority === "high")
+        ) {
+          return -1 * sortDirectionMultiplier;
+        }
+
+        if (
+          (t1.priority === "medium" && t2.priority === "low") ||
+          (t1.priority === "high" && t2.priority === "medium") ||
+          (t1.priority === "high" && t2.priority === "low")
+        ) {
+          return 1 * sortDirectionMultiplier;
+        }
+
+        return 0;
+
+      default:
+        return 0;
+    }
+  };
+
+  const onChangeSortCriteria = (newCriteria: string) => {
+    switch (newCriteria) {
+      case "timeSlot":
+        setListSort({ ...listSort, criteria: "timeSlot" });
+        break;
+
+      case "deadLine":
+        setListSort({ ...listSort, criteria: "deadline" });
+        break;
+
+      case "priority":
+        setListSort({ ...listSort, criteria: "priority" });
+        break;
+
+      case "org":
+        setListSort({ ...listSort, criteria: "org" });
+        break;
+
+      default:
+        setListSort({ ...listSort, criteria: sortDefault.criteria });
+        break;
+    }
+  };
+
+  const onChangeSortDirection = (newDirection:string) => {
+    switch (newDirection) {
+      case "ascending":
+        setListSort({...listSort, direction: "ascending"})
+        break;
+    
+      case "descending":
+        setListSort({...listSort, direction: "descending"})
+        break;
+
+      default:
+        setListSort({...listSort, direction: sortDefault.direction})
+        break;
+    }
+  }
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">
@@ -233,6 +329,7 @@ const TaskBoard: FC = () => {
                     Criteria
                   </div>
                   <select
+                    onChange={(e) => onChangeSortCriteria(e.target.value)}
                     defaultValue="timeSlot"
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   >
@@ -247,6 +344,7 @@ const TaskBoard: FC = () => {
                     Direction
                   </div>
                   <select
+                  onChange={(e) => onChangeSortDirection(e.target.value)}
                     defaultValue="ascending"
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   >
@@ -258,13 +356,14 @@ const TaskBoard: FC = () => {
               <button
                 type="reset"
                 className="rounded-3xl border border-rose-300/60 bg-rose-500/10 py-1 font-semibold text-rose-100 hover:bg-rose-500/20"
+                onClick={() => setListSort(sortDefault)}
               >
                 Reset
               </button>
             </form>
           </div>
           <div className="mt-4 flex flex-col gap-4">
-            {user.tasks.sort().map((task) => (
+            {user.tasks.sort(sortFn).map((task) => (
               <div
                 key={task.name}
                 className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm"

@@ -78,6 +78,7 @@ const defaultTasks: Task[] = [
     startDate: new Date("2026-04-14T14:00:00Z"),
     endDate: new Date("2026-04-14T15:00:00Z"),
     org: companyA,
+    deadline: new Date("2026-04-14T15:00:00Z")
   },
   {
     name: "Client review",
@@ -86,6 +87,7 @@ const defaultTasks: Task[] = [
     startDate: new Date("2026-04-16T10:30:00Z"),
     endDate: new Date("2026-04-16T12:00:00Z"),
     org: companyA,
+    deadline: new Date("2026-04-16T12:00:00Z")
   },
 ];
 
