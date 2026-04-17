@@ -2,6 +2,6 @@ namespace Model;
 
 public enum Role
 {
-    NUTZENDE,
-    ORGANISIERENDE
+    USER,
+    ORGANIZER
 }

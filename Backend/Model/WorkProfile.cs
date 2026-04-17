@@ -4,7 +4,7 @@ namespace Model;
 
 public class WorkProfile
 {
-    public Guid Id {get; set;}
+    public Guid Id {get; init;}
 
     public Guid UserId {get; set;}
 

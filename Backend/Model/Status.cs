@@ -2,7 +2,7 @@ namespace Model;
 
 public enum Status
 {
-    OFFEN,
-    IN_PLANUNG,
-    ERLEDIGT,
+    OPEN,
+    IN_PLANNING,
+    DONE,
 }

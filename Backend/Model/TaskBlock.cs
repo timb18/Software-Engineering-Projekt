@@ -4,7 +4,7 @@ namespace Model;
 
 public class TaskBlock
 {
-    public Guid Id {get; set;}
+    public Guid Id {get; init;}
 
     public DateTimeOffset StartDate {get; set;}
 
