@@ -1,12 +1,10 @@
-using System;
-
 namespace Model;
 
-public class WorkPlan
+public record WorkPlan
 
 {
-    public Guid Id {get; init;}
+    public Guid Id { get; init; }
 
-    public Guid UserId {get; set;}
+    public Guid UserId { get; set; }
 
 }

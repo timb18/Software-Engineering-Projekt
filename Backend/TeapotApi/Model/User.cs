@@ -1,8 +1,6 @@
-using System;
-
 namespace Model;
 
-public class User
+public record User
 {
     public Guid Id { get; init; }
 
@@ -10,8 +8,8 @@ public class User
 
     public string Email { get; set; }
 
-    public DateTimeOffset CreatedAt {get; set;}
+    public DateTimeOffset CreatedAt { get; set; }
 
-    public DateTimeOffset UpdatedAt {get; set;}
+    public DateTimeOffset UpdatedAt { get; set; }
 
 }

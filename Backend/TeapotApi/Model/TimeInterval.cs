@@ -1,10 +1,8 @@
-using System;
-
 namespace Model;
 
-public class TimeInterval
+public record TimeInterval
 {
-    public DateTimeOffset StartDate {get; set;}
+    public DateTimeOffset StartDate { get; set; }
 
-    public DateTimeOffset EndDate {get; set;}
+    public DateTimeOffset EndDate { get; set; }
 }

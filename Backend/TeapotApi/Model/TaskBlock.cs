@@ -1,15 +1,13 @@
-using System;
-
 namespace Model;
 
-public class TaskBlock
+public record TaskBlock
 {
-    public Guid Id {get; init;}
+    public Guid Id { get; init; }
 
-    public DateTimeOffset StartDate {get; set;}
+    public DateTimeOffset StartDate { get; set; }
 
-    public DateTimeOffset EndDate {get; set;}
+    public DateTimeOffset EndDate { get; set; }
 
-    public bool IsFixed {get; set;}
+    public bool IsFixed { get; set; }
 
 }

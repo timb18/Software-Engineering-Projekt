@@ -19,7 +19,7 @@ builder.Services.AddEndpointsApiExplorer()
     {
         o.SwaggerDoc("v1",
             new OpenApiInfo
-                { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
+            { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
         o.NonNullableReferenceTypesAsRequired();
         o.SupportNonNullableReferenceTypes();
     })
