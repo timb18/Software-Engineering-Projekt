@@ -2,7 +2,7 @@ using System;
 
 namespace Model;
 
-public class Organisation
+public class Organization
 {
     public Guid Id {get; set;}
 
