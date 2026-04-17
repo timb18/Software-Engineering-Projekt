@@ -1,6 +1,90 @@
 @PrototypeApi_HostAddress = http://localhost:5004
 
-GET {{PrototypeApi_HostAddress}}/weatherforecast/
+# Quick availability check for local or hosted demos.
+GET {{PrototypeApi_HostAddress}}/health
 Accept: application/json
 
 ###
+
+# Shows the default work profile the scheduler falls back to when none is provided.
+GET {{PrototypeApi_HostAddress}}/api/planning/default-work-profile
+Accept: application/json
+
+###
+
+# Shows the default scoring and planning options used by the heuristic.
+GET {{PrototypeApi_HostAddress}}/api/planning/default-options
+Accept: application/json
+
+###
+
+# Main demo request: contains dependencies, priorities, deadlines, and one intentional conflict case.
+POST {{PrototypeApi_HostAddress}}/api/planning/schedule
+Content-Type: application/json
+Accept: application/json
+
+{
+	"planningStart": "2026-04-01T08:00:00+02:00",
+	"tasks": [
+		{
+			"id": "11111111-1111-1111-1111-111111111111",
+			"title": "Define backlog",
+			"priority": "High",
+			"status": "Open",
+			"deadline": "2026-04-01T14:00:00+02:00",
+			"estimatedDurationHours": 2,
+			"dependsOnTaskIds": []
+		},
+		{
+			"id": "22222222-2222-2222-2222-222222222222",
+			"title": "Model data objects",
+			"priority": "High",
+			"status": "Open",
+			"deadline": "2026-04-02T17:00:00+02:00",
+			"estimatedDurationHours": 3,
+			"dependsOnTaskIds": [
+				"11111111-1111-1111-1111-111111111111"
+			]
+		},
+		{
+			"id": "33333333-3333-3333-3333-333333333333",
+			"title": "Build frontend demo",
+			"priority": "Medium",
+			"status": "Open",
+			"deadline": "2026-04-03T17:00:00+02:00",
+			"estimatedDurationHours": 4,
+			"dependsOnTaskIds": [
+				"22222222-2222-2222-2222-222222222222"
+			]
+		},
+		{
+			"id": "44444444-4444-4444-4444-444444444444",
+			"title": "Write optional documentation",
+			"priority": "Low",
+			"status": "Open",
+			"estimatedDurationHours": 2,
+			"dependsOnTaskIds": []
+		}
+	],
+	"workProfile": {
+		"workStartTime": "09:00:00",
+		"workEndTime": "17:00:00",
+		"breakStart": "12:30:00",
+		"breakEnd": "13:00:00",
+		"maxDailyLoadHours": 6,
+		"workDays": [
+			"Monday",
+			"Tuesday",
+			"Wednesday",
+			"Thursday",
+			"Friday"
+		]
+	},
+	"options": {
+		"urgencyWeight": 0.5,
+		"priorityWeight": 0.3,
+		"dependencyWeight": 0.2,
+		"minimumSlotMinutes": 15,
+		"maxPlanningHorizonDays": 60
+	}
+}
