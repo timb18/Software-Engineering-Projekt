@@ -3,9 +3,9 @@ import App from "./app";
 import Login from "./components/login";
 import Home from "./components/main-panel/home";
 import User from "./components/main-panel/user";
-import Teams from "./components/main-panel/teams";
+import Orgs from "./components/main-panel/orgs";
 import Tasks from "./components/main-panel/tasks";
-import TaskBoard from "./components/main-panel/task-board";
+import TaskList from "./components/main-panel/task-list";
 
 const router = createBrowserRouter([
   {
@@ -28,7 +28,7 @@ const router = createBrowserRouter([
       },
       {
         path: "teams",
-        Component: Teams,
+        Component: Orgs,
       },
       {
         path: "planner",
@@ -36,7 +36,7 @@ const router = createBrowserRouter([
       },
       {
         path: "tasks",
-        Component: TaskBoard,
+        Component: TaskList,
       },
     ],
   },

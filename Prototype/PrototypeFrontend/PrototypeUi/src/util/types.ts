@@ -10,13 +10,13 @@ export type User = {
   workEnd?: string; // HH:mm
   breakRules?: string;
   notifications?: Notifications;
-  teams: Team[];
+  orgs: Org[];
   tasks: Task[];
   role: Role;
   invites?: Invitation[];
 };
 
-export type Team = {
+export type Org = {
   id: string;
   name: string;
   users: User[];
@@ -34,19 +34,21 @@ export type Task = {
   name: string;
   description: string;
   isFixed?: boolean;
-  priority?: "low" | "medium" | "high";
+  priority?: Priority;
   status?: "todo" | "in-progress" | "done";
-  assigneeEmail?: string;
+  org: Org;
   recurrence?: "none" | "daily" | "weekly";
   deadline?: Date;
   dependencies: Task[];
 };
 
+export type Priority = "low" | "medium" | "high";
+
 export type Role = "admin" | "user";
 
 export type Invitation = {
-  teamId: string;
-  teamName: string;
+  orgId: string;
+  orgName: string;
   email: string;
   status: "pending" | "accepted" | "declined";
 };

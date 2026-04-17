@@ -21,7 +21,7 @@ const Home: FC = () => {
     .sort((a, b) => a.deadline.valueOf() - b.deadline.valueOf())
     .slice(0, 3)
     .map(({ task }) => task);
-  const teams = user.teams ?? [];
+  const teams = user.orgs ?? [];
 
   return (
     <div className="grid h-full w-full grid-rows-[auto_1fr] gap-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 text-slate-50">

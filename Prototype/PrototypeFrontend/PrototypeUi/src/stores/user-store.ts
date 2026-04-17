@@ -1,12 +1,13 @@
 import { createStore } from "zustand";
 import type { User } from "../util/types";
 import { useStore } from "zustand";
+import { defaultUser } from "../util/default-data";
 
 type UserStore = {
-  user?: User;
+  user: User;
 };
 
-const userStore = createStore<UserStore>(() => ({}));
+const userStore = createStore<UserStore>(() => ({user: defaultUser}));
 
 const useUserStore = () => {
   const state = useStore(userStore);

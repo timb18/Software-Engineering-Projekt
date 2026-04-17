@@ -55,7 +55,7 @@ const Tasks: FC = () => {
 
   const filteredTasks = (user.tasks ?? []).filter((t) => {
     const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
-    const byAssignee = filterAssignee === "all" || t.assigneeEmail === filterAssignee;
+    const byAssignee = filterAssignee === "all" || t.org === filterAssignee;
     return byStatus && byAssignee;
   });
 
@@ -87,11 +87,11 @@ const Tasks: FC = () => {
   const assigneeOptions = useMemo(() => {
     const emails = new Set<string>();
     emails.add(user.email);
-    user.teams?.forEach((team) => {
+    user.orgs?.forEach((team) => {
       team.users.forEach((u) => emails.add(u.email));
     });
     return Array.from(emails);
-  }, [user.email, user.teams]);
+  }, [user.email, user.orgs]);
 
   const submitTask = () => {
     setError(undefined);
@@ -134,13 +134,13 @@ const Tasks: FC = () => {
       isFixed: form.isFixed,
       priority: form.priority,
       status: form.status ?? "todo",
-      assigneeEmail: selectedAssignee,
+      org: selectedAssignee,
       recurrence: "none",
       dependencies,
     };
 
     const conflicts = (user.tasks ?? []).filter((t) => {
-      if (t.assigneeEmail && selectedAssignee && t.assigneeEmail !== selectedAssignee) return false;
+      if (t.org && selectedAssignee && t.org !== selectedAssignee) return false;
       const s = dayjs(t.startDate);
       const e = dayjs(t.endDate);
       return s.isBefore(endDate) && e.isAfter(startDate);
@@ -177,7 +177,7 @@ const Tasks: FC = () => {
       end: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
       priority: task.priority ?? "medium",
       status: task.status ?? "todo",
-      assigneeEmail: task.assigneeEmail ?? user.email,
+      assigneeEmail: task.org ?? user.email,
       isFixed: !!task.isFixed,
     });
   };
@@ -213,7 +213,7 @@ const Tasks: FC = () => {
             deadline: end.toDate(),
             priority: editForm.priority,
             status: editForm.status,
-            assigneeEmail: editForm.assigneeEmail,
+            org: editForm.assigneeEmail,
             isFixed: editForm.isFixed,
           }
         : t,
