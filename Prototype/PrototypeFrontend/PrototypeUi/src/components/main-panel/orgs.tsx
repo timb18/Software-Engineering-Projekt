@@ -156,7 +156,7 @@ const Orgs: FC = () => {
 
       <div className="grid grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
         <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-          <div className="text-lg font-semibold text-slate-50">Meine Orgs</div>
+          <div className="text-lg font-semibold text-slate-50">Meine Orgs </div>
           {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
               Du bist noch in keinem Org.
