@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="TeapotApi/TeapotApi.csproj" />
+  <Project Path="Api/Api.csproj" />
+  <Project Path="DataAccess/DataAccess.csproj" />
+  <Project Path="Model/Model.csproj" />
+  <Project Path="Services/Services.csproj" />
 </Solution>
