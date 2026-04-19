@@ -3,4 +3,6 @@
     <Project Path="DataAccess/DataAccess.csproj"/>
     <Project Path="DataAccessTests/DataAccessTests.csproj"/>
     <Project Path="Services/Services.csproj"/>
+    <Project Path="Cli/Cli.csproj" />
+    <Project Path="CliTests/CliTests.csproj" />
 </Solution>
