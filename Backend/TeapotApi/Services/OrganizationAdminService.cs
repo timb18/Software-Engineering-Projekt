@@ -51,7 +51,7 @@ public class OrganizationAdminService : IOrganizationAdminService
         {
             Name = request.OrganizationName.Trim(),
             Description = request.OrganizationDescription.Trim(),
-            InvitationQuota = request.InvitationQuota
+            InvitationQuota = request.maxUsers
         };
         
         // Creates org
@@ -83,7 +83,7 @@ public class OrganizationAdminService : IOrganizationAdminService
             throw new ArgumentException("OrganizationName is required.");
         }
 
-        if (request.InvitationQuota < 0)
+        if (request.maxUsers < 0)
         {
             throw new ArgumentException("InvitationQuota must be >= 0.");
         }
