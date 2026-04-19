@@ -2,9 +2,9 @@ using Model;
 
 namespace DataAccess;
 
-public class MembershipRepo : IMembershipRepo
+public class FakeMembershipRepo : IMembershipRepo
 {
-    private readonly List<Membership> _memberships = [];
+    private readonly List<Membership> _fakeMembershipsDb = [];
     private readonly object _sync = new();
 
     public Task<Membership> CreateAsync(Membership membership, CancellationToken cancellationToken = default)
@@ -13,7 +13,7 @@ public class MembershipRepo : IMembershipRepo
 
         lock (_sync)
         {
-            _memberships.Add(membership);
+            _fakeMembershipsDb.Add(membership);
         }
 
         return Task.FromResult(membership);

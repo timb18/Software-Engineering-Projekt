@@ -15,14 +15,14 @@ public record CreateOrganizationRequest
 
     public int InvitationQuota { get; init; }
 
-    public string AdminUserName { get; init; } = string.Empty;
+    public string OrganizerUserName { get; init; } = string.Empty;
 
-    public string AdminEmail { get; init; } = string.Empty;
+    public string OrganizerEmail { get; init; } = string.Empty;
 }
 
 public record CreateOrganizationResult
 {
     public Guid OrganizationId { get; init; }
 
-    public Guid AdminUserId { get; init; }
+    public Guid OrganizerUserId { get; init; }
 }
