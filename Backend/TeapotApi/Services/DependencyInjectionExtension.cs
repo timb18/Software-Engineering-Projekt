@@ -15,7 +15,7 @@ public static class DependencyInjectionExtension
             services.AddSingleton<IOrganizationAdminService, OrganizationAdminService>();
             services.AddSingleton<IUserService, UserService>();
             services.AddSingleton<IUserTaskService, UserTaskService>();
-
+            
             return services;
         }
     }
