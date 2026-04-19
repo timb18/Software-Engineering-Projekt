@@ -34,55 +34,44 @@ public class OrganizationAdminService : IOrganizationAdminService
             throw new InvalidOperationException("Organization name already exists.");
         }
 
-        // Search for existing adminuser with email. Error if already exists
+        // Search for existing Organizer with email. Create if doesn't exist
         User? existingUser = await _userRepo
-            .GetByEmailAsync(request.AdminEmail, cancellationToken);
-        if (existingUser is not null)
+            .GetByEmailAsync(request.OrganizerEmail, cancellationToken);
+        if (existingUser is null)
         {
-            throw new InvalidOperationException("Admin email already exists.");
+            await _userRepo.CreateAsync(new User()
+            {
+                UserName = request.OrganizerUserName,
+                Email = request.OrganizerEmail,
+            });
         }
 
         // Creates new org object with all parameters
         var organization = new Organization
         {
-            Id = Guid.NewGuid(),
             Name = request.OrganizationName.Trim(),
             Description = request.OrganizationDescription.Trim(),
             InvitationQuota = request.InvitationQuota
         };
-
-        // Creates new adminuser object with all parameters + timestamp
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        var adminUser = new User
-        {
-            Id = Guid.NewGuid(),
-            UserName = request.AdminUserName.Trim(),
-            Email = request.AdminEmail.Trim(),
-            CreatedAt = now,
-            UpdatedAt = now
-        };
+        
+        // Creates org
+        await _organizationRepo.CreateAsync(organization, cancellationToken);
 
         // Create new membership object with role of the user in the org
         var membership = new Membership
         {
-            UserId = adminUser.Id,
-            OrganisationId = organization.Id,
+            UserId = (await _userRepo.GetByEmailAsync(request.OrganizerEmail, cancellationToken))!.Id,
+            OrganisationId = (await _organizationRepo.GetByNameAsync(request.OrganizationName, cancellationToken))!.Id,
             Role = Role.ORGANIZER
         };
-
-        // Creates org
-        await _organizationRepo.CreateAsync(organization, cancellationToken);
-
-        // Creates user
-        await _userRepo.CreateAsync(adminUser, cancellationToken);
-
+        
         // Create membership
         await _membershipRepo.CreateAsync(membership, cancellationToken);
 
         return new CreateOrganizationResult
         {
             OrganizationId = organization.Id,
-            AdminUserId = adminUser.Id
+            OrganizerUserId = membership.UserId,
         };
     }
 
@@ -99,19 +88,19 @@ public class OrganizationAdminService : IOrganizationAdminService
             throw new ArgumentException("InvitationQuota must be >= 0.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.AdminUserName))
+        if (string.IsNullOrWhiteSpace(request.OrganizerUserName))
         {
-            throw new ArgumentException("AdminUserName is required.");
+            throw new ArgumentException("OrganizerUserName is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.AdminEmail))
+        if (string.IsNullOrWhiteSpace(request.OrganizerEmail))
         {
-            throw new ArgumentException("AdminEmail is required.");
+            throw new ArgumentException("OrganizerEmail is required.");
         }
 
-        if (!request.AdminEmail.Contains('@'))
+        if (!request.OrganizerEmail.Contains('@'))
         {
-            throw new ArgumentException("AdminEmail is invalid.");
+            throw new ArgumentException("OrganizerEmail is invalid.");
         }
     }
 }
