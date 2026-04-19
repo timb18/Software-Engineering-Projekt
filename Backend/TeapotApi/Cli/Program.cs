@@ -35,8 +35,8 @@ catch (ArgumentException ex)
 if (!TryReadRequiredOption(options, "name", out string organizationName)
     || !TryReadRequiredOption(options, "description", out string organizationDescription)
     || !TryReadRequiredOption(options, "invitation-quota", out string invitationQuotaRaw)
-    || !TryReadRequiredOption(options, "admin-username", out string adminUserName)
-    || !TryReadRequiredOption(options, "admin-email", out string adminEmail)) // If TryReadRequiredOption() fails (checks for all options)
+    || !TryReadRequiredOption(options, "organizer-username", out string organizerUserName)
+    || !TryReadRequiredOption(options, "organizer-email", out string organizerEmail)) // If TryReadRequiredOption() fails (checks for all options)
 {
     PrintUsage();
     return 1;
@@ -58,14 +58,14 @@ try
         OrganizationName = organizationName,
         OrganizationDescription = organizationDescription,
         InvitationQuota = invitationQuota,
-        AdminUserName = adminUserName,
-        AdminEmail = adminEmail
+        OrganizerUserName = organizerUserName,
+        OrganizerEmail = organizerEmail
     });
 
     // Logging
     Console.WriteLine("Organization created successfully."); 
     Console.WriteLine($"OrganizationId: {result.OrganizationId}");
-    Console.WriteLine($"AdminUserId: {result.AdminUserId}");
+    Console.WriteLine($"AdminUserId: {result.OrganizerUserId}");
     return 0;
 }
 catch (Exception ex)
@@ -137,5 +137,5 @@ static bool TryReadRequiredOption(
 static void PrintUsage()
 {
     Console.WriteLine("Usage:");
-    Console.WriteLine("  create-org --name <organizationName> --description <description> --invitation-quota <number> --admin-username <userName> --admin-email <email>");
+    Console.WriteLine("  create-org --name <organizationName> --description <description> --invitation-quota <number> --organizer-username <userName> --organizer-email <email>");
 }

@@ -2,9 +2,9 @@ using Model;
 
 namespace DataAccess;
 
-public class OrganizationRepo : IOrganizationRepo
+public class FakeOrganizationRepo : IOrganizationRepo
 {
-    private readonly List<Organization> _organizations = [];
+    private readonly List<Organization> _fakeOrganizationsDb = [];
     private readonly object _sync = new();
 
     public Task<Organization?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
@@ -13,7 +13,7 @@ public class OrganizationRepo : IOrganizationRepo
 
         lock (_sync)
         {
-            Organization? organization = _organizations.FirstOrDefault(x =>
+            Organization? organization = _fakeOrganizationsDb.FirstOrDefault(x =>
                 string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
             return Task.FromResult(organization);
         }
@@ -25,7 +25,7 @@ public class OrganizationRepo : IOrganizationRepo
 
         lock (_sync)
         {
-            _organizations.Add(organization);
+            _fakeOrganizationsDb.Add(organization);
         }
 
         return Task.FromResult(organization);

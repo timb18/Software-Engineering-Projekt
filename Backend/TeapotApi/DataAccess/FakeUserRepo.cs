@@ -9,9 +9,9 @@ public interface IUserRepo
 	Task<User> CreateAsync(User user, CancellationToken cancellationToken = default);
 }
 
-public class UserRepo : IUserRepo
+public class FakeUserRepo : IUserRepo
 {
-	private readonly List<User> _users = [];
+	private readonly List<User> _fakeUsersDb = [];
 	private readonly object _sync = new();
 
 	public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
@@ -20,7 +20,7 @@ public class UserRepo : IUserRepo
 
 		lock (_sync)
 		{
-			User? user = _users.FirstOrDefault(x =>
+			User? user = _fakeUsersDb.FirstOrDefault(x =>
 				string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase));
 			return Task.FromResult(user);
 		}
@@ -32,7 +32,7 @@ public class UserRepo : IUserRepo
 
 		lock (_sync)
 		{
-			_users.Add(user);
+			_fakeUsersDb.Add(user);
 		}
 
 		return Task.FromResult(user);
