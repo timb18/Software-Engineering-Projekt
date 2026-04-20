@@ -12,12 +12,12 @@ export type WorkBlock = {
   companyName: string;
   startTime: string; // HH:mm
   endTime: string; // HH:mm
-  breaks: WorkBreak[];
 };
 
 export type WorkDayProfile = {
   day: WorkWeekDay;
   blocks: WorkBlock[];
+  breaks: WorkBreak[];
 };
 
 export type WorkProfile = {
@@ -30,6 +30,8 @@ export type User = {
   email: string;
   profileImage?: string;
   timezone?: string;
+  plannerViewStart?: string; // HH:mm
+  plannerViewEnd?: string; // HH:mm
   workProfile?: WorkProfile;
   workCapacityHours?: number;
   workDays?: string[];

@@ -74,7 +74,6 @@ const cloneBlock = (block: WorkBlock): WorkBlock => ({
   companyName: block.companyName,
   startTime: block.startTime,
   endTime: block.endTime,
-  breaks: (block.breaks ?? []).map(cloneBreak),
 });
 
 export const duplicateWorkBlock = (block: WorkBlock): WorkBlock => ({
@@ -83,7 +82,6 @@ export const duplicateWorkBlock = (block: WorkBlock): WorkBlock => ({
   companyName: block.companyName,
   startTime: block.startTime,
   endTime: block.endTime,
-  breaks: (block.breaks ?? []).map(duplicateWorkBreak),
 });
 
 export const duplicateWorkBlocks = (blocks: WorkBlock[]) => blocks.map(duplicateWorkBlock);
@@ -123,18 +121,16 @@ export const createWorkBlock = (
   company?: CompanyOption,
   startTime = "09:00",
   endTime = "17:00",
-  breaks: WorkBreak[] = [],
 ): WorkBlock => ({
   id: createId(),
   companyId: normalizeCompanyId(company?.id ?? "", company?.name ?? ""),
   companyName: company?.name ?? "",
   startTime,
   endTime,
-  breaks: breaks.map(cloneBreak),
 });
 
 export const createEmptyWorkProfile = (): WorkProfile => ({
-  days: WEEK_DAYS.map((day) => ({ day, blocks: [] })),
+  days: WEEK_DAYS.map((day) => ({ day, blocks: [], breaks: [] })),
 });
 
 export const normalizeWorkProfile = (profile?: WorkProfile): WorkProfile => {
@@ -145,17 +141,20 @@ export const normalizeWorkProfile = (profile?: WorkProfile): WorkProfile => {
 
   return {
     days: WEEK_DAYS.map((day) => {
-      const blocks = (storedDays.get(day)?.blocks ?? [])
+      const stored = storedDays.get(day);
+      const blocks = (stored?.blocks ?? [])
         .map(cloneBlock)
-        .sort((left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime))
-        .map((block) => ({
-          ...block,
-          breaks: [...block.breaks].sort(
-            (left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime),
-          ),
-        }));
+        .sort((left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime));
 
-      return { day, blocks };
+      // Collect day-level breaks plus any breaks still nested on legacy blocks
+      const legacyBreaks = (stored?.blocks ?? []).flatMap((block) =>
+        ((block as WorkBlock & { breaks?: WorkBreak[] }).breaks ?? []).map(cloneBreak),
+      );
+      const breaks = [...(stored?.breaks ?? []).map(cloneBreak), ...legacyBreaks].sort(
+        (left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime),
+      );
+
+      return { day, blocks, breaks };
     }),
   };
 };
@@ -210,6 +209,7 @@ export const createWorkProfileFromLegacyUser = (
     days: WEEK_DAYS.map((day) => ({
       day,
       blocks: activeDays.has(day) ? [createWorkBlock(company, startTime, endTime)] : [],
+      breaks: [],
     })),
   };
 };
@@ -221,17 +221,7 @@ const getProductiveMinutesForBlock = (block: WorkBlock) => {
     return 0;
   }
 
-  const breakMinutes = block.breaks.reduce((total, workBreak) => {
-    const breakStart = timeToMinutes(workBreak.startTime);
-    const breakEnd = timeToMinutes(workBreak.endTime);
-    if (Number.isNaN(breakStart) || Number.isNaN(breakEnd) || breakEnd <= breakStart) {
-      return total;
-    }
-
-    return total + Math.max(0, Math.min(breakEnd, end) - Math.max(breakStart, start));
-  }, 0);
-
-  return Math.max(0, end - start - breakMinutes);
+  return end - start;
 };
 
 const roundHours = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
@@ -258,7 +248,6 @@ export const getWorkProfileSummary = (profile: WorkProfile) => {
 
     day.blocks.forEach((block) => {
       totalBlocks += 1;
-      totalBreaks += block.breaks.length;
 
       const start = timeToMinutes(block.startTime);
       const end = timeToMinutes(block.endTime);
@@ -269,6 +258,8 @@ export const getWorkProfileSummary = (profile: WorkProfile) => {
 
       dailyMinutes += getProductiveMinutesForBlock(block);
     });
+
+    totalBreaks += day.breaks.length;
 
     if (day.blocks.length > 0) {
       activeDays.push(day.day);
@@ -308,16 +299,14 @@ export const getLegacyWorkSettings = (profile: WorkProfile) => {
   };
 };
 
-export const createSuggestedBreak = (block: WorkBlock) => {
-  const start = timeToMinutes(block.startTime);
-  const end = timeToMinutes(block.endTime);
-  if (Number.isNaN(start) || Number.isNaN(end) || end - start < 15) {
+export const createSuggestedBreak = (rangeStartMinutes = 12 * 60, rangeEndMinutes = 13 * 60) => {
+  if (rangeEndMinutes - rangeStartMinutes < 15) {
     return createWorkBreak("12:00", "12:15");
   }
 
-  const midpoint = start + Math.floor((end - start) / 2);
-  const breakStart = Math.max(start, Math.min(end - 15, midpoint - 15));
-  const breakEnd = Math.min(end, breakStart + 30);
+  const midpoint = rangeStartMinutes + Math.floor((rangeEndMinutes - rangeStartMinutes) / 2);
+  const breakStart = Math.max(rangeStartMinutes, Math.min(rangeEndMinutes - 15, midpoint - 15));
+  const breakEnd = Math.min(rangeEndMinutes, breakStart + 30);
 
   return createWorkBreak(minutesToTime(breakStart), minutesToTime(Math.max(breakStart + 15, breakEnd)));
 };
@@ -347,28 +336,25 @@ export const validateWorkProfile = (profile: WorkProfile) => {
       }
 
       previousBlockEnd = end;
+    }
 
-      let previousBreakEnd = -1;
-      for (let breakIndex = 0; breakIndex < block.breaks.length; breakIndex += 1) {
-        const workBreak = block.breaks[breakIndex];
-        const breakStart = timeToMinutes(workBreak.startTime);
-        const breakEnd = timeToMinutes(workBreak.endTime);
+    let previousBreakEnd = -1;
+    for (let breakIndex = 0; breakIndex < day.breaks.length; breakIndex += 1) {
+      const workBreak = day.breaks[breakIndex];
+      const breakStart = timeToMinutes(workBreak.startTime);
+      const breakEnd = timeToMinutes(workBreak.endTime);
 
-        if (Number.isNaN(breakStart) || Number.isNaN(breakEnd)) {
-          return `${DAY_LABELS[day.day]} block ${blockIndex + 1} contains an invalid break time.`;
-        }
-        if (breakEnd <= breakStart) {
-          return `${DAY_LABELS[day.day]} block ${blockIndex + 1} has a break that ends before it starts.`;
-        }
-        if (breakStart < start || breakEnd > end) {
-          return `${DAY_LABELS[day.day]} block ${blockIndex + 1} has a break outside the work block.`;
-        }
-        if (previousBreakEnd > breakStart) {
-          return `${DAY_LABELS[day.day]} block ${blockIndex + 1} has overlapping breaks.`;
-        }
-
-        previousBreakEnd = breakEnd;
+      if (Number.isNaN(breakStart) || Number.isNaN(breakEnd)) {
+        return `${DAY_LABELS[day.day]} break ${breakIndex + 1} has an invalid time.`;
       }
+      if (breakEnd <= breakStart) {
+        return `${DAY_LABELS[day.day]} break ${breakIndex + 1} ends before it starts.`;
+      }
+      if (previousBreakEnd > breakStart) {
+        return `${DAY_LABELS[day.day]} has overlapping breaks.`;
+      }
+
+      previousBreakEnd = breakEnd;
     }
   }
 

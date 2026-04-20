@@ -237,6 +237,8 @@ export const defaultUser: User = {
   invites: [],
   displayName: "Default User",
   timezone: "Europe/Berlin",
+  plannerViewStart: "06:00",
+  plannerViewEnd: "22:00",
   workCapacityHours: 8,
   workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
   workStart: "09:00",
