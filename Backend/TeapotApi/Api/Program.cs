@@ -47,8 +47,10 @@ if (app.Environment.IsDevelopment())
         });
 }
 
-app.UseHttpsRedirection();
 app.UseCors();
+// HTTPS redirect is handled by Render's load balancer; only enable locally.
+if (app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 app.MapControllers();
 
 app.Run();
