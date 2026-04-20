@@ -2,22 +2,27 @@
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["TeapotApi/TeapotApi.csproj", "TeapotApi/"]
-RUN dotnet restore "TeapotApi/TeapotApi.csproj"
+
+# Copy csproj files first for layer-cached restore
+COPY ["Api/Api.csproj", "Api/"]
+COPY ["Model/Model.csproj", "Model/"]
+COPY ["Services/Services.csproj", "Services/"]
+COPY ["DataAccess/DataAccess.csproj", "DataAccess/"]
+RUN dotnet restore "Api/Api.csproj"
+
+# Copy the rest and build
 COPY . .
-WORKDIR "/src/TeapotApi"
-RUN dotnet build "./TeapotApi.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "Api/Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./TeapotApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Api/Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "TeapotApi.dll"]
+ENTRYPOINT ["dotnet", "Api.dll"]
