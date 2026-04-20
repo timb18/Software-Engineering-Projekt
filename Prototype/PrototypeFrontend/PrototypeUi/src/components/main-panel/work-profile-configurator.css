@@ -1,0 +1,205 @@
+.work-planner-calendar .fc {
+  --fc-border-color: rgba(71, 85, 105, 0.45);
+  --fc-neutral-bg-color: rgba(15, 23, 42, 0.78);
+  --fc-neutral-text-color: #cbd5e1;
+  --fc-page-bg-color: transparent;
+  --fc-today-bg-color: rgba(56, 189, 248, 0.08);
+  --fc-event-bg-color: rgba(15, 118, 110, 0.28);
+  --fc-event-border-color: rgba(148, 163, 184, 0.42);
+  --fc-event-text-color: #f8fafc;
+}
+
+.work-planner-calendar .fc .fc-scrollgrid,
+.work-planner-calendar .fc .fc-scrollgrid-section > * {
+  border-color: rgba(71, 85, 105, 0.45);
+}
+
+.work-planner-calendar .fc .fc-scrollgrid {
+  overflow: hidden;
+  border-radius: 0.9rem;
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.work-planner-calendar .fc .fc-col-header-cell-cushion {
+  display: block;
+  padding: 0.7rem 0.35rem;
+  color: #e2e8f0;
+  text-decoration: none;
+}
+
+.work-planner-calendar .fc .work-day-header {
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.work-planner-calendar .fc .fc-timegrid-axis-cushion,
+.work-planner-calendar .fc .fc-timegrid-slot-label-cushion {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.work-planner-calendar .fc .fc-timegrid-slot {
+  height: var(--work-planner-slot-height, 18px);
+}
+
+.work-planner-calendar .fc .fc-timegrid-col.fc-day-today {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+.work-planner-calendar .fc .fc-highlight {
+  background: rgba(56, 189, 248, 0.18);
+}
+
+.work-planner-calendar .fc .fc-timegrid-event-harness {
+  margin-inline: 3px;
+}
+
+.work-planner-calendar .fc .fc-timegrid-event,
+.work-planner-calendar .fc .fc-timegrid-more-link {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.work-planner-calendar .fc .work-shift-event {
+  border-color: rgba(148, 163, 184, 0.42);
+  background: rgba(16, 185, 129, 0.22);
+}
+
+/* ── Per-company color palette (overrides generic shift colors) ─── */
+.work-planner-calendar .fc .work-shift-event.work-shift-company-0 {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(16, 185, 129, 0.22);
+}
+.work-planner-calendar .fc .work-shift-event.work-shift-company-0.is-selected-shift {
+  border-color: rgba(52, 211, 153, 0.9);
+  background: rgba(16, 185, 129, 0.38);
+}
+
+.work-planner-calendar .fc .work-shift-event.work-shift-company-1 {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(14, 165, 233, 0.20);
+}
+.work-planner-calendar .fc .work-shift-event.work-shift-company-1.is-selected-shift {
+  border-color: rgba(56, 189, 248, 0.9);
+  background: rgba(14, 165, 233, 0.36);
+}
+
+.work-planner-calendar .fc .work-shift-event.work-shift-company-2 {
+  border-color: rgba(167, 139, 250, 0.45);
+  background: rgba(124, 58, 237, 0.20);
+}
+.work-planner-calendar .fc .work-shift-event.work-shift-company-2.is-selected-shift {
+  border-color: rgba(167, 139, 250, 0.9);
+  background: rgba(124, 58, 237, 0.36);
+}
+
+.work-planner-calendar .fc .work-shift-event.work-shift-company-3 {
+  border-color: rgba(251, 113, 133, 0.45);
+  background: rgba(225, 29, 72, 0.20);
+}
+.work-planner-calendar .fc .work-shift-event.work-shift-company-3.is-selected-shift {
+  border-color: rgba(251, 113, 133, 0.9);
+  background: rgba(225, 29, 72, 0.36);
+}
+
+.work-planner-calendar .fc .work-shift-event.work-shift-company-4 {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(180, 83, 9, 0.20);
+}
+.work-planner-calendar .fc .work-shift-event.work-shift-company-4.is-selected-shift {
+  border-color: rgba(251, 191, 36, 0.9);
+  background: rgba(180, 83, 9, 0.36);
+}
+
+.work-planner-calendar .fc .work-shift-event .fc-event-main {
+  padding: 0.25rem 0.4rem;
+}
+
+.work-planner-calendar .fc .work-break-event {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(217, 119, 6, 0.22);
+}
+
+.work-planner-calendar .fc .work-break-event.is-selected-shift {
+  border-color: rgba(251, 191, 36, 0.92);
+  background: rgba(245, 158, 11, 0.35);
+}
+
+.work-planner-calendar .fc .work-break-event .fc-event-main {
+  padding: 0.25rem 0.4rem;
+}
+
+/* ── Empty-day hint: animated column glow ─────────────────────────── */
+@keyframes work-column-call {
+  0%, 100% {
+    opacity: 0.3;
+    background-position: 50% 0%;
+  }
+  50% {
+    opacity: 0.85;
+    background-position: 50% 100%;
+  }
+}
+
+.work-planner-calendar .fc .work-day-empty-hint {
+  background: linear-gradient(
+    180deg,
+    rgba(52, 211, 153, 0.22) 0%,
+    rgba(52, 211, 153, 0.08) 55%,
+    rgba(52, 211, 153, 0.01) 100%
+  ) !important;
+  animation: work-column-call 2.4s ease-in-out infinite;
+}
+
+.work-planner-calendar .fc .work-shift-content {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3rem;
+  overflow: hidden;
+}
+
+.work-planner-calendar .fc .fc-event-title {
+  display: none;
+}
+
+.work-planner-calendar .fc .work-shift-time {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.work-planner-calendar .fc .work-shift-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.15;
+  opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.work-planner-calendar .fc .fc-timegrid-col-events {
+  margin: 0 2px 0 1px;
+}
+
+.work-planner-calendar .fc .fc-timegrid-event .fc-event-resizer {
+  border-radius: 0;
+}
+
+.work-planner-calendar .fc .fc-event-selected::after {
+  display: none;
+}
+
+.work-planner-calendar .fc .fc-scrollgrid-section-sticky > * {
+  background: rgba(2, 6, 23, 0.88);
+}
