@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import type { Task, Org, User } from "./types";
+import { createWorkProfileFromLegacyUser } from "./work-profile";
 
 const startOfThisWeek = dayjs().startOf("week").add(1, "day");
 
@@ -163,6 +164,22 @@ const userB1: User = {
   breakRules: "10m after 60m, 45m lunch",
   notifications: { emailInvites: true, emailDeadlines: true },
 };
+const userAB1: User = {
+  username: "userAB",
+  displayName: "Alex AB",
+  email: "user@company-ab.de",
+  role: "user",
+  orgs: [],
+  tasks: [],
+  invites: [],
+  timezone: "Europe/Berlin",
+  workCapacityHours: 8,
+  workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  workStart: "09:00",
+  workEnd: "18:00",
+  breakRules: "flex between company a and company b",
+  notifications: { emailInvites: true, emailDeadlines: true },
+};
 
 const adminATasks: Task[] = [
   createTask(
@@ -211,21 +228,29 @@ const userATasks: Task[] = [
 ];
 
 export const getDefaults = () => {
-  companyA.users = [adminA, userA1];
+  companyA.users = [adminA, userA1, userAB1];
   adminA.orgs = [companyA];
   userA1.orgs = [companyA];
+  userAB1.orgs = [companyA, companyB];
 
-  companyB.users = [adminB, userB1];
+  companyB.users = [adminB, userB1, userAB1];
   adminB.orgs = [companyB];
   userB1.orgs = [companyB];
+
+  adminA.workProfile = createWorkProfileFromLegacyUser(adminA);
+  userA1.workProfile = createWorkProfileFromLegacyUser(userA1);
+  adminB.workProfile = createWorkProfileFromLegacyUser(adminB);
+  userB1.workProfile = createWorkProfileFromLegacyUser(userB1);
+  userAB1.workProfile = createWorkProfileFromLegacyUser(userAB1);
 
   adminA.tasks = adminATasks;
   userA1.tasks = userATasks;
   adminB.tasks = [];
   userB1.tasks = [];
+  userAB1.tasks = [];
 
   return {
-    users: [adminA, adminB, userA1, userB1],
+    users: [adminA, adminB, userA1, userB1, userAB1],
     orgs: [companyA, companyB],
   };
 };
@@ -243,10 +268,18 @@ export const defaultUser: User = {
   invites: [],
   displayName: "Default User",
   timezone: "Europe/Berlin",
+  plannerViewStart: "06:00",
+  plannerViewEnd: "22:00",
   workCapacityHours: 8,
   workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
   workStart: "09:00",
   workEnd: "17:00",
   breakRules: "30m lunch",
+  workProfile: createWorkProfileFromLegacyUser({
+    orgs: [],
+    workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    workStart: "09:00",
+    workEnd: "17:00",
+  }),
   notifications: { emailInvites: true, emailDeadlines: true },
 };
