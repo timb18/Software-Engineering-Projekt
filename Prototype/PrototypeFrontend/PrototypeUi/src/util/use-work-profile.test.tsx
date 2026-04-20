@@ -13,7 +13,7 @@ const company2 = { id: "co-2", name: "Globex" };
 const userWithEmptyProfile = (): User => ({
   username: "tester",
   email: "tester@example.com",
-  teams: [{ id: "co-1", name: "Acme", users: [] }],
+  orgs: [{ id: "co-1", name: "Acme", users: [] }],
   tasks: [],
   role: "user",
   workProfile: createEmptyWorkProfile(),

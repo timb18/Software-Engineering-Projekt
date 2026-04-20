@@ -137,8 +137,8 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
   const [copyEntryTargets, setCopyEntryTargets] = useState<WorkWeekDay[]>([]);
 
   const companyOptions = useMemo(
-    () => getCompanyOptions(user.teams ?? [], workForm),
-    [user.teams, workForm],
+    () => getCompanyOptions(user.orgs ?? [], workForm),
+    [user.orgs, workForm],
   );
   const workSummary = useMemo(() => getWorkProfileSummary(workForm), [workForm]);
 

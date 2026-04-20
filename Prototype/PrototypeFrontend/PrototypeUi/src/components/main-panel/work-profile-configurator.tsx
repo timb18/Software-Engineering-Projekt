@@ -404,9 +404,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             <div className="text-sm font-semibold text-slate-100">Shift Planner</div>
             <p className="mt-2 max-w-3xl text-slate-400">
               Drag a range in the calendar and confirm in the pop-up whether it becomes a shift or
-              a break. Move or resize shifts directly in the weekly view. The planner is always a
-              fixed Monday to Sunday week and not tied to real dates. Clicking a shift opens the
-              editor pop-up. Overlaps are blocked immediately.
+              a break. Move or resize shifts directly in the weekly view.
             </p>
           </div>
           <button

@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DataAccess;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
+using Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +27,12 @@ builder.Services.AddEndpointsApiExplorer()
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
+// Work Profile – swap InMemoryWorkProfileRepository for a DB-backed one once the DB layer is ready
+builder.Services.AddSingleton<IWorkProfileRepository, InMemoryWorkProfileRepository>();
+builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(jsonStringEnumConverter); });
 
 var app = builder.Build();
 
@@ -40,6 +47,10 @@ if (app.Environment.IsDevelopment())
         });
 }
 
-app.UseHttpsRedirection();
+app.UseCors();
+// HTTPS redirect is handled by Render's load balancer; only enable locally.
+if (app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
+app.MapControllers();
 
 app.Run();

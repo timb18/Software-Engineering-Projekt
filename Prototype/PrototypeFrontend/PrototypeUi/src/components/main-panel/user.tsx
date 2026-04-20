@@ -3,6 +3,7 @@ import { useBlocker, useNavigate } from "react-router";
 import WorkProfileConfigurator from "./work-profile-configurator";
 import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
+import { saveWorkProfile } from "../../util/work-profile-api";
 
 type Tab = "general" | "work" | "security" | "account";
 
@@ -63,6 +64,14 @@ const User: FC = () => {
 
   const persist = (nextUser = user) => {
     setUser(nextUser);
+
+    // Persist work profile to the backend when it is present.
+    // We use the username as the user identifier until proper auth is in place.
+    if (nextUser.workProfile && nextUser.username) {
+      saveWorkProfile(nextUser.username, nextUser.workProfile).catch((err) => {
+        console.error("Failed to save work profile to backend:", err);
+      });
+    }
   };
 
   const saveProfile = () => {
