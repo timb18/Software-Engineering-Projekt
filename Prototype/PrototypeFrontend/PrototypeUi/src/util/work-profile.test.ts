@@ -22,7 +22,7 @@ const company2 = { id: "co-2", name: "Company 2" };
 const minimalUser = (overrides: Partial<User> = {}): User => ({
   username: "test",
   email: "test@example.com",
-  teams: [],
+  orgs: [],
   tasks: [],
   role: "user",
   ...overrides,

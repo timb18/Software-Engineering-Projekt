@@ -1,5 +1,5 @@
 import type {
-  Team,
+  Org,
   User,
   WorkBlock,
   WorkBreak,
@@ -160,7 +160,7 @@ export const normalizeWorkProfile = (profile?: WorkProfile): WorkProfile => {
 };
 
 export const getCompanyOptions = (
-  teams: Team[] = [],
+  orgs: Org[] = [],
   profile?: WorkProfile,
 ): CompanyOption[] => {
   const options: CompanyOption[] = [];
@@ -178,7 +178,7 @@ export const getCompanyOptions = (
     options.push({ id: normalizedId, name: normalizedName });
   };
 
-  teams.forEach((team) => register(team.id, team.name));
+  orgs.forEach((org) => register(org.id, org.name));
   profile?.days.forEach((day) => {
     day.blocks.forEach((block) => register(block.companyId, block.companyName));
   });
@@ -191,13 +191,13 @@ export const getCompanyOptions = (
 };
 
 export const createWorkProfileFromLegacyUser = (
-  user?: Pick<User, "teams" | "workDays" | "workEnd" | "workProfile" | "workStart">,
+  user?: Pick<User, "orgs" | "workDays" | "workEnd" | "workProfile" | "workStart">,
 ): WorkProfile => {
   if (user?.workProfile) {
     return normalizeWorkProfile(user.workProfile);
   }
 
-  const company = getCompanyOptions(user?.teams ?? [])[0];
+  const company = getCompanyOptions(user?.orgs ?? [])[0];
   const configuredDays = (user?.workDays ?? DEFAULT_LEGACY_DAYS).filter(
     (day): day is WorkWeekDay => WEEK_DAYS.includes(day as WorkWeekDay),
   );
