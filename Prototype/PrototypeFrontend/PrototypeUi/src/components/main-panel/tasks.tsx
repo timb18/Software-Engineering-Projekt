@@ -55,7 +55,7 @@ const Tasks: FC = () => {
 
   const filteredTasks = (user.tasks ?? []).filter((t) => {
     const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
-    const byAssignee = filterAssignee === "all" || t.org === filterAssignee;
+    const byAssignee = filterAssignee === "all" || t.org?.id === filterAssignee;
     return byStatus && byAssignee;
   });
 
@@ -134,13 +134,13 @@ const Tasks: FC = () => {
       isFixed: form.isFixed,
       priority: form.priority,
       status: form.status ?? "todo",
-      org: selectedAssignee,
+      org: user.orgs?.find((o) => o.id === selectedAssignee) ?? user.orgs?.[0] ?? { id: selectedAssignee, name: selectedAssignee, users: [] },
       recurrence: "none",
       dependencies,
     };
 
     const conflicts = (user.tasks ?? []).filter((t) => {
-      if (t.org && selectedAssignee && t.org !== selectedAssignee) return false;
+      if (t.org && selectedAssignee && t.org.id !== selectedAssignee) return false;
       const s = dayjs(t.startDate);
       const e = dayjs(t.endDate);
       return s.isBefore(endDate) && e.isAfter(startDate);
