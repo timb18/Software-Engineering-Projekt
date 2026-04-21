@@ -3,9 +3,9 @@ using PrototypeApi.Planning;
 
 var builder = WebApplication.CreateBuilder(args);
 
-const string CorsPolicyName = "RenderCorsPolicy";
+const string CorsPolicyName = "AppCorsPolicy";
 
-// Render injects allowed origins via environment variable; local development falls back to open CORS.
+// The hosting platform injects allowed origins via environment variable; local development falls back to open CORS.
 var allowedOrigins = builder.Configuration["CORS_ALLOWED_ORIGINS"]
     ?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
@@ -40,10 +40,10 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-var renderPort = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrWhiteSpace(renderPort))
+var platformPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(platformPort))
 {
-    app.Urls.Add($"http://0.0.0.0:{renderPort}");
+    app.Urls.Add($"http://0.0.0.0:{platformPort}");
 }
 
 // Configure the HTTP request pipeline.
