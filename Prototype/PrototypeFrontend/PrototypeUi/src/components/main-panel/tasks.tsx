@@ -177,7 +177,7 @@ const Tasks: FC = () => {
       end: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
       priority: task.priority ?? "medium",
       status: task.status ?? "todo",
-      assigneeEmail: task.org ?? user.email,
+      assigneeEmail: task.org?.id ?? user.email,
       isFixed: !!task.isFixed,
     });
   };
@@ -213,7 +213,7 @@ const Tasks: FC = () => {
             deadline: end.toDate(),
             priority: editForm.priority,
             status: editForm.status,
-            org: editForm.assigneeEmail,
+            org: user.orgs?.find((o) => o.id === editForm.assigneeEmail) ?? editingTask.org,
             isFixed: editForm.isFixed,
           }
         : t,
