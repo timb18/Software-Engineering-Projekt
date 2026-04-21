@@ -41,7 +41,7 @@ const TaskBoard: FC = () => {
     isFixed: false,
   });
   const [filterAssignee, setFilterAssignee] = useState<string | "all">("all");
-  const [listFilter, setListfilter] = useState<Filter>(filterDefault);
+  const [_listFilter, _setListfilter] = useState<Filter>(filterDefault);
   const [listSort, setListSort] = useState<Sort>(sortDefault);
 
   const [error, setError] = useState<string | undefined>();
