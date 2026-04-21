@@ -1,10 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,11 +41,15 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
     .AddScoped<IGenericRepository<TaskDependency>, GenericRepository<TaskDependency>>()
     .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
     .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
-    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>()
+    .AddScoped<IGenericRepository<DataAccess.Models.WorkProfile>, GenericRepository<DataAccess.Models.WorkProfile>>()
     .AddScoped<IGenericRepository<WorkProfileTimeInterval>, GenericRepository<WorkProfileTimeInterval>>();
 
+// Work Profile UI feature
+builder.Services.AddSingleton<IWorkProfileRepository, InMemoryWorkProfileRepository>();
+builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(jsonStringEnumConverter); });
 
 var app = builder.Build();
 
@@ -56,6 +62,10 @@ if (app.Environment.IsDevelopment())
             o.RoutePrefix = string.Empty;
         });
 
-app.UseHttpsRedirection();
+app.UseCors();
+// HTTPS redirect is handled by Render's load balancer; only enable locally.
+if (app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
+app.MapControllers();
 
 app.Run();
