@@ -31,6 +31,12 @@ public partial class TeapotDbContext : DbContext
 
     public virtual DbSet<WorkProfileTimeInterval> WorkProfileTimeIntervals { get; set; }
 
+    public virtual DbSet<WorkDayProfile> WorkDayProfiles { get; set; }
+
+    public virtual DbSet<WorkBlock> WorkBlocks { get; set; }
+
+    public virtual DbSet<WorkBreak> WorkBreaks { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseNpgsql(o => o.MapEnum<EInvitationStatus>("invitation_status")
@@ -237,11 +243,79 @@ public partial class TeapotDbContext : DbContext
             entity.Property(e => e.EditedAt).HasColumnName("edited_at");
             entity.Property(e => e.MaxDailyLoad).HasColumnName("max_daily_load");
             entity.Property(e => e.MembershipId).HasColumnName("membership_id");
+            entity.Property(e => e.PlannerViewStart)
+                .HasMaxLength(5)
+                .HasColumnName("planner_view_start")
+                .HasDefaultValue("06:00");
+            entity.Property(e => e.PlannerViewEnd)
+                .HasMaxLength(5)
+                .HasColumnName("planner_view_end")
+                .HasDefaultValue("22:00");
 
             entity.HasOne(d => d.Membership).WithOne(p => p.WorkProfile)
                 .HasForeignKey<WorkProfile>(d => d.MembershipId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("work_profiles_membership_id_fkey");
+        });
+
+        modelBuilder.Entity<WorkDayProfile>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("work_day_profiles_pkey");
+
+            entity.ToTable("work_day_profiles");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.WorkProfileId).HasColumnName("work_profile_id");
+            entity.Property(e => e.Day)
+                .HasMaxLength(3)
+                .HasColumnName("day");
+
+            entity.HasOne(d => d.WorkProfile).WithMany(p => p.Days)
+                .HasForeignKey(d => d.WorkProfileId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("work_day_profiles_work_profile_id_fkey");
+        });
+
+        modelBuilder.Entity<WorkBlock>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("work_blocks_pkey");
+
+            entity.ToTable("work_blocks");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.WorkDayProfileId).HasColumnName("work_day_profile_id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.CompanyName).HasColumnName("company_name");
+            entity.Property(e => e.StartTime).HasMaxLength(5).HasColumnName("start_time");
+            entity.Property(e => e.EndTime).HasMaxLength(5).HasColumnName("end_time");
+
+            entity.HasOne(d => d.WorkDayProfile).WithMany(p => p.Blocks)
+                .HasForeignKey(d => d.WorkDayProfileId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("work_blocks_work_day_profile_id_fkey");
+        });
+
+        modelBuilder.Entity<WorkBreak>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("work_breaks_pkey");
+
+            entity.ToTable("work_breaks");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.WorkDayProfileId).HasColumnName("work_day_profile_id");
+            entity.Property(e => e.StartTime).HasMaxLength(5).HasColumnName("start_time");
+            entity.Property(e => e.EndTime).HasMaxLength(5).HasColumnName("end_time");
+
+            entity.HasOne(d => d.WorkDayProfile).WithMany(p => p.Breaks)
+                .HasForeignKey(d => d.WorkDayProfileId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("work_breaks_work_day_profile_id_fkey");
         });
 
         modelBuilder.Entity<WorkProfileTimeInterval>(entity =>

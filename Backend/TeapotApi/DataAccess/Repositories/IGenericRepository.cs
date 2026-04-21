@@ -14,6 +14,8 @@ public interface IGenericRepository<T> : IDisposable, IAsyncDisposable where T :
     Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate,
         CancellationToken cancellationToken = default);
 
+    IQueryable<T> GetQueryable();
+
     Task<int> AddAsync(T entity, CancellationToken cancellationToken = default);
     Task<int> UpdateAsync(T entity, CancellationToken cancellationToken = default);
     Task<int> UpdateRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default);

@@ -18,9 +18,9 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
     [HttpGet("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Get(Guid userId)
+    public async Task<IActionResult> Get(Guid userId, CancellationToken cancellationToken)
     {
-        var profile = await workProfileService.GetAsync(userId);
+        var profile = await workProfileService.GetAsync(userId, cancellationToken);
         if (profile is null)
             return NoContent();
 
@@ -31,14 +31,12 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
     [HttpPut("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put(Guid userId, [FromBody] WorkProfile profile)
+    public async Task<IActionResult> Put(Guid userId, [FromBody] WorkProfile profile,
+        CancellationToken cancellationToken)
     {
-        if (profile.Membership.UserId != userId)
-            return BadRequest("UserId in the body must match the route parameter.");
-
         try
         {
-            var saved = await workProfileService.SaveAsync(profile);
+            var saved = await workProfileService.SaveAsync(userId, profile, cancellationToken);
             return Ok(saved);
         }
         catch (ArgumentException ex)

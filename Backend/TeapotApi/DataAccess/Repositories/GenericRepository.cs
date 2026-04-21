@@ -31,6 +31,11 @@ public class GenericRepository<T>(TeapotDbContext context) : IGenericRepository<
         return await _dbSet.FirstOrDefaultAsync(predicate, cancellationToken);
     }
 
+    public IQueryable<T> GetQueryable()
+    {
+        return _dbSet.AsQueryable();
+    }
+
     public async Task<int> AddAsync(T entity, CancellationToken cancellationToken = default)
     {
         await _dbSet.AddAsync(entity, cancellationToken);
@@ -64,13 +69,11 @@ public class GenericRepository<T>(TeapotDbContext context) : IGenericRepository<
     public void Dispose()
     {
         Context.Dispose();
-        Context.Dispose();
         GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
     {
-        await Context.DisposeAsync();
         await Context.DisposeAsync();
         GC.SuppressFinalize(this);
     }

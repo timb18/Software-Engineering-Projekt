@@ -265,9 +265,51 @@ CREATE TABLE public.work_profiles (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     membership_id uuid NOT NULL,
     max_daily_load interval NOT NULL,
+    planner_view_start character varying(5) NOT NULL DEFAULT '06:00',
+    planner_view_end character varying(5) NOT NULL DEFAULT '22:00',
     created_at timestamp with time zone NOT NULL,
     edited_at timestamp with time zone
 );
+
+--
+-- Name: work_day_profiles; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.work_day_profiles (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    work_profile_id uuid NOT NULL,
+    day character varying(3) NOT NULL
+);
+
+ALTER TABLE public.work_day_profiles OWNER TO postgres;
+
+--
+-- Name: work_blocks; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.work_blocks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    work_day_profile_id uuid NOT NULL,
+    company_id character varying NOT NULL DEFAULT '',
+    company_name character varying NOT NULL DEFAULT '',
+    start_time character varying(5) NOT NULL DEFAULT '09:00',
+    end_time character varying(5) NOT NULL DEFAULT '17:00'
+);
+
+ALTER TABLE public.work_blocks OWNER TO postgres;
+
+--
+-- Name: work_breaks; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.work_breaks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    work_day_profile_id uuid NOT NULL,
+    start_time character varying(5) NOT NULL DEFAULT '12:00',
+    end_time character varying(5) NOT NULL DEFAULT '12:30'
+);
+
+ALTER TABLE public.work_breaks OWNER TO postgres;
 
 
 ALTER TABLE public.work_profiles OWNER TO postgres;
@@ -342,6 +384,30 @@ ALTER TABLE ONLY public.work_profiles
 
 ALTER TABLE ONLY public.work_profiles
     ADD CONSTRAINT work_profiles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: work_day_profiles work_day_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.work_day_profiles
+    ADD CONSTRAINT work_day_profiles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: work_blocks work_blocks_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.work_blocks
+    ADD CONSTRAINT work_blocks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: work_breaks work_breaks_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.work_breaks
+    ADD CONSTRAINT work_breaks_pkey PRIMARY KEY (id);
 
 
 --
@@ -432,6 +498,30 @@ ALTER TABLE ONLY public.work_profile_time_intervals
 
 ALTER TABLE ONLY public.work_profiles
     ADD CONSTRAINT work_profiles_membership_id_fkey FOREIGN KEY (membership_id) REFERENCES public.memberships(id) NOT VALID;
+
+
+--
+-- Name: work_day_profiles work_day_profiles_work_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.work_day_profiles
+    ADD CONSTRAINT work_day_profiles_work_profile_id_fkey FOREIGN KEY (work_profile_id) REFERENCES public.work_profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: work_blocks work_blocks_work_day_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.work_blocks
+    ADD CONSTRAINT work_blocks_work_day_profile_id_fkey FOREIGN KEY (work_day_profile_id) REFERENCES public.work_day_profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: work_breaks work_breaks_work_day_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.work_breaks
+    ADD CONSTRAINT work_breaks_work_day_profile_id_fkey FOREIGN KEY (work_day_profile_id) REFERENCES public.work_day_profiles(id) ON DELETE CASCADE;
 
 
 --

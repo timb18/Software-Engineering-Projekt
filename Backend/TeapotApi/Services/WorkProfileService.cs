@@ -1,25 +1,56 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services;
 
-public class WorkProfileService(IGenericRepository<WorkProfile> repository) : IWorkProfileService
+public class WorkProfileService(
+    IGenericRepository<WorkProfile> repository,
+    IGenericRepository<Membership> membershipRepository) : IWorkProfileService
 {
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
     public Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return repository.GetFirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
+        return repository.GetQueryable()
+            .Include(wp => wp.Days)
+                .ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days)
+                .ThenInclude(d => d.Breaks)
+            .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
     }
 
-    public async Task<WorkProfile> SaveAsync(WorkProfile profile, CancellationToken cancellationToken = default)
+    public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, CancellationToken cancellationToken = default)
     {
-        // var normalized = NormalizeProfile(profile);
-        await repository.UpdateAsync(profile, cancellationToken);
-        return profile;
+        var existing = await repository.GetQueryable()
+            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
+
+        var normalized = NormalizeProfile(profile);
+
+        if (existing is null)
+        {
+            var membership = await membershipRepository.GetQueryable()
+                .FirstOrDefaultAsync(m => m.UserId == userId, cancellationToken)
+                ?? throw new ArgumentException("No membership found for this user.");
+
+            normalized.MembershipId = membership.Id;
+            await repository.AddAsync(normalized, cancellationToken);
+        }
+        else
+        {
+            normalized.Id = existing.Id;
+            normalized.MembershipId = existing.MembershipId;
+            normalized.CreatedAt = existing.CreatedAt;
+            normalized.EditedAt = DateTime.UtcNow;
+            await repository.UpdateAsync(normalized, cancellationToken);
+        }
+
+        return normalized;
     }
 
-    /*/// <summary>
+    /// <summary>
     /// Ensures the profile has exactly one entry per weekday in Mon–Sun order,
     /// and that blocks/breaks within each day are sorted by start time.
     /// </summary>
@@ -30,15 +61,14 @@ public class WorkProfileService(IGenericRepository<WorkProfile> repository) : IW
         var normalizedDays = ValidDays.Select(day =>
         {
             if (!lookup.TryGetValue(day, out var existing))
-                return new WorkDayProfile { Day = day };
+                return new WorkDayProfile { WorkProfileId = profile.Id, Day = day };
 
-            return existing with
-            {
-                Blocks = [.. existing.Blocks.OrderBy(b => b.StartTime)],
-                Breaks = [.. existing.Breaks.OrderBy(b => b.StartTime)],
-            };
+            existing.Blocks = [.. existing.Blocks.OrderBy(b => b.StartTime)];
+            existing.Breaks = [.. existing.Breaks.OrderBy(b => b.StartTime)];
+            return existing;
         }).ToList();
 
-        return profile with { Days = normalizedDays };
-    }*/
+        profile.Days = normalizedDays;
+        return profile;
+    }
 }

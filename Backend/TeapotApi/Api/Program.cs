@@ -43,7 +43,7 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
     .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>()
     .AddScoped<IGenericRepository<WorkProfileTimeInterval>, GenericRepository<WorkProfileTimeInterval>>();
 
-// Work Profile UI feature
+// Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
 builder.Services.AddControllers()
