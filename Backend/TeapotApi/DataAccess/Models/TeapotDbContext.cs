@@ -33,13 +33,10 @@ public partial class TeapotDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        const string connectionString =
-            "Host=0.0.0.0;Port=6000;Database=teapot-db;Username=my_user;Password=my_password;";
-        optionsBuilder.UseNpgsql(connectionString,
-            o => o.MapEnum<EInvitationStatus>("invitation_status")
-                .MapEnum<ERole>("role")
-                .MapEnum<ETaskPriority>("task_priority")
-                .MapEnum<ETaskIntensity>("task_intensity"));
+        optionsBuilder.UseNpgsql(o => o.MapEnum<EInvitationStatus>("invitation_status")
+            .MapEnum<ERole>("role")
+            .MapEnum<ETaskPriority>("task_priority")
+            .MapEnum<ETaskIntensity>("task_intensity"));
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

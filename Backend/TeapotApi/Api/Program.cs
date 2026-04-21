@@ -1,6 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DataAccess.Models;
+using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +28,22 @@ builder.Services.AddEndpointsApiExplorer()
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
+// Data Access
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString))
+    .AddScoped<IGenericRepository<Invitation>, GenericRepository<Invitation>>()
+    .AddScoped<IGenericRepository<Membership>, GenericRepository<Membership>>()
+    .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
+    .AddScoped<IGenericRepository<TaskBlock>, GenericRepository<TaskBlock>>()
+    .AddScoped<IGenericRepository<TaskDependency>, GenericRepository<TaskDependency>>()
+    .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
+    .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
+    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>()
+    .AddScoped<IGenericRepository<WorkProfileTimeInterval>, GenericRepository<WorkProfileTimeInterval>>();
+
+
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
