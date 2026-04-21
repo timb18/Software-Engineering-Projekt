@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Services;
+using Api.Dto;
 
 namespace Api
 {
@@ -21,21 +22,18 @@ namespace Api
             return Ok(remaining);
         }
 
-        [HttpPost("create")]
-        public IActionResult Create(Guid organizationId, string email)
+        [HttpPost]
+        public IActionResult Create([FromBody] CreateInvitationRequest request)
         {
-            var createdByUserId = Guid.NewGuid(); // hier später echten User aus Auth holen
+            var createdByUserId = Guid.NewGuid(); // потом из auth
 
-            var invitation = _invitationService.CreateInvitation(organizationId, createdByUserId);
+            var invitation = _invitationService.CreateInvitation(
+                request.OrganizationId,
+                createdByUserId,
+                request.Email
+            );
 
-            // hier später Mail an email senden
-            // z.B. invitation.Id in Link einbauen
-
-            return Ok(new
-            {
-                invitationId = invitation.Id,
-                expiresAt = invitation.ExpiryDate
-            });
+            return Ok(invitation);
         }
 
         [HttpPost("accept/{invitationId}")]

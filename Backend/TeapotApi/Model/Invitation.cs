@@ -7,6 +7,7 @@ public class Invitation
     public Guid OrganizationId { get; set; }
 
     public Guid CreatedBy { get; set; }
+    public string Email { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 

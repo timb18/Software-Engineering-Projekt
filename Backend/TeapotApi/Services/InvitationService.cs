@@ -34,7 +34,7 @@ public class InvitationService
     }
 
     // erstellt eine Einladung
-    public Invitation CreateInvitation(Guid organizationId, Guid createdByUserId)
+    public Invitation CreateInvitation(Guid organizationId, Guid createdByUserId, string email)
     {
         var remaining = GetRemainingInvitations(organizationId);
 
@@ -43,11 +43,22 @@ public class InvitationService
             throw new Exception("Einladungslimit erreicht");
         }
 
+        var alreadyInvited = _context.Invitations.Any(i =>
+            i.OrganizationId == organizationId &&
+            i.Email == email &&
+            i.Status == InvitationStatus.PENDING);
+
+        if (alreadyInvited)
+        {
+            throw new Exception("User wurde bereits eingeladen");
+        }
+
         var invitation = new Invitation
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             CreatedBy = createdByUserId,
+            Email = email, // ✅ ВАЖНО
             CreatedAt = DateTime.UtcNow,
             EditedAt = DateTime.UtcNow,
             Status = InvitationStatus.PENDING,

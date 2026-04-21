@@ -40,10 +40,10 @@ const Orgs: FC = () => {
       nextOrg = orgs.map((t) =>
         t.id === existingOrg.id
           ? {
-              ...t,
-              users: alreadyInOrg ? t.users : [...t.users, user],
-              invites: (t.invites ?? []).filter((i) => i.email !== user.email),
-            }
+            ...t,
+            users: alreadyInOrg ? t.users : [...t.users, user],
+            invites: (t.invites ?? []).filter((i) => i.email !== user.email),
+          }
           : t,
       );
     } else {
@@ -98,21 +98,37 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrgs });
   };
 
-  const sendInvite = (org: Org) => {
+  const sendInvite = async (org: Org) => {
     if (!newInviteEmail.trim()) return;
-    const invite: Invitation = {
-      orgId: org.id,
-      orgName: org.name,
-      email: newInviteEmail.trim(),
-      status: "pending",
-    };
-    const updatedOrg: Org = {
-      ...org,
-      invites: [...(org.invites ?? []), invite],
-    };
-    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    setNewInviteEmail("");
-    persist({ ...user, orgs: nextOrgs });
+
+    try {
+      const res = await fetch("http://localhost:5000/api/invitations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          organizationId: org.id,
+          email: newInviteEmail.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        alert(err);
+        return;
+      }
+
+      const data = await res.json();
+
+      console.log("Invitation created:", data);
+
+      setNewInviteEmail("");
+
+      // OPTIONAL: reload invites from backend
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const withdrawInvite = (org: Org, email: string) => {
@@ -183,11 +199,10 @@ const Orgs: FC = () => {
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={() => setSelectedOrgId(org.id)}
-                    className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-                      currentRole(org) === "Admin"
-                        ? "border-emerald-300/60 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
-                        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700"
-                    }`}
+                    className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${currentRole(org) === "Admin"
+                      ? "border-emerald-300/60 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
+                      : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700"
+                      }`}
                   >
                     {currentRole(org) === "Admin" ? "Verwalten" : "Ansehen"}
                   </button>
@@ -262,11 +277,10 @@ const Orgs: FC = () => {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`rounded-full px-4 py-2 font-semibold transition ${
-                      activeTab === tab
-                        ? "border border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
-                        : "border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-                    }`}
+                    className={`rounded-full px-4 py-2 font-semibold transition ${activeTab === tab
+                      ? "border border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
+                      : "border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
+                      }`}
                   >
                     {tab === "members" && "Aktive Mitglieder"}
                     {tab === "invites" && "Eingeladen"}
