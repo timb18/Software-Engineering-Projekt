@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -41,11 +40,10 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
     .AddScoped<IGenericRepository<TaskDependency>, GenericRepository<TaskDependency>>()
     .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
     .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
-    .AddScoped<IGenericRepository<DataAccess.Models.WorkProfile>, GenericRepository<DataAccess.Models.WorkProfile>>()
+    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>()
     .AddScoped<IGenericRepository<WorkProfileTimeInterval>, GenericRepository<WorkProfileTimeInterval>>();
 
 // Work Profile UI feature
-builder.Services.AddSingleton<IWorkProfileRepository, InMemoryWorkProfileRepository>();
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
 builder.Services.AddControllers()

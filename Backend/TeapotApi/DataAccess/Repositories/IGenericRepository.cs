@@ -11,7 +11,7 @@ public interface IGenericRepository<T> : IDisposable, IAsyncDisposable where T :
 
     Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-    Task<T?> GetByFirstOrDefaultAsync(Expression<Func<T, bool>> predicate,
+    Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate,
         CancellationToken cancellationToken = default);
 
     Task<int> AddAsync(T entity, CancellationToken cancellationToken = default);

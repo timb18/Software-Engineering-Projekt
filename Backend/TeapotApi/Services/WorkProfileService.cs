@@ -1,25 +1,25 @@
-using DataAccess;
-using Model;
+using DataAccess.Models;
+using DataAccess.Repositories;
 
 namespace Services;
 
-public class WorkProfileService(IWorkProfileRepository repository) : IWorkProfileService
+public class WorkProfileService(IGenericRepository<WorkProfile> repository) : IWorkProfileService
 {
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-    public Task<WorkProfile?> GetAsync(string userId) =>
-        repository.GetByUserIdAsync(userId);
-
-    public Task<WorkProfile> SaveAsync(WorkProfile profile)
+    public Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(profile.UserId))
-            throw new ArgumentException("UserId must not be empty.", nameof(profile));
-
-        var normalized = NormalizeProfile(profile);
-        return repository.UpsertAsync(normalized);
+        return repository.GetFirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
     }
 
-    /// <summary>
+    public async Task<WorkProfile> SaveAsync(WorkProfile profile, CancellationToken cancellationToken = default)
+    {
+        // var normalized = NormalizeProfile(profile);
+        await repository.UpdateAsync(profile, cancellationToken);
+        return profile;
+    }
+
+    /*/// <summary>
     /// Ensures the profile has exactly one entry per weekday in Mon–Sun order,
     /// and that blocks/breaks within each day are sorted by start time.
     /// </summary>
@@ -40,5 +40,5 @@ public class WorkProfileService(IWorkProfileRepository repository) : IWorkProfil
         }).ToList();
 
         return profile with { Days = normalizedDays };
-    }
+    }*/
 }

@@ -22,9 +22,8 @@ public class GenericRepositoryTest
         var repos = await _repository.GetManyAsync(u => u.Status == EInvitationStatus.Open);
         Assert.That(repos, Is.Not.Null);
     }
-    
-    [Test]
 
+    [Test]
     [TearDown]
     public void Teardown()
     {

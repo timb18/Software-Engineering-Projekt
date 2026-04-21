@@ -6,25 +6,27 @@ namespace DataAccess.Repositories;
 
 public class GenericRepository<T>(TeapotDbContext context) : IGenericRepository<T>, IAsyncDisposable where T : class
 {
-    protected readonly TeapotDbContext Context = context;
     private readonly DbSet<T> _dbSet = context.Set<T>();
+    protected readonly TeapotDbContext Context = context;
 
     public async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _dbSet.ToListAsync(cancellationToken: cancellationToken);
+        return await _dbSet.ToListAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<T>> GetManyAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<T>> GetManyAsync(Expression<Func<T, bool>> predicate,
+        CancellationToken cancellationToken = default)
     {
         return await _dbSet.Where(predicate).ToListAsync(cancellationToken);
     }
 
     public async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _dbSet.FindAsync([id], cancellationToken: cancellationToken);
+        return await _dbSet.FindAsync([id], cancellationToken);
     }
 
-    public async Task<T?> GetByFirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    public async Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate,
+        CancellationToken cancellationToken = default)
     {
         return await _dbSet.FirstOrDefaultAsync(predicate, cancellationToken);
     }
