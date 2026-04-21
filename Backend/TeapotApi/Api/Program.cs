@@ -37,15 +37,14 @@ builder.Services.AddControllers()
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(o =>
 {
-    app.UseSwagger()
-        .UseSwaggerUI(o =>
-        {
-            o.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
-            o.RoutePrefix = string.Empty;
-        });
-}
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+    o.RoutePrefix = string.Empty;
+});
+
+app.MapGet("/health", () => Results.Ok("healthy"));
 
 app.UseCors();
 // HTTPS redirect is handled by the hosting platform's load balancer; only enable locally.

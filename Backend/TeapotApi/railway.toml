@@ -3,6 +3,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "Api/Dockerfile"
 
 [deploy]
-healthcheckPath = "/swagger"
+healthcheckPath = "/health"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
