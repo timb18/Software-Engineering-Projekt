@@ -39,10 +39,13 @@ public partial class TeapotDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseNpgsql(o => o.MapEnum<EInvitationStatus>("invitation_status")
-            .MapEnum<ERole>("role")
-            .MapEnum<ETaskPriority>("task_priority")
-            .MapEnum<ETaskIntensity>("task_intensity"));
+        if (!optionsBuilder.IsConfigured)
+        {
+            optionsBuilder.UseNpgsql(o => o.MapEnum<EInvitationStatus>("invitation_status")
+                .MapEnum<ERole>("role")
+                .MapEnum<ETaskPriority>("task_priority")
+                .MapEnum<ETaskIntensity>("task_intensity"));
+        }
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

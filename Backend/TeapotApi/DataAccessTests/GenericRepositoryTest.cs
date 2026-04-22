@@ -1,5 +1,6 @@
 ﻿using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace DataAccessTests;
 
@@ -12,7 +13,10 @@ public class GenericRepositoryTest
     [SetUp]
     public void Setup()
     {
-        _dbContext = new TeapotDbContext();
+        var options = new DbContextOptionsBuilder<TeapotDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        _dbContext = new TeapotDbContext(options);
         _repository = new GenericRepository<Invitation>(_dbContext);
     }
 
@@ -23,7 +27,6 @@ public class GenericRepositoryTest
         Assert.That(repos, Is.Not.Null);
     }
 
-    [Test]
     [TearDown]
     public void Teardown()
     {

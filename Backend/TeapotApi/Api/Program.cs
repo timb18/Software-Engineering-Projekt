@@ -31,17 +31,22 @@ builder.Services.AddEndpointsApiExplorer()
 
 // Data Access
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "Required connection string 'ConnectionStrings:DefaultConnection' is not configured. " +
+        "Set it in configuration or provide it via environment variables before starting the application.");
 
-builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString))
+builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString, o => o
+        .MapEnum<EInvitationStatus>("invitation_status")
+        .MapEnum<ERole>("role")
+        .MapEnum<ETaskPriority>("task_priority")
+        .MapEnum<ETaskIntensity>("task_intensity")))
     .AddScoped<IGenericRepository<Invitation>, GenericRepository<Invitation>>()
     .AddScoped<IGenericRepository<Membership>, GenericRepository<Membership>>()
     .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
-    .AddScoped<IGenericRepository<TaskBlock>, GenericRepository<TaskBlock>>()
-    .AddScoped<IGenericRepository<TaskDependency>, GenericRepository<TaskDependency>>()
     .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
     .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
-    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>()
-    .AddScoped<IGenericRepository<WorkProfileTimeInterval>, GenericRepository<WorkProfileTimeInterval>>();
+    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
 
 // Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();

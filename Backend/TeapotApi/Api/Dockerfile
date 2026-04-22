@@ -9,7 +9,6 @@ WORKDIR /src
 
 # Copy csproj files first for layer-cached restore
 COPY ["Api/Api.csproj", "Api/"]
-COPY ["Model/Model.csproj", "Model/"]
 COPY ["Services/Services.csproj", "Services/"]
 COPY ["DataAccess/DataAccess.csproj", "DataAccess/"]
 RUN dotnet restore "Api/Api.csproj"

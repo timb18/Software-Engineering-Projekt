@@ -36,15 +36,23 @@ public class WorkProfileService(
                 ?? throw new ArgumentException("No membership found for this user.");
 
             normalized.MembershipId = membership.Id;
+            normalized.CreatedAt = DateTime.UtcNow;
             await repository.AddAsync(normalized, cancellationToken);
         }
         else
         {
-            normalized.Id = existing.Id;
-            normalized.MembershipId = existing.MembershipId;
-            normalized.CreatedAt = existing.CreatedAt;
-            normalized.EditedAt = DateTime.UtcNow;
-            await repository.UpdateAsync(normalized, cancellationToken);
+            existing.MaxDailyLoad = normalized.MaxDailyLoad;
+            existing.PlannerViewStart = normalized.PlannerViewStart;
+            existing.PlannerViewEnd = normalized.PlannerViewEnd;
+            existing.EditedAt = DateTime.UtcNow;
+            existing.Days.Clear();
+            foreach (var day in normalized.Days)
+            {
+                day.WorkProfileId = existing.Id;
+                existing.Days.Add(day);
+            }
+            await repository.UpdateAsync(existing, cancellationToken);
+            return existing;
         }
 
         return normalized;
@@ -61,7 +69,7 @@ public class WorkProfileService(
         var normalizedDays = ValidDays.Select(day =>
         {
             if (!lookup.TryGetValue(day, out var existing))
-                return new WorkDayProfile { WorkProfileId = profile.Id, Day = day };
+                return new WorkDayProfile { Day = day };
 
             existing.Blocks = [.. existing.Blocks.OrderBy(b => b.StartTime)];
             existing.Breaks = [.. existing.Breaks.OrderBy(b => b.StartTime)];
