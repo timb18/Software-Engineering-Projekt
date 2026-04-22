@@ -9,7 +9,7 @@ type Login = {
 };
 
 const Login: FC = () => {
-  const [showWrongPassord, setShowWrongPassword] = useState(false);
+  const [showWrongPassword, setShowWrongPassword] = useState(false);
   const {
     register,
     formState: { errors },
@@ -34,12 +34,13 @@ const Login: FC = () => {
           className="flex flex-col items-center gap-2"
           onSubmit={handleSubmit(onLogin)}
         >
-          {showWrongPassord && (
-            <div className="text-red-600">incorrect Pasword or Email</div>
+          {showWrongPassword && (
+            <div className="text-red-600">Incorrect password or email</div>
           )}
           <div className="flex flex-col gap-1">
             <label htmlFor="email">Email</label>
             <input
+              id="email"
               className="bg-white px-2"
               placeholder="email"
               type="email"
@@ -54,6 +55,7 @@ const Login: FC = () => {
           <div className="flex flex-col gap-1">
             <label htmlFor="password">Password</label>
             <input
+              id="password"
               className="bg-white px-2"
               placeholder="password"
               type="password"
