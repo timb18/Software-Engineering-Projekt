@@ -10,14 +10,25 @@ public class WorkProfileService(
 {
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-    public Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return repository.GetQueryable()
+        var profile = await repository.GetQueryable()
             .Include(wp => wp.Days)
                 .ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days)
                 .ThenInclude(d => d.Breaks)
             .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
+
+        if (profile is null) return null;
+
+        var existingDays = profile.Days.ToDictionary(d => d.Day);
+        profile.Days = ValidDays.Select(day =>
+            existingDays.TryGetValue(day, out var existing)
+                ? existing
+                : new WorkDayProfile { Day = day, WorkProfileId = profile.Id }
+        ).ToList();
+
+        return profile;
     }
 
     public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, CancellationToken cancellationToken = default)
