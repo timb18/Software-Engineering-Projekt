@@ -2,25 +2,21 @@
 
 namespace Cli;
 using Services;
-public class CommandParser
+public class CommandParser(IServiceProvider provider)
 {
     public async Task<int> ParseCommand(string[] args)
     {
-        var services = new ServiceCollection();
-        services.AddTeapotServices();
-
-        using ServiceProvider provider = services.BuildServiceProvider();
         if (args.Length == 0) // If no arguments exist query
         {
             PrintUsage();
-            throw new Exception("No Arguments provided.");
+            throw new Exception("Missing command line arguments.");
         }
 
-        string command = args[0];
+        var command = args[0];
         if (!string.Equals(command, "create-org",
                 StringComparison.OrdinalIgnoreCase)) // If the command is not equal 'create-org'
         {
-            Console.Error.WriteLine($"Unknown command: {command}");
+            await Console.Error.WriteLineAsync($"Unknown command: {command}");
             PrintUsage();
             throw new Exception($"Unknown command: {command}");
         }
@@ -32,7 +28,7 @@ public class CommandParser
         }
         catch (ArgumentException ex)
         {
-            Console.Error.WriteLine(ex.Message);
+            await Console.Error.WriteLineAsync(ex.Message);
             PrintUsage();
             throw new Exception($"Invalid command line arguments. Check Console for more information.");
         }
@@ -50,7 +46,7 @@ public class CommandParser
 
         if (!int.TryParse(rawMaxMembers, out int maxMembers))
         {
-            Console.Error.WriteLine("--max-members must be an integer.");
+            await Console.Error.WriteLineAsync("--max-members must be an integer.");
             throw new Exception("Argument for max-members must be a whole positive number.");
         }
 
@@ -76,25 +72,31 @@ public class CommandParser
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Failed to create organization: {ex.Message}");
+            await Console.Error.WriteLineAsync($"Failed to create organization: {ex.Message}");
             throw new Exception($"Failed to create organization. Check the console for more information.");
         }
     }
 
-    // Function for parsing the options from the imputcommand
+    // Function for parsing the options from the input command
     private static Dictionary<string, string> ParseOptions(IEnumerable<string> optionArgs)
     {
         var options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         string? pendingKey = null; // Remembers last key
+        string? pendingValue = null; // Accumulates the value for the current option
 
         // Loop over every given argument in the command
         foreach (string token in optionArgs)
         {
             if (token.StartsWith("--", StringComparison.Ordinal)) // If token starts with '--' (option)
             {
-                if (pendingKey is not null) // pendingKey != null -> called option without value
+                if (pendingKey is not null) // If there's a pending key, finalize its value
                 {
-                    throw new ArgumentException($"Missing value for --{pendingKey}");
+                    if (pendingValue == null)
+                    {
+                        throw new ArgumentException($"Missing value for --{pendingKey}");
+                    }
+                    options[pendingKey] = pendingValue;
+                    pendingValue = null;
                 }
 
                 pendingKey = token[2..]; // Deletes first two chars (--)
@@ -102,7 +104,6 @@ public class CommandParser
                 {
                     throw new ArgumentException("Invalid option name.");
                 }
-
                 continue;
             }
 
@@ -111,13 +112,24 @@ public class CommandParser
                 throw new ArgumentException($"Unexpected token: {token}");
             }
 
-            options[pendingKey] = token; // Assigns token to pendingKey from dictionary
-            pendingKey = null; // Resets pendingKey
+            // Accumulate the value (supports multi-word values)
+            if (pendingValue == null)
+            {
+                pendingValue = token;
+            }
+            else
+            {
+                pendingValue += " " + token;
+            }
         }
 
         if (pendingKey is not null)
         {
-            throw new ArgumentException($"Missing value for --{pendingKey}");
+            if (pendingValue == null)
+            {
+                throw new ArgumentException($"Missing value for --{pendingKey}");
+            }
+            options[pendingKey] = pendingValue;
         }
 
         return options;

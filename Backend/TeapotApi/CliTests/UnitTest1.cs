@@ -1,14 +1,37 @@
 ﻿using Cli;
+using DataAccess.Models;
+using DataAccess.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Services;
 
 namespace CliTests;
-
+[Category("Integration")]
 public class CliTests
 {
     private CommandParser _parser;
     [SetUp]
     public void Setup()
     {
-        _parser = new CommandParser();
+        var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.Development.json", true).AddEnvironmentVariables().Build();
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        
+        var services = new ServiceCollection();
+        services.AddTeapotServices();
+        services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString, o => o
+                .MapEnum<EInvitationStatus>("invitation_status")
+                .MapEnum<ERole>("role")
+                .MapEnum<ETaskPriority>("task_priority")
+                .MapEnum<ETaskIntensity>("task_intensity")))
+            .AddScoped<IGenericRepository<Membership>, GenericRepository<Membership>>()
+            .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
+            .AddScoped<IGenericRepository<User>, GenericRepository<User>>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        {
+            
+        }
+        _parser = new CommandParser(provider);
     }
 
     [Test]

@@ -1,19 +1,20 @@
 using DataAccess;
-using Model;
+using DataAccess.Models;
+using DataAccess.Repositories;
 
 namespace Services;
 
 public class OrganizationAdminService : IOrganizationAdminService
 {
-    private readonly IOrganizationRepo _organizationRepo;
-    private readonly IUserRepo _userRepo;
-    private readonly IMembershipRepo _membershipRepo;
+    private readonly IGenericRepository<Organization> _organizationRepo;
+    private readonly IGenericRepository<User> _userRepo;
+    private readonly IGenericRepository<Membership> _membershipRepo;
 
     // Konstruktorinjection
     public OrganizationAdminService(
-        IOrganizationRepo organizationRepo,
-        IUserRepo userRepo,
-        IMembershipRepo membershipRepo)
+        IGenericRepository<Organization> organizationRepo,
+        IGenericRepository<User> userRepo,
+        IGenericRepository<Membership> membershipRepo)
     {
         _organizationRepo = organizationRepo;
         _userRepo = userRepo;
@@ -28,7 +29,7 @@ public class OrganizationAdminService : IOrganizationAdminService
 
         // Search for existing organisation with email. Error if already exists
         Organization? existingOrganization = await _organizationRepo
-            .GetByNameAsync(request.OrganizationName, cancellationToken);
+            .GetFirstOrDefaultAsync(x => x.Name == request.OrganizationName, cancellationToken);
         if (existingOrganization is not null)
         {
             throw new InvalidOperationException("Organization name already exists.");
@@ -36,14 +37,14 @@ public class OrganizationAdminService : IOrganizationAdminService
 
         // Search for existing Organizer with email. Create if doesn't exist
         User? existingUser = await _userRepo
-            .GetByEmailAsync(request.OrganizerEmail, cancellationToken);
+            .GetFirstOrDefaultAsync(x => x.Email == request.OrganizerEmail, cancellationToken);
         if (existingUser is null)
         {
-            await _userRepo.CreateAsync(new User()
+            await _userRepo.AddAsync(new User()
             {
-                UserName = request.OrganizerUserName,
+                Username = request.OrganizerUserName,
                 Email = request.OrganizerEmail,
-            });
+            }, cancellationToken);
         }
 
         // Creates new org object with all parameters
@@ -51,22 +52,22 @@ public class OrganizationAdminService : IOrganizationAdminService
         {
             Name = request.OrganizationName.Trim(),
             Description = request.OrganizationDescription.Trim(),
-            InvitationQuota = request.maxUsers
+            MaxUsers = request.maxUsers
         };
         
         // Creates org
-        await _organizationRepo.CreateAsync(organization, cancellationToken);
+        await _organizationRepo.AddAsync(organization, cancellationToken);
 
         // Create new membership object with role of the user in the org
         var membership = new Membership
         {
-            UserId = (await _userRepo.GetByEmailAsync(request.OrganizerEmail, cancellationToken))!.Id,
-            OrganisationId = (await _organizationRepo.GetByNameAsync(request.OrganizationName, cancellationToken))!.Id,
-            Role = Role.ORGANIZER
+            UserId = (await _userRepo.GetFirstOrDefaultAsync(x => x.Email == request.OrganizerEmail, cancellationToken))!.Id,
+            OrganizationId = (await _organizationRepo.GetFirstOrDefaultAsync(x => x.Name == request.OrganizationName, cancellationToken))!.Id,
+            Role = ERole.Organizer
         };
         
         // Create membership
-        await _membershipRepo.CreateAsync(membership, cancellationToken);
+        await _membershipRepo.AddAsync(membership, cancellationToken);
 
         return new CreateOrganizationResult
         {
