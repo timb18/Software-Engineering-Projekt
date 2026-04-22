@@ -1,5 +1,9 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-USER $APP_UID
+ARG APP_UID=10001
+ARG APP_GID=10001
+RUN groupadd --gid $APP_GID appgroup \
+    && useradd --uid $APP_UID --gid $APP_GID --create-home --shell /usr/sbin/nologin appuser
+USER $APP_UID:$APP_GID
 WORKDIR /app
 EXPOSE 8080
 
