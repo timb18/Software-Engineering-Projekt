@@ -31,6 +31,19 @@ builder.Services.AddEndpointsApiExplorer()
 
 // Data Access
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Railway provides DATABASE_URL as a fallback
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+    }
+}
+
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException(
         "Required connection string 'ConnectionStrings:DefaultConnection' is not configured. " +
