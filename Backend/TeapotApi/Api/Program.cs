@@ -17,8 +17,16 @@ var jsonStringEnumConverter = new JsonStringEnumConverter(
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer()
-    .ConfigureHttpJsonOptions(options => { options.SerializerOptions.Converters.Add(jsonStringEnumConverter); })
-    .Configure<JsonOptions>(options => { options.JsonSerializerOptions.Converters.Add(jsonStringEnumConverter); })
+    .ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.Converters.Add(jsonStringEnumConverter);
+        options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    })
+    .Configure<JsonOptions>(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(jsonStringEnumConverter);
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    })
     .AddSwaggerGen(o =>
     {
         o.SwaggerDoc("v1",
@@ -65,7 +73,11 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
 builder.Services.AddControllers()
-    .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(jsonStringEnumConverter); });
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(jsonStringEnumConverter);
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 
 var app = builder.Build();
 
