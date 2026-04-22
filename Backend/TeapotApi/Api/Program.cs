@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DataAccess;
+using DataAccess.Models;
+using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Services;
 
@@ -21,14 +23,32 @@ builder.Services.AddEndpointsApiExplorer()
     {
         o.SwaggerDoc("v1",
             new OpenApiInfo
-            { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
+                { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
         o.NonNullableReferenceTypesAsRequired();
         o.SupportNonNullableReferenceTypes();
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
-// Work Profile – swap InMemoryWorkProfileRepository for a DB-backed one once the DB layer is ready
-builder.Services.AddSingleton<IWorkProfileRepository, InMemoryWorkProfileRepository>();
+// Data Access
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "Required connection string 'ConnectionStrings:DefaultConnection' is not configured. " +
+        "Set it in configuration or provide it via environment variables before starting the application.");
+
+builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString, o => o
+        .MapEnum<EInvitationStatus>("invitation_status")
+        .MapEnum<ERole>("role")
+        .MapEnum<ETaskPriority>("task_priority")
+        .MapEnum<ETaskIntensity>("task_intensity")))
+    .AddScoped<IGenericRepository<Invitation>, GenericRepository<Invitation>>()
+    .AddScoped<IGenericRepository<Membership>, GenericRepository<Membership>>()
+    .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
+    .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
+    .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
+    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
+
+// Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
 builder.Services.AddControllers()
