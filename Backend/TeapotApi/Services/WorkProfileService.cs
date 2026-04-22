@@ -75,7 +75,9 @@ public class WorkProfileService(
     /// </summary>
     private static WorkProfile NormalizeProfile(WorkProfile profile)
     {
-        var lookup = profile.Days.ToDictionary(d => d.Day);
+        var lookup = profile.Days
+            .GroupBy(d => d.Day)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var normalizedDays = ValidDays.Select(day =>
         {
