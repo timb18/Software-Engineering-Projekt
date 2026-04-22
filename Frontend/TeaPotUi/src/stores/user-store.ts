@@ -12,7 +12,7 @@ const userStore = createStore<UserStore>(() => ({user: defaultUser}));
 const useUserStore = () => {
   const state = useStore(userStore);
 
-  const setUser = (newUser?: User) => {
+  const setUser = (newUser: User = defaultUser) => {
     userStore.setState({ user: newUser });
   };
 

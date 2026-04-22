@@ -80,8 +80,8 @@ const Orgs: FC = () => {
         ? (org.adminEmails ?? []).filter((e) => e !== email)
         : [...(org.adminEmails ?? []), email],
     };
-    const nextOrgss = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    persist({ ...user, orgs: nextOrgss });
+    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+    persist({ ...user, orgs: nextOrgs });
   };
 
   const kickUser = (org: Org, email: string) => {
