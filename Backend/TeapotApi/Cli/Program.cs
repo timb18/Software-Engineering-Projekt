@@ -17,12 +17,9 @@ services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionSt
         .MapEnum<ERole>("role")
         .MapEnum<ETaskPriority>("task_priority")
         .MapEnum<ETaskIntensity>("task_intensity")))
-    .AddScoped<IGenericRepository<Invitation>, GenericRepository<Invitation>>()
     .AddScoped<IGenericRepository<Membership>, GenericRepository<Membership>>()
     .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
-    .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
-    .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
-    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
+    .AddScoped<IGenericRepository<User>, GenericRepository<User>>();
 var provider = services.BuildServiceProvider();
 var context = provider.GetRequiredService<TeapotDbContext>();
 context.Database.EnsureCreated();
