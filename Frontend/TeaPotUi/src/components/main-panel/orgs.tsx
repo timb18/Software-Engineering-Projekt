@@ -12,7 +12,11 @@ const Orgs: FC = () => {
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgs[0]?.id ?? null);
   const [activeTab, setActiveTab] = useState<Tab>("members");
-  const [newInviteEmail, setNewInviteEmail] = useState("");
+  const [inviteForm, setInviteForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
@@ -31,37 +35,81 @@ const Orgs: FC = () => {
   const currentRole = (org: Org): "Admin" | "Member" =>
     org.adminEmails?.includes(user.email) ? "Admin" : "Member";
 
-  const acceptInvite = (invite: Invitation) => {
-    const remainingInvites = invites.filter((i) => i !== invite);
-    const existingOrg = orgs.find((t) => t.id === invite.orgId);
-    let nextOrg = orgs;
-    if (existingOrg) {
-      const alreadyInOrg = existingOrg.users.some((u) => u.email === user.email);
-      nextOrg = orgs.map((t) =>
-        t.id === existingOrg.id
-          ? {
-            ...t,
-            users: alreadyInOrg ? t.users : [...t.users, user],
-            invites: (t.invites ?? []).filter((i) => i.email !== user.email),
-          }
-          : t,
-      );
-    } else {
-      const newOrg: Org = {
-        id: invite.orgId,
-        name: invite.orgName,
-        users: [user],
-        adminEmails: [],
-        invites: [],
-      };
-      nextOrg = [...orgs, newOrg];
+  const acceptInvite = async (invite: Invitation) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/invitations/accept", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId: invite.id,
+          currentUserEmail: user.email,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        alert(err);
+        return;
+      }
+
+      const remainingInvites = invites.filter((i) => i.id !== invite.id);
+      const existingOrg = orgs.find((t) => t.id === invite.orgId);
+      let nextOrg = orgs;
+
+      if (existingOrg) {
+        const alreadyInOrg = existingOrg.users.some((u) => u.email === user.email);
+        nextOrg = orgs.map((t) =>
+          t.id === existingOrg.id
+            ? {
+              ...t,
+              users: alreadyInOrg ? t.users : [...t.users, user],
+              invites: (t.invites ?? []).filter((i) => i.id !== invite.id),
+            }
+            : t,
+        );
+      } else {
+        const newOrg: Org = {
+          id: invite.orgId,
+          name: invite.orgName,
+          users: [user],
+          adminEmails: [],
+          invites: [],
+        };
+        nextOrg = [...orgs, newOrg];
+      }
+
+      persist({ ...user, orgs: nextOrg, invites: remainingInvites });
+    } catch (e) {
+      console.error(e);
     }
-    persist({ ...user, orgs: nextOrg, invites: remainingInvites });
   };
 
-  const declineInvite = (invite: Invitation) => {
-    const remainingInvites = invites.filter((i) => i !== invite);
-    persist({ ...user, invites: remainingInvites });
+  const declineInvite = async (invite: Invitation) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/invitations/decline", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId: invite.id,
+          currentUserEmail: user.email,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        alert(err);
+        return;
+      }
+
+      const remainingInvites = invites.filter((i) => i.id !== invite.id);
+      persist({ ...user, invites: remainingInvites });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const leaveOrg = (orgId: string) => {
@@ -99,7 +147,10 @@ const Orgs: FC = () => {
   };
 
   const sendInvite = async (org: Org) => {
-    if (!newInviteEmail.trim()) return;
+    if (!inviteForm.firstName.trim() || !inviteForm.lastName.trim() || !inviteForm.email.trim()) {
+      alert("Bitte alle Pflichtfelder ausfüllen.");
+      return;
+    }
 
     try {
       const res = await fetch("http://localhost:5000/api/invitations", {
@@ -109,7 +160,10 @@ const Orgs: FC = () => {
         },
         body: JSON.stringify({
           organizationId: org.id,
-          email: newInviteEmail.trim(),
+          createdByEmail: user.email,
+          firstName: inviteForm.firstName.trim(),
+          lastName: inviteForm.lastName.trim(),
+          email: inviteForm.email.trim(),
         }),
       });
 
@@ -121,23 +175,64 @@ const Orgs: FC = () => {
 
       const data = await res.json();
 
-      console.log("Invitation created:", data);
+      const invite: Invitation = {
+        id: data.id,
+        orgId: data.organizationId ?? org.id,
+        orgName: data.orgName ?? org.name,
+        email: data.email,
+        status: data.status,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        organizationId: data.organizationId ?? org.id,
+        expiryDate: data.expiryDate,
+      };
 
-      setNewInviteEmail("");
+      const updatedOrg: Org = {
+        ...org,
+        invites: [...(org.invites ?? []), invite],
+      };
 
-      // OPTIONAL: reload invites from backend
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+
+      setInviteForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+      });
+
+      persist({ ...user, orgs: nextOrgs });
     } catch (e) {
       console.error(e);
     }
   };
 
-  const withdrawInvite = (org: Org, email: string) => {
-    const updatedOrg: Org = {
-      ...org,
-      invites: (org.invites ?? []).filter((i) => i.email !== email),
-    };
-    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    persist({ ...user, orgs: nextOrgs });
+  const withdrawInvite = async (org: Org, inviteId: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/invitations/${inviteId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requesterEmail: user.email,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        alert(err);
+        return;
+      }
+
+      const updatedOrg: Org = {
+        ...org,
+        invites: (org.invites ?? []).filter((i) => i.id !== inviteId),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const renameOrg = (org: Org) => {
@@ -219,15 +314,15 @@ const Orgs: FC = () => {
 
           <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
             <div className="text-sm font-semibold text-slate-100">Pending invitations</div>
-            {invites.filter((i) => i.status === "pending").length === 0 && (
+            {invites.filter((i) => i.status === "open").length === 0 && (
               <div className="mt-2 text-sm text-slate-500">No pending invitations.</div>
             )}
             <div className="mt-3 flex flex-col gap-3">
               {invites
-                .filter((i) => i.status === "pending")
+                .filter((i) => i.status === "open")
                 .map((invite) => (
                   <div
-                    key={`${invite.orgId}-${invite.email}`}
+                    key={invite.id ?? `${invite.orgId}-${invite.email}`}
                     className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200"
                   >
                     <div>
@@ -337,16 +432,20 @@ const Orgs: FC = () => {
                   )}
                   {(selectedOrg.invites ?? []).map((inv) => (
                     <div
-                      key={`${inv.email}-${inv.orgId}`}
+                      key={inv.id ?? `${inv.email}-${inv.orgId}`}
                       className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200"
                     >
                       <div>
-                        <div className="font-semibold text-slate-50">{inv.email}</div>
-                        <div className="text-xs text-slate-400">Status: {inv.status}</div>
+                        <div className="font-semibold text-slate-50">
+                          {inv.firstName || inv.lastName
+                            ? `${inv.firstName ?? ""} ${inv.lastName ?? ""}`.trim()
+                            : inv.email}
+                        </div>
+                        <div className="text-xs text-slate-400">{inv.email}</div>
                       </div>
-                      {isSelectedAdmin && inv.status === "pending" && (
+                      {isSelectedAdmin && inv.status === "open" && (
                         <button
-                          onClick={() => withdrawInvite(selectedOrg, inv.email)}
+                          onClick={() => withdrawInvite(selectedOrg, inv.id)}
                           className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                         >
                           Zurückziehen
@@ -359,22 +458,40 @@ const Orgs: FC = () => {
 
               {activeTab === "invite" && (
                 <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                  <div className="text-sm font-semibold text-slate-100">Nutzer per E-Mail einladen</div>
-                  <div className="flex gap-2 max-sm:flex-col">
+                  <div className="text-sm font-semibold text-slate-100">Nutzer einladen</div>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                     <input
-                      value={newInviteEmail}
-                      onChange={(e) => setNewInviteEmail(e.target.value)}
-                      placeholder="email@example.com"
-                      className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                      value={inviteForm.firstName}
+                      onChange={(e) =>
+                        setInviteForm((current) => ({ ...current, firstName: e.target.value }))
+                      }
+                      placeholder="Vorname"
+                      className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                     />
-                    <button
-                      onClick={() => sendInvite(selectedOrg)}
-                      disabled={!isSelectedAdmin}
-                      className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
-                    >
-                      Senden
-                    </button>
+                    <input
+                      value={inviteForm.lastName}
+                      onChange={(e) =>
+                        setInviteForm((current) => ({ ...current, lastName: e.target.value }))
+                      }
+                      placeholder="Nachname"
+                      className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                    />
+                    <input
+                      value={inviteForm.email}
+                      onChange={(e) =>
+                        setInviteForm((current) => ({ ...current, email: e.target.value }))
+                      }
+                      placeholder="E-Mail-Adresse"
+                      className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                    />
                   </div>
+                  <button
+                    onClick={() => sendInvite(selectedOrg)}
+                    disabled={!isSelectedAdmin}
+                    className="self-start rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
+                  >
+                    Einladung senden
+                  </button>
                   {!isSelectedAdmin && (
                     <div className="text-xs text-slate-500">Nur Admins dürfen einladen.</div>
                   )}

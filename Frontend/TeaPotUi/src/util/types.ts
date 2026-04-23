@@ -46,11 +46,18 @@ export type Priority = "low" | "medium" | "high";
 
 export type Role = "admin" | "user";
 
+export type InvitationStatus = "open" | "closed" | "accepted" | "expired";
+
 export type Invitation = {
+  id: string;
+  organizationId: string;
   orgId: string;
   orgName: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  status: "pending" | "accepted" | "declined";
+  status: InvitationStatus;
+  expiryDate?: string;
 };
 
 export type Notifications = {

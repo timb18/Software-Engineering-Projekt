@@ -7,15 +7,22 @@ public class Invitation
     public Guid OrganizationId { get; set; }
 
     public Guid CreatedBy { get; set; }
+
     public string Email { get; set; } = null!;
+
+    public string FirstName { get; set; } = null!;
+
+    public string LastName { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 
-    public DateTime EditedAt { get; set; }
+    public DateTime? EditedAt { get; set; }
 
-    public InvitationStatus Status { get; set; }
+    public DateTime? ExpiryDate { get; set; }
 
-    public DateTime ExpiryDate { get; set; }
+    public EInvitationStatus Status { get; set; }
 
-    public Organization Organization { get; set; }
+    public virtual User CreatedByNavigation { get; set; } = null!;
+
+    public virtual Organization Organization { get; set; } = null!;
 }

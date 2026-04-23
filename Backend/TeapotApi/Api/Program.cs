@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
+using Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +26,9 @@ builder.Services.AddEndpointsApiExplorer()
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
-
+builder.Services.AddControllers();
+builder.Services.AddScoped<InvitationService>();
+builder.Services.AddScoped<OrganizationQueryService>();
 
 var app = builder.Build();
 
@@ -40,6 +43,8 @@ if (app.Environment.IsDevelopment())
         });
 }
 
+app.UseCors();
 app.UseHttpsRedirection();
+app.MapControllers();
 
 app.Run();

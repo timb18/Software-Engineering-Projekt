@@ -1,46 +1,59 @@
+using Api.Dto;
 using Microsoft.AspNetCore.Mvc;
 using Services;
-using Api.Dto;
 
-namespace Api
+namespace Api.Controller;
+
+[Route("api/[controller]")]
+[ApiController]
+public class InvitationController : ControllerBase
 {
-    [ApiController]
-    [Route("api/invitations")]
-    public class InvitationController : ControllerBase
+    private readonly InvitationService _invitationService;
+
+    public InvitationController(InvitationService invitationService)
     {
-        private readonly InvitationService _invitationService;
+        _invitationService = invitationService;
+    }
 
-        public InvitationController(InvitationService invitationService)
-        {
-            _invitationService = invitationService;
-        }
+    [HttpGet("remaining/{organizationId:guid}")]
+    public async Task<IActionResult> GetRemaining(Guid organizationId)
+    {
+        var remaining = await _invitationService.GetRemainingInvitationsAsync(organizationId);
+        return Ok(remaining);
+    }
 
-        [HttpGet("remaining/{organizationId}")]
-        public IActionResult GetRemaining(Guid organizationId)
-        {
-            var remaining = _invitationService.GetRemainingInvitations(organizationId);
-            return Ok(remaining);
-        }
+    [HttpGet("pending")]
+    public async Task<IActionResult> GetPending([FromQuery] string email)
+    {
+        var invitations = await _invitationService.GetPendingInvitationsForEmailAsync(email);
+        return Ok(invitations);
+    }
 
-        [HttpPost]
-        public IActionResult Create([FromBody] CreateInvitationRequest request)
-        {
-            var createdByUserId = Guid.NewGuid(); // потом из auth
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateInvitationRequest request)
+    {
+        var invitation = await _invitationService.CreateInvitationAsync(request);
+        return Ok(invitation);
+    }
 
-            var invitation = _invitationService.CreateInvitation(
-                request.OrganizationId,
-                createdByUserId,
-                request.Email
-            );
+    [HttpPost("accept")]
+    public async Task<IActionResult> Accept([FromBody] AcceptInvitationRequest request)
+    {
+        await _invitationService.AcceptInvitationAsync(request.InvitationId, request.CurrentUserEmail);
+        return Ok();
+    }
 
-            return Ok(invitation);
-        }
+    [HttpPost("decline")]
+    public async Task<IActionResult> Decline([FromBody] DeclineInvitationRequest request)
+    {
+        await _invitationService.DeclineInvitationAsync(request.InvitationId, request.CurrentUserEmail);
+        return Ok();
+    }
 
-        [HttpPost("accept/{invitationId}")]
-        public IActionResult Accept(Guid invitationId, Guid userId)
-        {
-            _invitationService.AcceptInvitation(invitationId, userId);
-            return Ok();
-        }
+    [HttpDelete("{invitationId:guid}")]
+    public async Task<IActionResult> Withdraw(Guid invitationId, [FromBody] WithdrawInvitationRequest request)
+    {
+        await _invitationService.WithdrawInvitationAsync(invitationId, request.RequesterEmail);
+        return Ok();
     }
 }
