@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState, type FC } from "react";
 import { useNavigate } from "react-router";
 import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
+import { useAuth0 } from "@auth0/auth0-react";
 
 type Tab = "general" | "work" | "security" | "account";
 
 const User: FC = () => {
   const { logout } = useLoginStore();
   const { user, setUser } = useUserStore();
+  const { logout: authLogout } = useAuth0();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>("general");
@@ -35,16 +37,6 @@ const User: FC = () => {
     emailInvites: user?.notifications?.emailInvites ?? true,
     emailDeadlines: user?.notifications?.emailDeadlines ?? true,
   });
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [navigate, user]);
-
-  if (!user) {
-    return <></>;
-  }
 
   useEffect(() => {
     if (user) {
@@ -141,6 +133,7 @@ const User: FC = () => {
   const logOut = () => {
     logout();
     navigate("/login");
+    authLogout();
   };
 
   const logoutAll = () => {
@@ -456,11 +449,11 @@ const User: FC = () => {
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
-              <div className="text-sm font-semibold text-slate-100">
-                Hint
-              </div>
+              <div className="text-sm font-semibold text-slate-100">Hint</div>
               <p className="mt-2 text-slate-300">
-                These values are used by the planner to generate deadlines, focus blocks and meeting times to fit your timezone and capacity.
+                These values are used by the planner to generate deadlines,
+                focus blocks and meeting times to fit your timezone and
+                capacity.
               </p>
             </div>
           </div>
