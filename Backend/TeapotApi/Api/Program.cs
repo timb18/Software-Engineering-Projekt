@@ -69,6 +69,10 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
     .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
     .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
 
+builder.Services.Configure<Auth0Options>(builder.Configuration.GetSection(Auth0Options.SectionName));
+builder.Services.AddHttpClient<Auth0TokenService>();
+builder.Services.AddHttpClient<Auth0InvitationService>();
+
 // Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 

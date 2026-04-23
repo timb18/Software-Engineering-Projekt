@@ -17,15 +17,26 @@ public class InvitationController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> InviteAsync([FromBody] InviteRequest request)
     {
-        await _invitationService.InviteUserAsync(
+        var result = await _invitationService.InviteUserAsync(
             request.Email,
             request.OrganizationId);
-        return Ok();
+
+        return Ok(new InviteResponse
+        {
+            InvitationId = result.InvitationId,
+            InvitationUrl = result.InvitationUrl
+        });
     }
 }
 
 public class InviteRequest
 {
-    public string OrganizationId { get; set; }
-    public string Email { get; set; }
+    public string OrganizationId { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+}
+
+public class InviteResponse
+{
+    public string? InvitationId { get; set; }
+    public string? InvitationUrl { get; set; }
 }

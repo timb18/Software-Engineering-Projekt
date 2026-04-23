@@ -1,7 +1,7 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Runtime.InteropServices.JavaScript;
-using Microsoft.Extensions.Configuration;
+using System.Text.Json;
+using Microsoft.Extensions.Options;
 
 namespace Services;
 
@@ -9,15 +9,32 @@ public class Auth0InvitationService
 {
     private readonly HttpClient _httpClient;
     private readonly Auth0TokenService _tokenService;
+    private readonly Auth0Options _options;
 
-    public Auth0InvitationService(HttpClient httpClient, Auth0TokenService tokenService)
+    public Auth0InvitationService(
+        HttpClient httpClient,
+        Auth0TokenService tokenService,
+        IOptions<Auth0Options> options)
     {
         _httpClient = httpClient;
         _tokenService = tokenService;
+        _options = options.Value;
     }
 
-    public async Task InviteUserAsync(string email, string organizationId, Guid createdBy)
+    public async Task<Auth0InvitationResult> InviteUserAsync(string email, string organizationId)
     {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(organizationId))
+        {
+            throw new ArgumentException("Email and organization ID are required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_options.Domain) ||
+            string.IsNullOrWhiteSpace(_options.ClientId) ||
+            string.IsNullOrWhiteSpace(_options.ConnectionId))
+        {
+            throw new InvalidOperationException("Auth0 invitation configuration is incomplete. Fill the Auth0 section in configuration.");
+        }
+
         var token = await _tokenService.GetTokenAsync();
 
         _httpClient.DefaultRequestHeaders.Authorization =
@@ -27,19 +44,20 @@ public class Auth0InvitationService
         {
             inviter = new
             {
-                name = ""
+                name = "Teapot Admin"
             },
             invitee = new
             {
                 email = email
             },
-            client_id = "YOUR_CLIENT_ID", //Client-ID of the Auth0 application
-            connection_id = "YOUR_CONNECTION_ID", //Connection-ID of the database connection (e.g., "Username-Password-Authentication")
-            ttl_sec = 86400
+            client_id = _options.ClientId,
+            connection_id = _options.ConnectionId,
+            ttl_sec = 86400,
+            send_invitation_email = false
         };
 
         var response = await _httpClient.PostAsJsonAsync(
-            $"https://dev-v87zvco20c7uficw.eu.auth0.com/api/v2/organizations/{organizationId}/invitations",
+            $"https://{_options.Domain}/api/v2/organizations/{organizationId}/invitations",
             requestBody);
 
         if (!response.IsSuccessStatusCode)
@@ -48,17 +66,17 @@ public class Auth0InvitationService
             throw new Exception($"Invite failed: {error}");
         }
 
-        var invitation = new Invitation
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+        if (payload.ValueKind != JsonValueKind.Object)
         {
-            Id = Guid.NewGuid(),
-            OrganizationId = Guid.Parse(organizationId),
-            CreatedBy = createdBy,
-            CreatedAt = DateTime.UtcNow,
-            Status = EInvitationStatus.Open,
-            Email = email
-        };
+            return new Auth0InvitationResult(null, null);
+        }
 
-        _dbContext.Invitations.Add(invitation);
-        await _dbContext.SaveChangesAsync();
+        var invitationId = payload.TryGetProperty("id", out var idValue) ? idValue.GetString() : null;
+        var invitationUrl = payload.TryGetProperty("invitation_url", out var urlValue) ? urlValue.GetString() : null;
+
+        return new Auth0InvitationResult(invitationId, invitationUrl);
     }
 }
+
+public record Auth0InvitationResult(string? InvitationId, string? InvitationUrl);

@@ -13,6 +13,9 @@ const Orgs: FC = () => {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgs[0]?.id ?? null);
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
@@ -98,21 +101,65 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrgs });
   };
 
-  const sendInvite = (org: Org) => {
+  const sendInvite = async (org: Org) => {
     if (!newInviteEmail.trim()) return;
-    const invite: Invitation = {
-      orgId: org.id,
-      orgName: org.name,
-      email: newInviteEmail.trim(),
-      status: "pending",
-    };
-    const updatedOrg: Org = {
-      ...org,
-      invites: [...(org.invites ?? []), invite],
-    };
-    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    setNewInviteEmail("");
-    persist({ ...user, orgs: nextOrgs });
+
+    const email = newInviteEmail.trim();
+    const auth0OrganizationId = org.auth0OrganizationId ?? org.id;
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
+    setInviteError(null);
+    setInviteSuccess(null);
+    setIsSendingInvite(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/Invitation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          organizationId: auth0OrganizationId,
+          email,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Invitation could not be created.");
+      }
+
+      const result = (await response.json()) as { invitationUrl?: string };
+      const invite: Invitation = {
+        orgId: org.id,
+        orgName: org.name,
+        email,
+        status: "pending",
+        invitationUrl: result.invitationUrl,
+      };
+
+      const updatedOrg: Org = {
+        ...org,
+        invites: [...(org.invites ?? []), invite],
+      };
+
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+      setNewInviteEmail("");
+      setInviteSuccess(
+        result.invitationUrl
+          ? "Einladungslink wurde erstellt und unten gespeichert."
+          : "Einladung wurde in Auth0 erstellt.",
+      );
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setInviteError("Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.");
+      } else {
+        setInviteError(error instanceof Error ? error.message : "Invitation could not be created.");
+      }
+    } finally {
+      setIsSendingInvite(false);
+    }
   };
 
   const withdrawInvite = (org: Org, email: string) => {
@@ -329,6 +376,16 @@ const Orgs: FC = () => {
                       <div>
                         <div className="font-semibold text-slate-50">{inv.email}</div>
                         <div className="text-xs text-slate-400">Status: {inv.status}</div>
+                        {inv.invitationUrl && (
+                          <a
+                            href={inv.invitationUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 block text-xs text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
+                          >
+                            Invitation-Link öffnen
+                          </a>
+                        )}
                       </div>
                       {isSelectedAdmin && inv.status === "pending" && (
                         <button
@@ -355,12 +412,14 @@ const Orgs: FC = () => {
                     />
                     <button
                       onClick={() => sendInvite(selectedOrg)}
-                      disabled={!isSelectedAdmin}
+                      disabled={!isSelectedAdmin || isSendingInvite}
                       className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                     >
-                      Senden
+                      {isSendingInvite ? "Sende..." : "Senden"}
                     </button>
                   </div>
+                  {inviteSuccess && <div className="text-xs text-emerald-300">{inviteSuccess}</div>}
+                  {inviteError && <div className="text-xs text-rose-300">{inviteError}</div>}
                   {!isSelectedAdmin && (
                     <div className="text-xs text-slate-500">Nur Admins dürfen einladen.</div>
                   )}

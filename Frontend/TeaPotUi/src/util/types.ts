@@ -19,6 +19,7 @@ export type User = {
 export type Org = {
   id: string;
   name: string;
+  auth0OrganizationId?: string;
   users: User[];
   adminEmails?: string[];
   invites?: Invitation[];
@@ -51,6 +52,7 @@ export type Invitation = {
   orgName: string;
   email: string;
   status: "pending" | "accepted" | "declined";
+  invitationUrl?: string;
 };
 
 export type Notifications = {
