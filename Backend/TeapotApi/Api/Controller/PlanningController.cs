@@ -44,4 +44,26 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
             return BadRequest(ex.Message);
         }
     }
+
+    /// <summary>Deletes the work profile and dependent planning data for a user.</summary>
+    [HttpDelete("")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Delete(Guid userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await workProfileService.DeleteAsync(userId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }
