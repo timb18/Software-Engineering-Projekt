@@ -1,10 +1,14 @@
 import { useMemo, type FC } from "react";
 import { useNavigate } from "react-router";
 import useUserStore from "../stores/user-store";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const Sidebar: FC = () => {
   const { user } = useUserStore();
+  const { getIdTokenClaims } = useAuth0();
   const navigate = useNavigate();
+
+  getIdTokenClaims();
 
   const goToProfile = () => {
     navigate("/user");
@@ -32,7 +36,10 @@ const Sidebar: FC = () => {
 
   const avatarStyle = useMemo(() => {
     if (user.profileImage?.startsWith("http")) {
-      return { backgroundImage: `url(${user.profileImage})`, backgroundSize: "cover" };
+      return {
+        backgroundImage: `url(${user.profileImage})`,
+        backgroundSize: "cover",
+      };
     }
     const gradients: Record<string, string> = {
       "gradient-1": "linear-gradient(135deg, #34d399, #2563eb)",
@@ -43,7 +50,7 @@ const Sidebar: FC = () => {
   }, [user.profileImage]);
 
   return (
-    <aside className="flex h-full flex-col gap-6 border-r rounded-l-4xl border-slate-800 bg-slate-900/70 p-6">
+    <aside className="flex h-full flex-col gap-6 rounded-l-4xl border-r border-slate-800 bg-slate-900/70 p-6">
       <button
         onClick={goToProfile}
         className="w-full cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-left shadow-sm transition hover:border-emerald-300/50 hover:bg-emerald-400/5"
@@ -54,8 +61,12 @@ const Sidebar: FC = () => {
             style={avatarStyle}
           ></div>
           <div className="flex flex-col">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Signed in</div>
-            <div className="text-lg font-bold text-emerald-100 leading-tight">{user.username}</div>
+            <div className="text-xs tracking-[0.16em] text-slate-400 uppercase">
+              Signed in
+            </div>
+            <div className="text-lg leading-tight font-bold text-emerald-100">
+              {user.username}
+            </div>
             <div className="text-[11px] text-slate-500">{user.email}</div>
           </div>
         </div>
