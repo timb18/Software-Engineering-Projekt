@@ -4,3 +4,16 @@ GET {{TeapotApi_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+POST {{TeapotApi_HostAddress}}/api/organizations
+Content-Type: application/json
+
+{
+	"organizationName": "Teapot",
+	"organizationDescription": "Example organization",
+	"maxUsers": 25,
+	"organizerUserName": "admin",
+	"organizerEmail": "admin@example.com"
+}
+
+###
