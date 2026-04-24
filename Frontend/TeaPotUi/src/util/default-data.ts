@@ -34,7 +34,7 @@ const createTask = (
     isFixed,
     priority,
     status,
-    org: companyA,
+    org: companyA.id,
     recurrence: "none",
     dependencies: [],
   };
@@ -69,7 +69,7 @@ const defaultTasks: Task[] = [
     dependencies: [],
     startDate: new Date("2026-04-13T09:00:00Z"),
     endDate: new Date("2026-04-13T11:30:00Z"),
-    org: companyA,
+    org: companyA.id,
   },
   {
     name: "Backend Sync",
@@ -77,7 +77,7 @@ const defaultTasks: Task[] = [
     dependencies: [],
     startDate: new Date("2026-04-14T14:00:00Z"),
     endDate: new Date("2026-04-14T15:00:00Z"),
-    org: companyA,
+    org: companyA.id,
     deadline: new Date("2026-04-14T15:00:00Z")
   },
   {
@@ -86,7 +86,7 @@ const defaultTasks: Task[] = [
     dependencies: [],
     startDate: new Date("2026-04-16T10:30:00Z"),
     endDate: new Date("2026-04-16T12:00:00Z"),
-    org: companyA,
+    org: companyA.id,
     deadline: new Date("2026-04-16T12:00:00Z")
   },
 ];

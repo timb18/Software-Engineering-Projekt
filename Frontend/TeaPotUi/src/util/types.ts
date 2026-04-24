@@ -66,7 +66,7 @@ export type Task = {
   isFixed?: boolean;
   priority?: Priority;
   status?: "todo" | "in-progress" | "done";
-  org: Org;
+  org: string;
   recurrence?: "none" | "daily" | "weekly";
   deadline?: Date;
   dependencies: Task[];
