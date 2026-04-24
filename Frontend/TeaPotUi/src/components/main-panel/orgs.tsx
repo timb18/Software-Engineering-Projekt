@@ -13,6 +13,8 @@ const Orgs: FC = () => {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgs[0]?.id ?? null);
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
@@ -64,11 +66,42 @@ const Orgs: FC = () => {
     persist({ ...user, invites: remainingInvites });
   };
 
-  const leaveOrg = (orgId: string) => {
-    const nextOrgs = orgs.filter((t) => t.id !== orgId);
-    persist({ ...user, orgs: nextOrgs });
-    if (selectedOrgId === orgId) {
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+  const leaveOrg = async (orgId: string) => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
+    setLeaveError(null);
+    setIsLeavingOrgId(orgId);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/Membership/leave`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          organizationId: orgId,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Organisation konnte nicht verlassen werden.");
+      }
+
+      const nextOrgs = orgs.filter((t) => t.id !== orgId);
+      persist({ ...user, orgs: nextOrgs });
+      if (selectedOrgId === orgId) {
+        setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      }
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setLeaveError("Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.");
+      } else {
+        setLeaveError(error instanceof Error ? error.message : "Organisation konnte nicht verlassen werden.");
+      }
+    } finally {
+      setIsLeavingOrgId(null);
     }
   };
 
@@ -153,6 +186,11 @@ const Orgs: FC = () => {
           <span className="text-sm text-slate-400">Manage memberships, invites, and settings.</span>
         </div>
       </div>
+      {leaveError && (
+        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+          {leaveError}
+        </div>
+      )}
 
       <div className="grid grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
         <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
@@ -193,9 +231,10 @@ const Orgs: FC = () => {
                   </button>
                   <button
                     onClick={() => leaveOrg(org.id)}
+                    disabled={isLeavingOrgId === org.id}
                     className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-300 transition hover:border-rose-400/60 hover:text-rose-200"
                   >
-                    Austreten
+                    {isLeavingOrgId === org.id ? "Verlasse..." : "Austreten"}
                   </button>
                 </div>
               </div>

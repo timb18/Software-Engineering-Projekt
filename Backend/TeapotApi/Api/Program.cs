@@ -32,8 +32,6 @@ builder.Services.AddEndpointsApiExplorer()
         o.SwaggerDoc("v1",
             new OpenApiInfo
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
-        o.NonNullableReferenceTypesAsRequired();
-        o.SupportNonNullableReferenceTypes();
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
@@ -68,6 +66,8 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
     .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
     .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
     .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
+
+builder.Services.AddScoped<IMembershipService, MembershipService>();
 
 // Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
