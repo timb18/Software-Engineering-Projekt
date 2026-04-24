@@ -1,0 +1,29 @@
+name: Backend Tests
+
+on:
+  push:
+    paths:
+      - "Backend/TeapotApi/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "Backend/TeapotApi/**"
+      - ".github/workflows/backend-tests.yml"
+
+jobs:
+  test:
+    name: Dotnet Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore Backend/TeapotApi/DataAccessTests/DataAccessTests.csproj
+
+      - name: Test
+        run: dotnet test Backend/TeapotApi/DataAccessTests/DataAccessTests.csproj --no-restore --verbosity normal
