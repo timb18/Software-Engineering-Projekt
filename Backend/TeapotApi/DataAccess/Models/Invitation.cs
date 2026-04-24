@@ -1,4 +1,6 @@
-﻿public class Invitation
+﻿using DataAccess.Models;
+
+public class Invitation
 {
     public Guid Id { get; set; }
     public Guid OrganizationId { get; set; }
