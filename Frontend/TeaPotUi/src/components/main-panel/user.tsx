@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FC } from "react";
-import { useNavigate } from "react-router";
+import { useBlocker, useNavigate } from "react-router";
 import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
 import { useAuth0 } from "@auth0/auth0-react";
+import WorkProfileConfigurator from "./work-profile-configurator";
+import { saveWorkProfile } from "../../util/work-profile-api";
 
 type Tab = "general" | "work" | "security" | "account";
 
@@ -13,6 +15,8 @@ const User: FC = () => {
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>("general");
+  const [isWorkDirty, setIsWorkDirty] = useState(false);
+  const [pendingTabChange, setPendingTabChange] = useState<Tab | undefined>();
   const [status, setStatus] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [pwdForm, setPwdForm] = useState({
@@ -26,13 +30,6 @@ const User: FC = () => {
     timezone: user?.timezone ?? "Europe/Berlin",
     profileImage: user?.profileImage ?? "gradient-1",
   });
-  const [workForm, setWorkForm] = useState({
-    capacity: user?.workCapacityHours ?? 8,
-    workDays: user?.workDays ?? ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    workStart: user?.workStart ?? "09:00",
-    workEnd: user?.workEnd ?? "17:00",
-    breakRules: user?.breakRules ?? "30m lunch + 10m after 90m focus",
-  });
   const [notifForm, setNotifForm] = useState({
     emailInvites: user?.notifications?.emailInvites ?? true,
     emailDeadlines: user?.notifications?.emailDeadlines ?? true,
@@ -45,13 +42,6 @@ const User: FC = () => {
         email: user.email,
         timezone: user.timezone ?? "Europe/Berlin",
         profileImage: user.profileImage ?? "gradient-1",
-      });
-      setWorkForm({
-        capacity: user.workCapacityHours ?? 8,
-        workDays: user.workDays ?? ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        workStart: user.workStart ?? "09:00",
-        workEnd: user.workEnd ?? "17:00",
-        breakRules: user.breakRules ?? "30m lunch",
       });
       setNotifForm({
         emailInvites: user.notifications?.emailInvites ?? true,
@@ -79,6 +69,12 @@ const User: FC = () => {
 
   const persist = (nextUser = user) => {
     setUser(nextUser);
+
+    if (nextUser.workProfile && nextUser.username) {
+      saveWorkProfile(nextUser.username, nextUser.workProfile).catch((err) => {
+        console.error("Failed to save work profile to backend:", err);
+      });
+    }
   };
 
   const saveProfile = () => {
@@ -99,24 +95,6 @@ const User: FC = () => {
     setStatus("Profil updated");
   };
 
-  const saveWork = () => {
-    setStatus(undefined);
-    setError(undefined);
-    if (!workForm.workStart || !workForm.workEnd) {
-      setError("Work hours require a start and end.");
-      return;
-    }
-    const nextUser = {
-      ...user,
-      workCapacityHours: workForm.capacity,
-      workDays: workForm.workDays,
-      workStart: workForm.workStart,
-      workEnd: workForm.workEnd,
-      breakRules: workForm.breakRules,
-    };
-    persist(nextUser);
-    setStatus("work profile saved.");
-  };
 
   const saveNotifications = () => {
     const nextUser = {
@@ -169,14 +147,6 @@ const User: FC = () => {
     navigate("/login");
   };
 
-  const toggleWorkDay = (day: string) => {
-    const exists = workForm.workDays.includes(day);
-    const next = exists
-      ? workForm.workDays.filter((d) => d !== day)
-      : [...workForm.workDays, day];
-    setWorkForm({ ...workForm, workDays: next });
-  };
-
   const timezones = [
     "Europe/Berlin",
     "UTC",
@@ -184,7 +154,40 @@ const User: FC = () => {
     "Europe/Zurich",
     "America/New_York",
   ];
-  const workDayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    isWorkDirty &&
+    tab === "work" &&
+    currentLocation.pathname !== nextLocation.pathname,
+  );
+
+  const handleTabClick = (next: Tab) => {
+    if (tab === "work" && isWorkDirty && next !== "work") {
+      setPendingTabChange(next);
+    } else {
+      setTab(next);
+    }
+  };
+
+  const confirmLeave = () => {
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+    } else if (pendingTabChange) {
+      setTab(pendingTabChange);
+      setPendingTabChange(undefined);
+    }
+    setIsWorkDirty(false);
+  };
+
+  const cancelLeave = () => {
+    if (blocker.state === "blocked") {
+      blocker.reset();
+    }
+    setPendingTabChange(undefined);
+  };
+
+  const showUnsavedDialog =
+    blocker.state === "blocked" || pendingTabChange !== undefined;
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">
@@ -202,7 +205,7 @@ const User: FC = () => {
           {(["general", "work", "security", "account"] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => handleTabClick(t)}
               className={`rounded-full px-4 py-2 font-semibold transition ${
                 tab === t
                   ? "border border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
@@ -349,114 +352,14 @@ const User: FC = () => {
         )}
 
         {tab === "work" && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
-            <div className="flex flex-col gap-3">
-              <div className="text-sm font-semibold text-slate-100">
-                Load capacity
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Hours per day
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={16}
-                  value={workForm.capacity}
-                  onChange={(e) =>
-                    setWorkForm({
-                      ...workForm,
-                      capacity: Number(e.target.value),
-                    })
-                  }
-                  className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Work days
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {workDayOptions.map((d) => {
-                    const active = workForm.workDays.includes(d);
-                    return (
-                      <button
-                        key={d}
-                        onClick={() => toggleWorkDay(d)}
-                        className={`rounded-full px-3 py-1 text-sm ${
-                          active
-                            ? "border border-emerald-300/60 bg-emerald-400/20 text-emerald-100"
-                            : "border border-slate-700 bg-slate-900/60 text-slate-300"
-                        }`}
-                      >
-                        {d}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                    Start
-                  </label>
-                  <input
-                    type="time"
-                    value={workForm.workStart}
-                    onChange={(e) =>
-                      setWorkForm({ ...workForm, workStart: e.target.value })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                    End
-                  </label>
-                  <input
-                    type="time"
-                    value={workForm.workEnd}
-                    onChange={(e) =>
-                      setWorkForm({ ...workForm, workEnd: e.target.value })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Break rules
-                </label>
-                <textarea
-                  value={workForm.breakRules}
-                  onChange={(e) =>
-                    setWorkForm({ ...workForm, breakRules: e.target.value })
-                  }
-                  className="min-h-22.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  placeholder="z.B. 30m Mittag, 10m nach 90m Fokus"
-                />
-              </div>
-
-              <button
-                onClick={saveWork}
-                className="w-fit rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
-              >
-                Save work profile
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
-              <div className="text-sm font-semibold text-slate-100">Hint</div>
-              <p className="mt-2 text-slate-300">
-                These values are used by the planner to generate deadlines,
-                focus blocks and meeting times to fit your timezone and
-                capacity.
-              </p>
-            </div>
-          </div>
+          <WorkProfileConfigurator
+            key={`${user.username}-${user.email}`}
+            user={user}
+            onSaveUser={persist}
+            onStatusChange={setStatus}
+            onErrorChange={setError}
+            onDirtyChange={setIsWorkDirty}
+          />
         )}
 
         {tab === "security" && (
@@ -598,6 +501,46 @@ const User: FC = () => {
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm shadow">
           {status && <div className="text-emerald-200">{status}</div>}
           {error && <div className="text-rose-300">{error}</div>}
+        </div>
+      )}
+
+      {showUnsavedDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm"
+          onClick={cancelLeave}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/10 text-xl">
+                ⚠️
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-50">Unsaved changes</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Your work profile has unsaved changes. Do you want to leave without saving?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelLeave}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-slate-100"
+              >
+                Stay & save
+              </button>
+              <button
+                type="button"
+                onClick={confirmLeave}
+                className="rounded-xl border border-rose-400/40 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/25"
+              >
+                Leave without saving
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

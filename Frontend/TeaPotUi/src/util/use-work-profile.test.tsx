@@ -11,6 +11,7 @@ const company = { id: "co-1", name: "Acme" };
 const company2 = { id: "co-2", name: "Globex" };
 
 const userWithEmptyProfile = (): User => ({
+  id: "tester",
   username: "tester",
   email: "tester@example.com",
   orgs: [{ id: "co-1", name: "Acme", users: [] }],

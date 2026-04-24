@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
@@ -10,4 +10,18 @@ export default defineConfig({
         tailwindcss(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test-setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
 })
