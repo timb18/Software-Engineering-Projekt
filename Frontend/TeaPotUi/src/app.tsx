@@ -2,9 +2,10 @@ import { Outlet, useNavigate } from "react-router";
 import Sidebar from "./components/sidebar";
 import { useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { initForUser } from "./stores/user-store";
 
 function App() {
-  const { isAuthenticated } = useAuth0();
+  const { isAuthenticated, user: authUser } = useAuth0();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -12,6 +13,12 @@ function App() {
       navigate("/login");
     }
   }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (isAuthenticated && authUser?.sub && authUser?.email) {
+      initForUser(authUser.sub, authUser.email).catch(console.error);
+    }
+  }, [isAuthenticated, authUser?.sub, authUser?.email]);
 
   return (
     <div className="min-h-screen w-full bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">

@@ -59,6 +59,7 @@ export type Calendar = {
 };
 
 export type Task = {
+  id?: string;
   startDate: Date;
   endDate: Date;
   name: string;
