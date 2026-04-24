@@ -16,12 +16,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: Prototype/PrototypeFrontend/PrototypeUi/package-lock.json
+          cache-dependency-path: Frontend/TeaPotUi/package-lock.json
 
       - name: Install dependencies
-        working-directory: Prototype/PrototypeFrontend/PrototypeUi
+        working-directory: Frontend/TeaPotUi
         run: npm ci
 
       - name: Run tests
-        working-directory: Prototype/PrototypeFrontend/PrototypeUi
+        working-directory: Frontend/TeaPotUi
         run: npm test
