@@ -1,6 +1,7 @@
 using Api.Dto;
-using DataAccess.Models;
+using DataAccess;
 using Microsoft.EntityFrameworkCore;
+using Model;
 
 namespace Services;
 
@@ -63,7 +64,8 @@ public class OrganizationQueryService
                         LastName = i.LastName,
                         Email = i.Email,
                         Status = i.Status.ToString().ToLower(),
-                        ExpiryDate = i.ExpiryDate
+                        ExpiryDate = i.ExpiryDate,
+                        InviteCode = i.Id.ToString("N")[..8].ToUpperInvariant()
                     })
                     .ToList()
             });

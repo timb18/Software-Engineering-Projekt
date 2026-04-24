@@ -58,6 +58,7 @@ export type Invitation = {
   email: string;
   status: InvitationStatus;
   expiryDate?: string;
+  inviteCode?: string;
 };
 
 export type Notifications = {

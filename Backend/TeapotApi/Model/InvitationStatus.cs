@@ -1,8 +1,9 @@
 namespace Model;
 
-public enum InvitationStatus
+public enum EInvitationStatus
 {
-    PENDING,
-    ACCEPTED,
-    EXPIRED
+    Open,
+    Closed,
+    Accepted,
+    Expired
 }

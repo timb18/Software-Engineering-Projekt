@@ -1,7 +1,7 @@
 namespace Model;
 
-public enum Role
+public enum ERole
 {
-    USER,
-    ORGANIZER
+    User,
+    Organizer
 }

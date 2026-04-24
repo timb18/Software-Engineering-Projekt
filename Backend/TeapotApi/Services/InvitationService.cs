@@ -1,6 +1,8 @@
 using Api.Dto;
-using DataAccess.Models;
+using DataAccess;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Model;
 using System.Net.Mail;
 
 namespace Services;
@@ -47,12 +49,12 @@ public class InvitationService
             string.IsNullOrWhiteSpace(request.LastName) ||
             string.IsNullOrWhiteSpace(normalizedEmail))
         {
-            throw new InvalidOperationException("Alle Pflichtfelder müssen ausgefüllt sein.");
+            throw new InvalidOperationException("Alle Pflichtfelder muessen ausgefuellt sein.");
         }
 
         if (!IsValidEmail(normalizedEmail))
         {
-            throw new InvalidOperationException("Die E-Mail-Adresse ist ungültig.");
+            throw new InvalidOperationException("Die E-Mail-Adresse ist ungueltig.");
         }
 
         var organization = await _context.Organizations
@@ -78,7 +80,7 @@ public class InvitationService
 
         if (!isOrganizer)
         {
-            throw new InvalidOperationException("Nur Organisierende dürfen Einladungen versenden.");
+            throw new InvalidOperationException("Nur Organisierende duerfen Einladungen versenden.");
         }
 
         var remaining = await GetRemainingInvitationsAsync(request.OrganizationId);
@@ -95,7 +97,7 @@ public class InvitationService
 
         if (alreadyOpen)
         {
-            throw new InvalidOperationException("Für diese E-Mail-Adresse existiert bereits eine offene Einladung.");
+            throw new InvalidOperationException("Fuer diese E-Mail-Adresse existiert bereits eine offene Einladung.");
         }
 
         var invitedUser = await _context.Users
@@ -142,7 +144,8 @@ public class InvitationService
             LastName = invitation.LastName,
             Email = invitation.Email,
             Status = invitation.Status.ToString().ToLower(),
-            ExpiryDate = invitation.ExpiryDate
+            ExpiryDate = invitation.ExpiryDate,
+            InviteCode = CreateInviteCode(invitation.Id)
         };
     }
 
@@ -168,7 +171,8 @@ public class InvitationService
             LastName = i.LastName,
             Email = i.Email,
             Status = i.Status.ToString().ToLower(),
-            ExpiryDate = i.ExpiryDate
+            ExpiryDate = i.ExpiryDate,
+            InviteCode = CreateInviteCode(i.Id)
         }).ToList();
     }
 
@@ -201,7 +205,7 @@ public class InvitationService
 
         if (!string.Equals(invitation.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Diese Einladung gehört zu einer anderen E-Mail-Adresse.");
+            throw new InvalidOperationException("Diese Einladung gehoert zu einer anderen E-Mail-Adresse.");
         }
 
         var user = await _context.Users
@@ -257,7 +261,7 @@ public class InvitationService
 
         if (!string.Equals(invitation.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Diese Einladung gehört zu einer anderen E-Mail-Adresse.");
+            throw new InvalidOperationException("Diese Einladung gehoert zu einer anderen E-Mail-Adresse.");
         }
 
         if (invitation.Status != EInvitationStatus.Open)
@@ -298,12 +302,12 @@ public class InvitationService
 
         if (!isOrganizer)
         {
-            throw new InvalidOperationException("Nur Organisierende dürfen Einladungen zurückziehen.");
+            throw new InvalidOperationException("Nur Organisierende duerfen Einladungen zurueckziehen.");
         }
 
         if (invitation.Status != EInvitationStatus.Open)
         {
-            throw new InvalidOperationException("Nur offene Einladungen können zurückgezogen werden.");
+            throw new InvalidOperationException("Nur offene Einladungen koennen zurueckgezogen werden.");
         }
 
         invitation.Status = EInvitationStatus.Closed;
@@ -358,6 +362,8 @@ du wurdest zur Organisation ""{organization.Name}"" eingeladen.
 Bitte melde dich an oder registriere dich und öffne anschließend:
 {frontendBaseUrl}
 
+Einladungscode: {CreateInviteCode(invitation.Id)}
+
 Die Einladung ist bis {invitation.ExpiryDate:dd.MM.yyyy HH:mm} gültig.
 
 Viele Grüße
@@ -385,5 +391,10 @@ TeaPot"
     private static string NormalizeEmail(string email)
     {
         return email.Trim().ToLowerInvariant();
+    }
+
+    private static string CreateInviteCode(Guid invitationId)
+    {
+        return invitationId.ToString("N")[..8].ToUpperInvariant();
     }
 }

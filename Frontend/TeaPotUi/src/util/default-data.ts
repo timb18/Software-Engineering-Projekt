@@ -54,10 +54,14 @@ const companyB: Org = {
   adminEmails: ["admin@company-b.de"],
   invites: [
     {
+      id: "invite-company-b-user-a",
+      organizationId: "org-b",
       orgId: "org-b",
       orgName: "company b",
+      firstName: "Anna",
+      lastName: "A",
       email: "user@company-a.de",
-      status: "pending",
+      status: "open",
     },
   ],
 };
@@ -116,10 +120,14 @@ const userA1: User = {
   tasks: [],
   invites: [
     {
+      id: "invite-company-b-user-a",
+      organizationId: "org-b",
       orgId: "org-b",
       orgName: "company b",
+      firstName: "Anna",
+      lastName: "A",
       email: "user@company-a.de",
-      status: "pending",
+      status: "open",
     },
   ],
   timezone: "Europe/Berlin",

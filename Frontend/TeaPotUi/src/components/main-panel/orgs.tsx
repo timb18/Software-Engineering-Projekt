@@ -4,6 +4,33 @@ import type { Invitation, Org, User } from "../../util/types";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
+const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
+const guidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isGuid = (value: string) => guidPattern.test(value);
+
+const readApiError = async (response: Response) => {
+  const text = await response.text();
+
+  try {
+    const payload = JSON.parse(text) as {
+      title?: string;
+      errors?: Record<string, string[]>;
+    };
+
+    const fieldMessages = Object.values(payload.errors ?? {}).flat();
+    if (fieldMessages.length > 0) {
+      return fieldMessages.join(" ");
+    }
+
+    return payload.title ?? text;
+  } catch {
+    return text;
+  }
+};
 
 const Orgs: FC = () => {
   const { user, setUser } = useUserStore();
@@ -26,6 +53,65 @@ const Orgs: FC = () => {
     }
   }, [orgs, selectedOrgId]);
 
+  useEffect(() => {
+    const loadOrganizations = async () => {
+      if (!user?.email) {
+        return;
+      }
+
+      try {
+        const [orgResponse, inviteResponse] = await Promise.all([
+          fetch(apiUrl(`/api/Organization/by-user-email?email=${encodeURIComponent(user.email)}`)),
+          fetch(apiUrl(`/api/Invitation/pending?email=${encodeURIComponent(user.email)}`)),
+        ]);
+
+        if (!orgResponse.ok || !inviteResponse.ok) {
+          return;
+        }
+
+        const orgData = await orgResponse.json();
+        const inviteData = await inviteResponse.json();
+
+        const mappedOrgs: Org[] = orgData.map((org: {
+          id: string;
+          name: string;
+          users: { id: string; username: string; email: string; role: string }[];
+          invites: Invitation[];
+        }) => ({
+          id: org.id,
+          name: org.name,
+          users: org.users.map((member) => ({
+            ...user,
+            username: member.username,
+            email: member.email,
+            role: member.role === "organizer" ? "admin" : "user",
+            orgs: [],
+            tasks: [],
+            invites: [],
+          })),
+          adminEmails: org.users
+            .filter((member) => member.role === "organizer")
+            .map((member) => member.email),
+          invites: (org.invites ?? []).map((invite) => ({
+            ...invite,
+            orgId: invite.organizationId ?? org.id,
+          })),
+        }));
+
+        const mappedInvites: Invitation[] = inviteData.map((invite: Invitation) => ({
+          ...invite,
+          orgId: invite.organizationId ?? invite.orgId,
+        }));
+
+        persist({ ...user, orgs: mappedOrgs, invites: mappedInvites });
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    void loadOrganizations();
+  }, [user?.email]);
+
   const persist = (nextUser: User) => {
     setUser(nextUser);
     setOrgs(nextUser.orgs ?? []);
@@ -37,7 +123,7 @@ const Orgs: FC = () => {
 
   const acceptInvite = async (invite: Invitation) => {
     try {
-      const res = await fetch("http://localhost:5000/api/invitations/accept", {
+      const res = await fetch(apiUrl("/api/Invitation/accept"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,7 +174,7 @@ const Orgs: FC = () => {
 
   const declineInvite = async (invite: Invitation) => {
     try {
-      const res = await fetch("http://localhost:5000/api/invitations/decline", {
+      const res = await fetch(apiUrl("/api/Invitation/decline"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -152,8 +238,13 @@ const Orgs: FC = () => {
       return;
     }
 
+    if (!isGuid(org.id)) {
+      alert("Diese Organisation kommt noch aus Mock-Daten. Lade zuerst eine echte Organisation aus dem Backend mit einer DB-GUID.");
+      return;
+    }
+
     try {
-      const res = await fetch("http://localhost:5000/api/invitations", {
+      const res = await fetch(apiUrl("/api/Invitation"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -168,7 +259,7 @@ const Orgs: FC = () => {
       });
 
       if (!res.ok) {
-        const err = await res.text();
+        const err = await readApiError(res);
         alert(err);
         return;
       }
@@ -208,7 +299,7 @@ const Orgs: FC = () => {
 
   const withdrawInvite = async (org: Org, inviteId: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/invitations/${inviteId}`, {
+      const res = await fetch(apiUrl(`/api/Invitation/${inviteId}`), {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

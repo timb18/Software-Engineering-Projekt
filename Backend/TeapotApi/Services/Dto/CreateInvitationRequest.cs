@@ -1,7 +1,5 @@
 namespace Api.Dto;
 
-
-
 public class CreateInvitationRequest
 {
     public Guid OrganizationId { get; set; }

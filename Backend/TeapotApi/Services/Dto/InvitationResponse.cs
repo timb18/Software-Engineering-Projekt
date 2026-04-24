@@ -17,4 +17,6 @@ public class InvitationResponse
     public string Status { get; set; } = null!;
 
     public DateTime? ExpiryDate { get; set; }
+
+    public string InviteCode { get; set; } = null!;
 }

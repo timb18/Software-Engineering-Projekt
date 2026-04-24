@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Model;
 
 public class Invitation
@@ -8,11 +10,14 @@ public class Invitation
 
     public Guid CreatedBy { get; set; }
 
-    public string Email { get; set; } = null!;
+    public string Email { get; set; } = string.Empty;
 
-    public string FirstName { get; set; } = null!;
+    public string FirstName { get; set; } = string.Empty;
 
-    public string LastName { get; set; } = null!;
+    public string LastName { get; set; } = string.Empty;
+
+    [NotMapped]
+    public string InviteCode { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
 
@@ -22,7 +27,7 @@ public class Invitation
 
     public EInvitationStatus Status { get; set; }
 
-    public virtual User CreatedByNavigation { get; set; } = null!;
+    public User CreatedByNavigation { get; set; } = null!;
 
-    public virtual Organization Organization { get; set; } = null!;
+    public Organization Organization { get; set; } = null!;
 }
