@@ -69,6 +69,12 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
 
 builder.Services.AddScoped<IMembershipService, MembershipService>();
 
+// User
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Tasks
+builder.Services.AddScoped<IUserTaskService, UserTaskService>();
+
 // Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 

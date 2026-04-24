@@ -20,7 +20,7 @@ const getEndSlot = (date: Date) => {
 };
 
 const Tasks: FC = () => {
-  const { user, setUser } = useUserStore();
+  const { user, setUser, addTask, saveTask, removeTask } = useUserStore();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -149,22 +149,25 @@ const Tasks: FC = () => {
       setError(`Overlap with ${conflicts.length} task(s). Consider rescheduling.`);
     }
 
-    setUser({
-      ...user,
-      tasks: [...(user.tasks ?? []), newTask],
-    });
-
-    setForm({
-      name: "",
-      description: "",
-      durationMinutes: 60,
-      priority: "medium",
-      status: "todo",
-      deadline: "",
-      dependencies: [],
-      isFixed: false,
-    });
-    setStatus("Task created");
+    setStatus("Saving…");
+    addTask(newTask)
+      .then(() => {
+        setForm({
+          name: "",
+          description: "",
+          durationMinutes: 60,
+          priority: "medium",
+          status: "todo",
+          deadline: "",
+          dependencies: [],
+          isFixed: false,
+        });
+        setStatus("Task created");
+      })
+      .catch((err: unknown) => {
+        setError(String(err));
+        setStatus(undefined);
+      });
   };
 
   const openEdit = (task: Task) => {
@@ -202,27 +205,20 @@ const Tasks: FC = () => {
       return;
     }
 
-    const updatedTasks = (user.tasks ?? []).map((t) =>
-      t === editingTask
-        ? {
-            ...t,
-            name: editForm.name.trim(),
-            description: editForm.description.trim(),
-            startDate: start.toDate(),
-            endDate: end.toDate(),
-            deadline: end.toDate(),
-            priority: editForm.priority,
-            status: editForm.status,
-            org: editForm.assigneeEmail,
-            isFixed: editForm.isFixed,
-          }
-        : t,
-    );
+    const updatedTask: Task = {
+      ...editingTask,
+      name: editForm.name.trim(),
+      description: editForm.description.trim(),
+      startDate: start.toDate(),
+      endDate: end.toDate(),
+      deadline: end.toDate(),
+      priority: editForm.priority,
+      status: editForm.status,
+      org: editForm.assigneeEmail,
+      isFixed: editForm.isFixed,
+    };
 
-    setUser({
-      ...user,
-      tasks: updatedTasks,
-    });
+    saveTask(updatedTask).catch((err: unknown) => setEditError(String(err)));
     setEditingTask(null);
   };
 
@@ -830,19 +826,34 @@ const Tasks: FC = () => {
 
             {editError && <div className="mt-3 text-sm text-rose-300">{editError}</div>}
 
-            <div className="mt-4 flex justify-end gap-3">
+            <div className="mt-4 flex justify-between gap-3">
               <button
-                onClick={() => setEditingTask(null)}
-                className="rounded-full border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:border-slate-600"
+                onClick={() => {
+                  if (editingTask?.id) {
+                    removeTask(editingTask.id).catch((err: unknown) => setEditError(String(err)));
+                  } else {
+                    setUser({ ...user, tasks: (user.tasks ?? []).filter((t) => t !== editingTask) });
+                  }
+                  setEditingTask(null);
+                }}
+                className="rounded-full border border-rose-800/60 bg-rose-900/30 px-4 py-2 text-sm text-rose-300 hover:bg-rose-900/50"
               >
-                Cancel
+                Delete
               </button>
-              <button
-                onClick={saveEdit}
-                className="rounded-full border border-emerald-300/60 bg-emerald-400/20 px-5 py-2 text-sm font-semibold text-emerald-50 shadow-sm transition hover:bg-emerald-400/30"
-              >
-                Save changes
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setEditingTask(null)}
+                  className="rounded-full border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:border-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  className="rounded-full border border-emerald-300/60 bg-emerald-400/20 px-5 py-2 text-sm font-semibold text-emerald-50 shadow-sm transition hover:bg-emerald-400/30"
+                >
+                  Save changes
+                </button>
+              </div>
             </div>
           </div>
         </div>
