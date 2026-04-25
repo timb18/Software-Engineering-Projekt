@@ -6,6 +6,8 @@ const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
+const guidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const Orgs: FC = () => {
   const { user, setUser } = useUserStore();
@@ -168,6 +170,12 @@ const Orgs: FC = () => {
     setIsSendingInvite(true);
 
     try {
+      if (!guidPattern.test(org.id)) {
+        throw new Error(
+          "Diese Organisation hat noch keine echte DB-ID. Lade die Organisationen zuerst aus dem Backend statt aus den Mock-Daten.",
+        );
+      }
+
       const response = await fetch(apiUrl("/api/Invitation/send"), {
         method: "POST",
         headers: {
@@ -181,8 +189,18 @@ const Orgs: FC = () => {
       });
 
       if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Invitation could not be created.");
+        const payload = await response.json().catch(() => null);
+        const validationErrors = payload?.errors
+          ? Object.values(payload.errors)
+              .flat()
+              .filter((value): value is string => typeof value === "string")
+              .join(" ")
+          : null;
+        const message =
+          payload?.message ??
+          validationErrors ??
+          "Einladung konnte nicht erstellt werden.";
+        throw new Error(message);
       }
 
       const payload = (await response.json()) as { data?: { id?: string; organizationId?: string; invitationLink?: string } };
