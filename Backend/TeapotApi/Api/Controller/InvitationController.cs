@@ -8,7 +8,7 @@ namespace Api.Controller;
 public class InvitationController : ControllerBase
 {
     private readonly IInvitationService _invitationService;
-    
+
     public InvitationController(IInvitationService invitationService)
     {
         _invitationService = invitationService;
@@ -26,6 +26,7 @@ public class InvitationController : ControllerBase
                 request.Email,
                 request.OrganizationId,
                 request.CreatedByUserId,
+                request.CreatedByEmail,
                 request.FirstName,
                 request.LastName);
 
@@ -45,13 +46,31 @@ public class InvitationController : ControllerBase
     {
         try
         {
-            var result = await _invitationService.AcceptInvitationAsync(invitationId, request.UserId);
+            if (request.UserId.HasValue)
+            {
+                await _invitationService.AcceptInvitationAsync(invitationId, request.UserId.Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                await _invitationService.AcceptInvitationByEmailAsync(invitationId, request.Email);
+            }
+            else
+            {
+                return BadRequest(new { success = false, message = "UserId oder E-Mail ist erforderlich." });
+            }
+
             return Ok(new { success = true, message = "Einladung akzeptiert" });
         }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
         }
+    }
+
+    [HttpGet("{invitationId}/accept-link")]
+    public IActionResult AcceptInvitationLinkAsync([FromRoute] Guid invitationId, [FromQuery] string email)
+    {
+        return Redirect(BuildFrontendRedirect("pending", invitationId, email));
     }
 
     /// <summary>
@@ -68,6 +87,20 @@ public class InvitationController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("{invitationId}/reject-link")]
+    public async Task<IActionResult> RejectInvitationLinkAsync([FromRoute] Guid invitationId)
+    {
+        try
+        {
+            await _invitationService.RejectInvitationAsync(invitationId);
+            return Redirect(BuildFrontendRedirect("rejected"));
+        }
+        catch (Exception ex)
+        {
+            return Redirect(BuildFrontendRedirect("error", ex.Message));
         }
     }
 
@@ -104,18 +137,38 @@ public class InvitationController : ControllerBase
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    private static string BuildFrontendRedirect(string status, Guid? invitationId = null, string? email = null, string? message = null)
+    {
+        var baseUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") ?? "http://127.0.0.1:5173/";
+        var separator = baseUrl.Contains('?') ? "&" : "?";
+        var url = $"{baseUrl}{separator}inviteStatus={Uri.EscapeDataString(status)}";
+
+        if (invitationId.HasValue)
+            url += $"&invitationId={Uri.EscapeDataString(invitationId.Value.ToString())}";
+
+        if (!string.IsNullOrWhiteSpace(email))
+            url += $"&email={Uri.EscapeDataString(email)}";
+
+        if (!string.IsNullOrWhiteSpace(message))
+            url += $"&message={Uri.EscapeDataString(message)}";
+
+        return url;
+    }
 }
 
 public class SendInvitationRequest
 {
     public string Email { get; set; } = string.Empty;
     public Guid OrganizationId { get; set; }
-    public Guid CreatedByUserId { get; set; }
+    public Guid? CreatedByUserId { get; set; }
+    public string? CreatedByEmail { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
 }
 
 public class AcceptInvitationRequest
 {
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
+    public string? Email { get; set; }
 }

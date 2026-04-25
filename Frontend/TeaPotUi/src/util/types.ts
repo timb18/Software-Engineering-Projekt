@@ -1,4 +1,5 @@
 export type User = {
+  id?: string;
   username: string;
   displayName?: string;
   email: string;
@@ -48,10 +49,14 @@ export type Priority = "low" | "medium" | "high";
 export type Role = "admin" | "user";
 
 export type Invitation = {
+  id?: string;
+  organizationId?: string;
   orgId: string;
   orgName: string;
   email: string;
-  status: "pending" | "accepted" | "declined";
+  firstName?: string;
+  lastName?: string;
+  status: "pending" | "open" | "accepted" | "declined";
   invitationUrl?: string;
 };
 

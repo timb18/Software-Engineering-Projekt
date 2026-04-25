@@ -5,12 +5,23 @@ public interface IInvitationService
     /// <summary>
     /// Erstellt eine neue Einladung und versendet eine E-Mail
     /// </summary>
-    Task<InvitationDto> SendInvitationAsync(string email, Guid organizationId, Guid createdByUserId, string? firstName = null, string? lastName = null);
+    Task<InvitationDto> SendInvitationAsync(
+        string email,
+        Guid organizationId,
+        Guid? createdByUserId = null,
+        string? createdByEmail = null,
+        string? firstName = null,
+        string? lastName = null);
 
     /// <summary>
     /// Akzeptiert eine Einladung und fügt den Benutzer zur Organisation hinzu
     /// </summary>
     Task<bool> AcceptInvitationAsync(Guid invitationId, Guid userId);
+
+    /// <summary>
+    /// Akzeptiert eine Einladung über den E-Mail-Link.
+    /// </summary>
+    Task<bool> AcceptInvitationByEmailAsync(Guid invitationId, string email);
 
     /// <summary>
     /// Lehnt eine Einladung ab
@@ -48,5 +59,5 @@ public class InvitationDto
     public string Status { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public DateTime? ExpiryDate { get; set; }
+    public string InvitationLink { get; set; } = string.Empty;
 }
-

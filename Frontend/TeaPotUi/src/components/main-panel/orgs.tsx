@@ -4,6 +4,8 @@ import type { Invitation, Org, User } from "../../util/types";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
 
 const Orgs: FC = () => {
   const { user, setUser } = useUserStore();
@@ -24,6 +26,61 @@ const Orgs: FC = () => {
       setSelectedOrgId(orgs[0].id);
     }
   }, [orgs, selectedOrgId]);
+
+  useEffect(() => {
+    const loadOrganizations = async () => {
+      if (!user.email || user.email === "example@default.com") {
+        return;
+      }
+
+      try {
+        const response = await fetch(apiUrl(`/api/Organization/by-user-email?email=${encodeURIComponent(user.email)}`));
+        if (!response.ok) {
+          return;
+        }
+
+        const organizations = (await response.json()) as Array<{
+          id: string;
+          name: string;
+          users: Array<{ id: string; email: string; username: string; role: string }>;
+          invites: Array<{ id: string; organizationId: string; email: string; firstName?: string; lastName?: string; status: string; invitationLink?: string }>;
+        }>;
+
+        const nextOrgs: Org[] = organizations.map((org) => ({
+          id: org.id,
+          name: org.name,
+          users: org.users.map((member) => ({
+            ...user,
+            id: member.id,
+            email: member.email,
+            username: member.username,
+            orgs: [],
+            tasks: [],
+            invites: [],
+            role: member.role === "organizer" ? "admin" : "user",
+          })),
+          adminEmails: org.users.filter((member) => member.role === "organizer").map((member) => member.email),
+          invites: org.invites.map((invite) => ({
+            id: invite.id,
+            organizationId: invite.organizationId,
+            orgId: invite.organizationId,
+            orgName: org.name,
+            email: invite.email,
+            firstName: invite.firstName,
+            lastName: invite.lastName,
+            status: invite.status === "open" ? "pending" : (invite.status as Invitation["status"]),
+            invitationUrl: invite.invitationLink,
+          })),
+        }));
+
+        persist({ ...user, orgs: nextOrgs });
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    void loadOrganizations();
+  }, [user.email]);
 
   const persist = (nextUser: User) => {
     setUser(nextUser);
@@ -105,22 +162,21 @@ const Orgs: FC = () => {
     if (!newInviteEmail.trim()) return;
 
     const email = newInviteEmail.trim();
-    const auth0OrganizationId = org.auth0OrganizationId ?? org.id;
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
     setInviteError(null);
     setInviteSuccess(null);
     setIsSendingInvite(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/Invitation`, {
+      const response = await fetch(apiUrl("/api/Invitation/send"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          organizationId: auth0OrganizationId,
+          organizationId: org.id,
           email,
+          createdByEmail: user.email,
         }),
       });
 
@@ -129,13 +185,15 @@ const Orgs: FC = () => {
         throw new Error(message || "Invitation could not be created.");
       }
 
-      const result = (await response.json()) as { invitationUrl?: string };
+      const payload = (await response.json()) as { data?: { id?: string; organizationId?: string; invitationLink?: string } };
       const invite: Invitation = {
+        id: payload.data?.id,
+        organizationId: payload.data?.organizationId ?? org.id,
         orgId: org.id,
         orgName: org.name,
         email,
         status: "pending",
-        invitationUrl: result.invitationUrl,
+        invitationUrl: payload.data?.invitationLink,
       };
 
       const updatedOrg: Org = {
@@ -147,9 +205,9 @@ const Orgs: FC = () => {
       persist({ ...user, orgs: nextOrgs });
       setNewInviteEmail("");
       setInviteSuccess(
-        result.invitationUrl
+        payload.data?.invitationLink
           ? "Einladungslink wurde erstellt und unten gespeichert."
-          : "Einladung wurde in Auth0 erstellt.",
+          : "Einladung wurde erstellt und per E-Mail versendet.",
       );
     } catch (error) {
       if (error instanceof TypeError) {
