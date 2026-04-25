@@ -1,14 +1,10 @@
 import { useMemo, type FC } from "react";
 import { useNavigate } from "react-router";
-import useUserStore from "../stores/user-store";
 import { useAuth0 } from "@auth0/auth0-react";
 
 const Sidebar: FC = () => {
-  const { user } = useUserStore();
-  const { getIdTokenClaims } = useAuth0();
+  const { user } = useAuth0();
   const navigate = useNavigate();
-
-  getIdTokenClaims();
 
   const goToProfile = () => {
     navigate("/user");
@@ -35,9 +31,9 @@ const Sidebar: FC = () => {
   };
 
   const avatarStyle = useMemo(() => {
-    if (user.profileImage?.startsWith("http")) {
+    if (user?.picture?.startsWith("http")) {
       return {
-        backgroundImage: `url(${user.profileImage})`,
+        backgroundImage: `url(${user.picture})`,
         backgroundSize: "cover",
       };
     }
@@ -46,8 +42,8 @@ const Sidebar: FC = () => {
       "gradient-2": "linear-gradient(135deg, #ec4899, #8b5cf6)",
       "gradient-3": "linear-gradient(135deg, #f59e0b, #ef4444)",
     };
-    return { backgroundImage: gradients[user.profileImage ?? "gradient-1"] };
-  }, [user.profileImage]);
+    return { backgroundImage: gradients[user?.picture ?? "gradient-1"] };
+  }, [user?.picture]);
 
   return (
     <aside className="flex h-full flex-col gap-6 rounded-l-4xl border-r border-slate-800 bg-slate-900/70 p-6">
@@ -57,7 +53,7 @@ const Sidebar: FC = () => {
       >
         <div className="flex items-center gap-3">
           <div
-            className="h-12 w-12 rounded-full border border-slate-700"
+            className="aspect-square h-12 w-12 rounded-full border border-slate-700"
             style={avatarStyle}
           ></div>
           <div className="flex flex-col">
@@ -65,9 +61,9 @@ const Sidebar: FC = () => {
               Signed in
             </div>
             <div className="text-lg leading-tight font-bold text-emerald-100">
-              {user.username}
+              {user?.nickname}
             </div>
-            <div className="text-[11px] text-slate-500">{user.email}</div>
+            <div className="text-[11px] text-slate-500">{user?.email}</div>
           </div>
         </div>
       </button>

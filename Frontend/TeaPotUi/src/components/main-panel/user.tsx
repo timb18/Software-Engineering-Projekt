@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FC } from "react";
+import { useState, type FC } from "react";
 import { useBlocker, useNavigate } from "react-router";
 import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
@@ -10,8 +10,8 @@ type Tab = "general" | "work" | "security" | "account";
 
 const User: FC = () => {
   const { logout } = useLoginStore();
-  const { user, setUser } = useUserStore();
-  const { logout: authLogout } = useAuth0();
+  const { user: userFromDb, setUser } = useUserStore();
+  const { logout: authLogout, user: userFromAuth } = useAuth0();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>("general");
@@ -24,33 +24,26 @@ const User: FC = () => {
     next: "",
     confirm: "",
   });
-  const [profileForm, setProfileForm] = useState({
-    displayName: user?.displayName ?? user?.username ?? "",
-    email: user?.email ?? "",
-    timezone: user?.timezone ?? "Europe/Berlin",
-    profileImage: user?.profileImage ?? "gradient-1",
-  });
   const [notifForm, setNotifForm] = useState({
-    emailInvites: user?.notifications?.emailInvites ?? true,
-    emailDeadlines: user?.notifications?.emailDeadlines ?? true,
+    emailInvites: userFromDb?.notifications?.emailInvites ?? true,
+    emailDeadlines: userFromDb?.notifications?.emailDeadlines ?? true,
   });
 
-  useEffect(() => {
-    if (user) {
+  /* useEffect(() => {
+    if (userFromDb) {
       setProfileForm({
-        displayName: user.displayName ?? user.username,
-        email: user.email,
-        timezone: user.timezone ?? "Europe/Berlin",
-        profileImage: user.profileImage ?? "gradient-1",
+        displayName: userFromDb.displayName ?? userFromDb.username,
+        email: userFromDb.email,
+        profileImage: userFromDb.profileImage ?? "gradient-1",
       });
       setNotifForm({
-        emailInvites: user.notifications?.emailInvites ?? true,
-        emailDeadlines: user.notifications?.emailDeadlines ?? true,
+        emailInvites: userFromDb.notifications?.emailInvites ?? true,
+        emailDeadlines: userFromDb.notifications?.emailDeadlines ?? true,
       });
     }
-  }, [user]);
+  }, [userFromDb]); */
 
-  const avatarStyle = useMemo(() => {
+  /* const avatarStyle = useMemo(() => {
     if (profileForm.profileImage?.startsWith("http")) {
       return {
         backgroundImage: `url(${profileForm.profileImage})`,
@@ -65,9 +58,9 @@ const User: FC = () => {
     return {
       backgroundImage: gradients[profileForm.profileImage ?? "gradient-1"],
     };
-  }, [profileForm.profileImage]);
+  }, [profileForm.profileImage]); */
 
-  const persist = (nextUser = user) => {
+  const persist = (nextUser = userFromDb) => {
     setUser(nextUser);
 
     if (nextUser.workProfile && nextUser.username) {
@@ -78,27 +71,25 @@ const User: FC = () => {
   };
 
   const saveProfile = () => {
-    setStatus(undefined);
+    /* setStatus(undefined);
     setError(undefined);
     if (!profileForm.displayName.trim()) {
       setError("Name can't be empty");
       return;
     }
     const nextUser = {
-      ...user,
+      ...userFromDb,
       displayName: profileForm.displayName.trim(),
       email: profileForm.email.trim(),
-      timezone: profileForm.timezone,
       profileImage: profileForm.profileImage,
     };
     persist(nextUser);
-    setStatus("Profil updated");
+    setStatus("Profil updated"); */
   };
-
 
   const saveNotifications = () => {
     const nextUser = {
-      ...user,
+      ...userFromDb,
       notifications: {
         emailInvites: notifForm.emailInvites,
         emailDeadlines: notifForm.emailDeadlines,
@@ -110,13 +101,7 @@ const User: FC = () => {
 
   const logOut = () => {
     logout();
-    navigate("/login");
     authLogout();
-  };
-
-  const logoutAll = () => {
-    setStatus("all sessions closed (Demo: localStorage JWT gelöscht)");
-    localStorage.removeItem("token");
   };
 
   const updatePassword = () => {
@@ -147,18 +132,11 @@ const User: FC = () => {
     navigate("/login");
   };
 
-  const timezones = [
-    "Europe/Berlin",
-    "UTC",
-    "Europe/Vienna",
-    "Europe/Zurich",
-    "America/New_York",
-  ];
-
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    isWorkDirty &&
-    tab === "work" &&
-    currentLocation.pathname !== nextLocation.pathname,
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isWorkDirty &&
+      tab === "work" &&
+      currentLocation.pathname !== nextLocation.pathname,
   );
 
   const handleTabClick = (next: Tab) => {
@@ -227,16 +205,27 @@ const User: FC = () => {
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
                 <div className="relative">
-                  <div
-                    className="aspect-square w-24 rounded-full border border-slate-700"
-                    style={avatarStyle}
-                  ></div>
+                  <div className="aspect-square w-24 rounded-full border border-slate-700">
+                    {userFromAuth?.picture ? (
+                      <img
+                        src={userFromAuth.picture}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          background:
+                            "linear-gradient(135deg, #34d399, #2563eb)",
+                        }}
+                      ></div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2 text-sm">
                   <div className="text-xs tracking-[0.14em] text-slate-500 uppercase">
                     Profile Picture
                   </div>
-                  <div className="flex gap-2">
+                  {/* <div className="flex gap-2">
                     {["gradient-1", "gradient-2", "gradient-3"].map((g) => (
                       <button
                         key={g}
@@ -258,22 +247,17 @@ const User: FC = () => {
                         }}
                       />
                     ))}
-                  </div>
+                  </div> */}
                   <input
                     type="url"
                     placeholder="Bild-URL (optional)"
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                    value={
-                      profileForm.profileImage.startsWith("http")
-                        ? profileForm.profileImage
-                        : ""
-                    }
-                    onChange={(e) =>
+                    /* onChange={(e) =>
                       setProfileForm({
                         ...profileForm,
                         profileImage: e.target.value,
                       })
-                    }
+                    } */
                   />
                 </div>
               </div>
@@ -283,16 +267,7 @@ const User: FC = () => {
                   <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
                     Username
                   </label>
-                  <input
-                    value={profileForm.displayName}
-                    onChange={(e) =>
-                      setProfileForm({
-                        ...profileForm,
-                        displayName: e.target.value,
-                      })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
+                  <input className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
@@ -300,34 +275,10 @@ const User: FC = () => {
                   </label>
                   <input
                     type="email"
-                    value={profileForm.email}
-                    onChange={(e) =>
-                      setProfileForm({ ...profileForm, email: e.target.value })
-                    }
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
                   {/* <span className="text-[11px] text-slate-500">Demo: Bestätigungsmail wird angenommen.</span> */}
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Timezone
-                </label>
-                <select
-                  value={profileForm.timezone}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, timezone: e.target.value })
-                  }
-                  className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                >
-                  {timezones.map((tz) => (
-                    <option key={tz} value={tz}>
-                      {tz}
-                    </option>
-                  ))}
-                </select>
-                {/* <span className="text-[11px] text-slate-500">Wichtig für Deadlines und Planer.</span> */}
               </div>
 
               <button
@@ -342,9 +293,11 @@ const User: FC = () => {
               <div className="text-sm font-semibold text-slate-100">
                 Account & Security
               </div>
-              <div className="text-sm text-slate-300">Role: {user.role}</div>
               <div className="text-sm text-slate-300">
-                Username: {user.username}
+                Role: {userFromDb.role}
+              </div>
+              <div className="text-sm text-slate-300">
+                Username: {userFromAuth?.nickname}
               </div>
               {/* <div className="text-xs text-slate-500">Weitere Details in den Tabs Sicherheit/Konto.</div> */}
             </div>
@@ -353,8 +306,8 @@ const User: FC = () => {
 
         {tab === "work" && (
           <WorkProfileConfigurator
-            key={`${user.username}-${user.email}`}
-            user={user}
+            key={`${userFromDb.username}-${userFromDb.email}`}
+            user={userFromDb}
             onSaveUser={persist}
             onStatusChange={setStatus}
             onErrorChange={setError}
@@ -429,13 +382,6 @@ const User: FC = () => {
                 >
                   Logout
                 </button>
-                <button
-                  onClick={logoutAll}
-                  className="w-fit rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 text-sm text-slate-100 transition hover:border-emerald-300/60 hover:text-emerald-100"
-                >
-                  Logout all sessions
-                </button>
-                {/* <p className="text-xs text-slate-500">JWT aus localStorage wird entfernt (Demo).</p> */}
               </div>
             </div>
           </div>
@@ -518,9 +464,12 @@ const User: FC = () => {
                 ⚠️
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-50">Unsaved changes</p>
+                <p className="text-sm font-semibold text-slate-50">
+                  Unsaved changes
+                </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  Your work profile has unsaved changes. Do you want to leave without saving?
+                  Your work profile has unsaved changes. Do you want to leave
+                  without saving?
                 </p>
               </div>
             </div>
