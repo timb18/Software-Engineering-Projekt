@@ -1,11 +1,6 @@
 namespace Services;
 
-public class PlanningService
+public class PlanningService(IUserTaskPlanner taskPlanner)
 {
-    private readonly IUserTaskPlanner _taskPlanner;
-
-    public PlanningService(IUserTaskPlanner taskPlanner)
-    {
-        _taskPlanner = taskPlanner;
-    }
+    private readonly IUserTaskPlanner _taskPlanner = taskPlanner;
 }

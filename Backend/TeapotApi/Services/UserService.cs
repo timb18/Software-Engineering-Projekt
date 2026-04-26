@@ -16,55 +16,69 @@ public class UserService(
     {
         // Wrap in a transaction to prevent race conditions when two requests
         // arrive simultaneously for the same new user
-        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var tx = dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
-        var user = await userRepository.GetQueryable()
-            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
-
-        if (user is null)
+        try
         {
-            user = new User { Email = email, CreatedAt = DateTime.UtcNow };
-            await userRepository.AddAsync(user, cancellationToken);
+            var user = await userRepository.GetQueryable()
+                .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
+            if (user is null)
+            {
+                user = new User { Email = email, CreatedAt = DateTime.UtcNow };
+                await userRepository.AddAsync(user, cancellationToken);
+            }
+
+            // Look for an existing personal work profile (membership to a personal org)
+            var existingProfile = await workProfileRepository.GetQueryable()
+                .FirstOrDefaultAsync(wp => wp.Membership.UserId == user.Id, cancellationToken);
+
+            if (existingProfile is not null)
+            {
+                if (tx is not null)
+                    await tx.CommitAsync(cancellationToken);
+
+                return (user.Id, existingProfile.Id);
+            }
+
+            // No work profile yet — create a personal org + membership + work profile
+            var personalOrg = new Organization
+            {
+                Name = $"Personal ({email})",
+                Description = "Auto-created personal workspace",
+                MaxUsers = 1,
+                CreatedAt = DateTime.UtcNow,
+            };
+            await orgRepository.AddAsync(personalOrg, cancellationToken);
+
+            var membership = new Membership
+            {
+                UserId = user.Id,
+                OrganizationId = personalOrg.Id,
+                Role = ERole.Organizer,
+                CreatedAt = DateTime.UtcNow,
+            };
+            await membershipRepository.AddAsync(membership, cancellationToken);
+
+            var workProfile = new WorkProfile
+            {
+                MembershipId = membership.Id,
+                MaxDailyLoad = TimeSpan.FromHours(8),
+                CreatedAt = DateTime.UtcNow,
+            };
+            await workProfileRepository.AddAsync(workProfile, cancellationToken);
+
+            if (tx is not null)
+                await tx.CommitAsync(cancellationToken);
+
+            return (user.Id, workProfile.Id);
         }
-
-        // Look for an existing personal work profile (membership to a personal org)
-        var existingProfile = await workProfileRepository.GetQueryable()
-            .FirstOrDefaultAsync(wp => wp.Membership.UserId == user.Id, cancellationToken);
-
-        if (existingProfile is not null)
+        finally
         {
-            await tx.CommitAsync(cancellationToken);
-            return (user.Id, existingProfile.Id);
+            if (tx is not null)
+                await tx.DisposeAsync();
         }
-
-        // No work profile yet — create a personal org + membership + work profile
-        var personalOrg = new Organization
-        {
-            Name = $"Personal ({email})",
-            Description = "Auto-created personal workspace",
-            MaxUsers = 1,
-            CreatedAt = DateTime.UtcNow,
-        };
-        await orgRepository.AddAsync(personalOrg, cancellationToken);
-
-        var membership = new Membership
-        {
-            UserId = user.Id,
-            OrganizationId = personalOrg.Id,
-            Role = ERole.Organizer,
-            CreatedAt = DateTime.UtcNow,
-        };
-        await membershipRepository.AddAsync(membership, cancellationToken);
-
-        var workProfile = new WorkProfile
-        {
-            MembershipId = membership.Id,
-            MaxDailyLoad = TimeSpan.FromHours(8),
-            CreatedAt = DateTime.UtcNow,
-        };
-        await workProfileRepository.AddAsync(workProfile, cancellationToken);
-
-        await tx.CommitAsync(cancellationToken);
-        return (user.Id, workProfile.Id);
     }
 }

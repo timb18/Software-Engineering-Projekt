@@ -49,6 +49,7 @@ export type User = {
 export type Org = {
   id: string;
   name: string;
+  auth0OrganizationId?: string;
   users: User[];
   adminEmails?: string[];
   invites?: Invitation[];
@@ -78,10 +79,15 @@ export type Priority = "low" | "medium" | "high";
 export type Role = "admin" | "user";
 
 export type Invitation = {
+  id?: string;
+  organizationId?: string;
   orgId: string;
   orgName: string;
   email: string;
-  status: "pending" | "accepted" | "declined";
+  firstName?: string;
+  lastName?: string;
+  status: "pending" | "open" | "accepted" | "declined";
+  invitationUrl?: string;
 };
 
 export type Notifications = {
