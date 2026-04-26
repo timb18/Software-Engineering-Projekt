@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
-import type { Org, Task } from "../../util/types";
+import type { Task } from "../../util/types";
 
 const startHour = 7;
 const endHour = 19;
@@ -53,20 +53,9 @@ const Tasks: FC = () => {
     return <></>;
   }
 
-  const personalOrg: Org = user.orgs?.[0] ?? {
-    id: "personal",
-    name: "Personal",
-    users: [user],
-    invites: [],
-  };
-
-  const findOrgForEmail = (email: string) =>
-    user.orgs?.find((org) => org.users.some((member) => member.email === email)) ?? personalOrg;
-
   const filteredTasks = (user.tasks ?? []).filter((t) => {
     const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
-    const byAssignee =
-      filterAssignee === "all" || t.org.users.some((member) => member.email === filterAssignee);
+    const byAssignee = filterAssignee === "all" || t.org === filterAssignee;
     return byStatus && byAssignee;
   });
 
@@ -135,8 +124,6 @@ const Tasks: FC = () => {
     );
 
     const selectedAssignee = filterAssignee === "all" ? user.email : filterAssignee;
-    const selectedOrg = findOrgForEmail(selectedAssignee);
-
     const newTask: Task = {
       name: form.name.trim(),
       description: form.description.trim(),
@@ -146,13 +133,13 @@ const Tasks: FC = () => {
       isFixed: form.isFixed,
       priority: form.priority,
       status: form.status ?? "todo",
-      org: selectedOrg,
+      org: selectedAssignee,
       recurrence: "none",
       dependencies,
     };
 
     const conflicts = (user.tasks ?? []).filter((t) => {
-      if (selectedAssignee && !t.org.users.some((member) => member.email === selectedAssignee)) return false;
+      if (t.org && selectedAssignee && t.org !== selectedAssignee) return false;
       const s = dayjs(t.startDate);
       const e = dayjs(t.endDate);
       return s.isBefore(endDate) && e.isAfter(startDate);
@@ -192,7 +179,7 @@ const Tasks: FC = () => {
       end: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
       priority: task.priority ?? "medium",
       status: task.status ?? "todo",
-      assigneeEmail: task.org.users[0]?.email ?? user.email,
+      assigneeEmail: task.org ?? user.email,
       isFixed: !!task.isFixed,
     });
   };
