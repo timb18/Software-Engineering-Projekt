@@ -4,6 +4,7 @@ import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
 import { useAuth0 } from "@auth0/auth0-react";
 import WorkProfileConfigurator from "./work-profile-configurator";
+import { defaultUser } from "../../util/default-data";
 import { saveWorkProfile } from "../../util/work-profile-api";
 
 type Tab = "general" | "work" | "security" | "account";
@@ -28,6 +29,16 @@ const User: FC = () => {
     emailInvites: userFromDb?.notifications?.emailInvites ?? true,
     emailDeadlines: userFromDb?.notifications?.emailDeadlines ?? true,
   });
+  const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] = useState(false);
+  const [isDeletingWorkProfile, setIsDeletingWorkProfile] = useState(false);
+
+  const defaultWorkProfile = {
+    capacity: defaultUser.workCapacityHours ?? 8,
+    workDays: defaultUser.workDays ?? ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    workStart: defaultUser.workStart ?? "09:00",
+    workEnd: defaultUser.workEnd ?? "17:00",
+    breakRules: defaultUser.breakRules ?? "30m lunch",
+  };
 
   /* useEffect(() => {
     if (userFromDb) {
@@ -85,6 +96,51 @@ const User: FC = () => {
     };
     persist(nextUser);
     setStatus("Profil updated"); */
+  };
+
+  const deleteWorkProfile = async () => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
+    setError(undefined);
+    setStatus(undefined);
+    setIsDeletingWorkProfile(true);
+
+    try {
+      const deletePath = userFromDb.id
+        ? `${apiBaseUrl}/api/WorkProfile/${userFromDb.id}`
+        : `${apiBaseUrl}/api/WorkProfile/by-email?email=${encodeURIComponent(userFromDb.email)}`;
+
+      const response = await fetch(deletePath, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Work profile could not be deleted.");
+      }
+
+      persist({
+        ...userFromDb,
+        workProfile: undefined,
+        plannerViewStart: defaultUser.plannerViewStart,
+        plannerViewEnd: defaultUser.plannerViewEnd,
+        workCapacityHours: defaultWorkProfile.capacity,
+        workDays: defaultWorkProfile.workDays,
+        workStart: defaultWorkProfile.workStart,
+        workEnd: defaultWorkProfile.workEnd,
+        breakRules: defaultWorkProfile.breakRules,
+      });
+      setShowDeleteWorkProfileDialog(false);
+      setStatus("Work profile deleted. Planning needs to be generated again.");
+    } catch (deleteError) {
+      if (deleteError instanceof TypeError) {
+        setError("Backend not reachable. Start the API and try again.");
+      } else {
+        setError(deleteError instanceof Error ? deleteError.message : "Work profile could not be deleted.");
+      }
+    } finally {
+      setIsDeletingWorkProfile(false);
+    }
   };
 
   const saveNotifications = () => {
@@ -169,7 +225,7 @@ const User: FC = () => {
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
             Profile
@@ -179,7 +235,7 @@ const User: FC = () => {
             Manage account, work profile and security
           </span>
         </div>
-        <div className="flex gap-2 text-sm">
+        <div className="flex flex-wrap gap-2 text-sm">
           {(["general", "work", "security", "account"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -305,14 +361,24 @@ const User: FC = () => {
         )}
 
         {tab === "work" && (
-          <WorkProfileConfigurator
-            key={`${userFromDb.username}-${userFromDb.email}`}
-            user={userFromDb}
-            onSaveUser={persist}
-            onStatusChange={setStatus}
-            onErrorChange={setError}
-            onDirtyChange={setIsWorkDirty}
-          />
+          <div className="flex flex-col gap-4">
+            <WorkProfileConfigurator
+              key={`${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
+              user={userFromDb}
+              onSaveUser={persist}
+              onStatusChange={setStatus}
+              onErrorChange={setError}
+              onDirtyChange={setIsWorkDirty}
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowDeleteWorkProfileDialog(true)}
+                className="rounded-xl border border-rose-300/60 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-100 shadow-sm transition hover:bg-rose-500/25"
+              >
+                Delete work profile
+              </button>
+            </div>
+          </div>
         )}
 
         {tab === "security" && (
@@ -487,6 +553,35 @@ const User: FC = () => {
                 className="rounded-xl border border-rose-400/40 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/25"
               >
                 Leave without saving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteWorkProfileDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-rose-400/40 bg-slate-900 p-6 shadow-2xl">
+            <div className="text-xs uppercase tracking-[0.2em] text-rose-300">Confirm deletion</div>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-50">Delete work profile?</h2>
+            <p className="mt-3 text-sm text-slate-300">
+              This removes your work profile, load capacity, break setup and dependent planning data. A new plan will
+              need to be generated afterwards.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteWorkProfileDialog(false)}
+                disabled={isDeletingWorkProfile}
+                className="rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteWorkProfile}
+                disabled={isDeletingWorkProfile}
+                className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeletingWorkProfile ? "Deleting..." : "Delete work profile"}
               </button>
             </div>
           </div>
