@@ -39,7 +39,7 @@ const Tasks: FC = () => {
     end: "",
     priority: "medium" as Task["priority"],
     status: "todo" as Task["status"],
-    assigneeEmail: "",
+    organizationId: "",
     isFixed: false,
   });
   const [editError, setEditError] = useState<string | undefined>();
@@ -47,7 +47,7 @@ const Tasks: FC = () => {
   const [error, setError] = useState<string | undefined>();
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "done">("all");
-  const [filterAssignee, setFilterAssignee] = useState<string | "all">("all");
+  const [filterOrgId, setFilterOrgId] = useState<string | "all">("all");
 
   if (!user) {
     return <></>;
@@ -55,8 +55,8 @@ const Tasks: FC = () => {
 
   const filteredTasks = (user.tasks ?? []).filter((t) => {
     const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
-    const byAssignee = filterAssignee === "all" || t.org === filterAssignee;
-    return byStatus && byAssignee;
+    const byOrg = filterOrgId === "all" || t.org.id === filterOrgId;
+    return byStatus && byOrg;
   });
 
   const weekStart = getWeekStart();
@@ -84,14 +84,20 @@ const Tasks: FC = () => {
   });
 
   const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
-  const assigneeOptions = useMemo(() => {
-    const emails = new Set<string>();
-    emails.add(user.email);
-    user.orgs?.forEach((team) => {
-      team.users.forEach((u) => emails.add(u.email));
-    });
-    return Array.from(emails);
-  }, [user.email, user.orgs]);
+  const orgOptions = useMemo(() => {
+    if ((user.orgs ?? []).length > 0) {
+      return user.orgs;
+    }
+
+    const seen = new Set<string>();
+    return (user.tasks ?? []).reduce<Task["org"][]>((acc, task) => {
+      if (!seen.has(task.org.id)) {
+        seen.add(task.org.id);
+        acc.push(task.org);
+      }
+      return acc;
+    }, []);
+  }, [user.orgs, user.tasks]);
 
   const submitTask = () => {
     setError(undefined);
@@ -123,7 +129,14 @@ const Tasks: FC = () => {
       form.dependencies.includes(t.name),
     );
 
-    const selectedAssignee = filterAssignee === "all" ? user.email : filterAssignee;
+    const selectedOrg =
+      (filterOrgId !== "all" && orgOptions.find((org) => org.id === filterOrgId)) ||
+      orgOptions[0];
+
+    if (!selectedOrg) {
+      setError("No organization available for this task.");
+      return;
+    }
 
     const newTask: Task = {
       name: form.name.trim(),
@@ -134,13 +147,13 @@ const Tasks: FC = () => {
       isFixed: form.isFixed,
       priority: form.priority,
       status: form.status ?? "todo",
-      org: selectedAssignee,
+      org: selectedOrg,
       recurrence: "none",
       dependencies,
     };
 
     const conflicts = (user.tasks ?? []).filter((t) => {
-      if (t.org && selectedAssignee && t.org !== selectedAssignee) return false;
+      if (t.org.id !== selectedOrg.id) return false;
       const s = dayjs(t.startDate);
       const e = dayjs(t.endDate);
       return s.isBefore(endDate) && e.isAfter(startDate);
@@ -177,7 +190,7 @@ const Tasks: FC = () => {
       end: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
       priority: task.priority ?? "medium",
       status: task.status ?? "todo",
-      assigneeEmail: task.org ?? user.email,
+      organizationId: task.org.id,
       isFixed: !!task.isFixed,
     });
   };
@@ -213,7 +226,7 @@ const Tasks: FC = () => {
             deadline: end.toDate(),
             priority: editForm.priority,
             status: editForm.status,
-            org: editForm.assigneeEmail,
+            org: orgOptions.find((org) => org.id === editForm.organizationId) ?? t.org,
             isFixed: editForm.isFixed,
           }
         : t,
@@ -280,14 +293,14 @@ const Tasks: FC = () => {
               <option value="done">Done</option>
             </select>
             <select
-              value={filterAssignee}
-              onChange={(e) => setFilterAssignee(e.target.value as typeof filterAssignee)}
+              value={filterOrgId}
+              onChange={(e) => setFilterOrgId(e.target.value as typeof filterOrgId)}
               className="rounded-full border border-slate-800 bg-slate-900/70 px-3 py-1 outline-none"
             >
               <option value="all">All assignees</option>
-              {assigneeOptions.map((email) => (
-                <option key={email} value={email}>
-                  {email}
+              {orgOptions.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
                 </option>
               ))}
             </select>
@@ -645,14 +658,14 @@ const Tasks: FC = () => {
                 <div className="flex flex-col gap-1">
                   <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Assignee</label>
                   <select
-                    value={filterAssignee}
-                    onChange={(e) => setFilterAssignee(e.target.value as typeof filterAssignee)}
+                    value={filterOrgId}
+                    onChange={(e) => setFilterOrgId(e.target.value as typeof filterOrgId)}
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                   >
                     <option value="all">Anyone</option>
-                    {assigneeOptions.map((email) => (
-                      <option key={email} value={email}>
-                        {email}
+                    {orgOptions.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
                       </option>
                     ))}
                   </select>
@@ -775,13 +788,13 @@ const Tasks: FC = () => {
               <div className="flex flex-col gap-2">
                 <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Assignee</label>
                 <select
-                  value={editForm.assigneeEmail}
-                  onChange={(e) => setEditForm({ ...editForm, assigneeEmail: e.target.value })}
+                  value={editForm.organizationId}
+                  onChange={(e) => setEditForm({ ...editForm, organizationId: e.target.value })}
                   className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                 >
-                  {assigneeOptions.map((email) => (
-                    <option key={email} value={email}>
-                      {email}
+                  {orgOptions.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
                     </option>
                   ))}
                 </select>
