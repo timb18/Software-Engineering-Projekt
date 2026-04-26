@@ -57,3 +57,4 @@ cd Frontend/TeaPotUi && npm run dev
 ~~~
 
 afterwards enter the url shown in the terminal into a browser
+alle meine freunde riechen morgens schon nach bier 
