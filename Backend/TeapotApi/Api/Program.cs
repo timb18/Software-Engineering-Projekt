@@ -67,6 +67,12 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
     .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
     .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
 
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+
+// Services
+builder.Services.AddScoped<IInvitationService, InvitationService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IMembershipService, MembershipService>();
 
 // User

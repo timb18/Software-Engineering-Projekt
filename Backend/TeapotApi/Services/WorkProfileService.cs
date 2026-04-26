@@ -11,6 +11,7 @@ public class WorkProfileService(
     IGenericRepository<Membership> membershipRepository) : IWorkProfileService
 {
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    private const string PersonalWorkspaceDescription = "Personal workspace";
 
     public async Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -19,7 +20,14 @@ public class WorkProfileService(
                 .ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days)
                 .ThenInclude(d => d.Breaks)
-            .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
+            .Include(wp => wp.Membership)
+                .ThenInclude(m => m.Organization)
+            .Where(wp => wp.Membership.UserId == userId)
+            .OrderByDescending(wp =>
+                wp.Membership.Role == ERole.Organizer &&
+                wp.Membership.Organization.MaxUsers == 1 &&
+                wp.Membership.Organization.Description == PersonalWorkspaceDescription)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (profile is null) return null;
 
@@ -38,14 +46,27 @@ public class WorkProfileService(
         var existing = await repository.GetQueryable()
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
-            .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
+            .Include(wp => wp.Membership)
+                .ThenInclude(m => m.Organization)
+            .Where(wp => wp.Membership.UserId == userId)
+            .OrderByDescending(wp =>
+                wp.Membership.Role == ERole.Organizer &&
+                wp.Membership.Organization.MaxUsers == 1 &&
+                wp.Membership.Organization.Description == PersonalWorkspaceDescription)
+            .FirstOrDefaultAsync(cancellationToken);
 
         var normalized = NormalizeProfile(profile);
 
         if (existing is null)
         {
             var membership = await membershipRepository.GetQueryable()
-                .FirstOrDefaultAsync(m => m.UserId == userId, cancellationToken)
+                .Include(m => m.Organization)
+                .Where(m => m.UserId == userId)
+                .OrderByDescending(m =>
+                    m.Role == ERole.Organizer &&
+                    m.Organization.MaxUsers == 1 &&
+                    m.Organization.Description == PersonalWorkspaceDescription)
+                .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new ArgumentException("No membership found for this user.");
 
             normalized.MembershipId = membership.Id;

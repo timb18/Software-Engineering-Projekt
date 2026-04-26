@@ -4,6 +4,10 @@ import type { Invitation, Org, User } from "../../util/types";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
+const guidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const Orgs: FC = () => {
   const { user, setUser } = useUserStore();
@@ -13,6 +17,9 @@ const Orgs: FC = () => {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgs[0]?.id ?? null);
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -23,6 +30,61 @@ const Orgs: FC = () => {
       setSelectedOrgId(orgs[0].id);
     }
   }, [orgs, selectedOrgId]);
+
+  useEffect(() => {
+    const loadOrganizations = async () => {
+      if (!user.email || user.email === "example@default.com") {
+        return;
+      }
+
+      try {
+        const response = await fetch(apiUrl(`/api/Organization/by-user-email?email=${encodeURIComponent(user.email)}`));
+        if (!response.ok) {
+          return;
+        }
+
+        const organizations = (await response.json()) as Array<{
+          id: string;
+          name: string;
+          users: Array<{ id: string; email: string; username: string; role: string }>;
+          invites: Array<{ id: string; organizationId: string; email: string; firstName?: string; lastName?: string; status: string; invitationLink?: string }>;
+        }>;
+
+        const nextOrgs: Org[] = organizations.map((org) => ({
+          id: org.id,
+          name: org.name,
+          users: org.users.map((member) => ({
+            ...user,
+            id: member.id,
+            email: member.email,
+            username: member.username,
+            orgs: [],
+            tasks: [],
+            invites: [],
+            role: member.role === "organizer" ? "admin" : "user",
+          })),
+          adminEmails: org.users.filter((member) => member.role === "organizer").map((member) => member.email),
+          invites: org.invites.map((invite) => ({
+            id: invite.id,
+            organizationId: invite.organizationId,
+            orgId: invite.organizationId,
+            orgName: org.name,
+            email: invite.email,
+            firstName: invite.firstName,
+            lastName: invite.lastName,
+            status: invite.status === "open" ? "pending" : (invite.status as Invitation["status"]),
+            invitationUrl: invite.invitationLink,
+          })),
+        }));
+
+        persist({ ...user, orgs: nextOrgs });
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    void loadOrganizations();
+  }, [user.email]);
 
   const persist = (nextUser: User) => {
     setUser(nextUser);
@@ -131,21 +193,82 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrgs });
   };
 
-  const sendInvite = (org: Org) => {
+  const sendInvite = async (org: Org) => {
     if (!newInviteEmail.trim()) return;
-    const invite: Invitation = {
-      orgId: org.id,
-      orgName: org.name,
-      email: newInviteEmail.trim(),
-      status: "pending",
-    };
-    const updatedOrg: Org = {
-      ...org,
-      invites: [...(org.invites ?? []), invite],
-    };
-    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    setNewInviteEmail("");
-    persist({ ...user, orgs: nextOrgs });
+
+    const email = newInviteEmail.trim();
+
+    setInviteError(null);
+    setInviteSuccess(null);
+    setIsSendingInvite(true);
+
+    try {
+      if (!guidPattern.test(org.id)) {
+        throw new Error(
+          "Diese Organisation hat noch keine echte DB-ID. Lade die Organisationen zuerst aus dem Backend statt aus den Mock-Daten.",
+        );
+      }
+
+      const response = await fetch(apiUrl("/api/Invitation/send"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          organizationId: org.id,
+          email,
+          createdByEmail: user.email,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const validationErrors = payload?.errors
+          ? Object.values(payload.errors)
+              .flat()
+              .filter((value): value is string => typeof value === "string")
+              .join(" ")
+          : null;
+        const message =
+          payload?.message ??
+          validationErrors ??
+          "Einladung konnte nicht erstellt werden.";
+        throw new Error(message);
+      }
+
+      const payload = (await response.json()) as { data?: { id?: string; organizationId?: string; invitationLink?: string } };
+      const invite: Invitation = {
+        id: payload.data?.id,
+        organizationId: payload.data?.organizationId ?? org.id,
+        orgId: org.id,
+        orgName: org.name,
+        email,
+        status: "pending",
+        invitationUrl: payload.data?.invitationLink,
+      };
+
+      const updatedOrg: Org = {
+        ...org,
+        invites: [...(org.invites ?? []), invite],
+      };
+
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+      setNewInviteEmail("");
+      setInviteSuccess(
+        payload.data?.invitationLink
+          ? "Einladungslink wurde erstellt und unten gespeichert."
+          : "Einladung wurde erstellt und per E-Mail versendet.",
+      );
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setInviteError("Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.");
+      } else {
+        setInviteError(error instanceof Error ? error.message : "Invitation could not be created.");
+      }
+    } finally {
+      setIsSendingInvite(false);
+    }
   };
 
   const withdrawInvite = (org: Org, email: string) => {
@@ -368,6 +491,16 @@ const Orgs: FC = () => {
                       <div>
                         <div className="font-semibold text-slate-50">{inv.email}</div>
                         <div className="text-xs text-slate-400">Status: {inv.status}</div>
+                        {inv.invitationUrl && (
+                          <a
+                            href={inv.invitationUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 block text-xs text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
+                          >
+                            Invitation-Link öffnen
+                          </a>
+                        )}
                       </div>
                       {isSelectedAdmin && inv.status === "pending" && (
                         <button
@@ -394,12 +527,14 @@ const Orgs: FC = () => {
                     />
                     <button
                       onClick={() => sendInvite(selectedOrg)}
-                      disabled={!isSelectedAdmin}
+                      disabled={!isSelectedAdmin || isSendingInvite}
                       className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                     >
-                      Senden
+                      {isSendingInvite ? "Sende..." : "Senden"}
                     </button>
                   </div>
+                  {inviteSuccess && <div className="text-xs text-emerald-300">{inviteSuccess}</div>}
+                  {inviteError && <div className="text-xs text-rose-300">{inviteError}</div>}
                   {!isSelectedAdmin && (
                     <div className="text-xs text-slate-500">Nur Admins dürfen einladen.</div>
                   )}

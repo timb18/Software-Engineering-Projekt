@@ -1,10 +1,12 @@
 import { useEffect, type FC } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useAuth0 } from "@auth0/auth0-react";
-import { useNavigate } from "react-router";
 
 const Login: FC = () => {
   const { loginWithPopup: login, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invitationId = searchParams.get("invitationId");
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -21,7 +23,7 @@ const Login: FC = () => {
             className="w-full rounded-2xl border bg-emerald-300 py-1 hover:bg-emerald-400"
             onClick={() => login()}
           >
-            Login
+            {invitationId ? "Login / Konto erstellen und Einladung annehmen" : "Login"}
           </button>
           <div className="my-2 h-0.5 w-full rounded-full bg-neutral-700"></div>
           <button
