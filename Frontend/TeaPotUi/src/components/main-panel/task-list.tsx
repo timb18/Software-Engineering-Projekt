@@ -87,7 +87,7 @@ const TaskBoard: FC = () => {
       isFixed: form.isFixed,
       priority: form.priority,
       status: form.status ?? "todo",
-      org: getDefaults().orgs[0],
+      org: getDefaults().orgs[0]?.id ?? "",
       recurrence: "none",
       dependencies,
     };
@@ -136,10 +136,10 @@ const TaskBoard: FC = () => {
         );
 
       case "org":
-        if (t1.org.name < t2.org.name) {
+        if (t1.org < t2.org) {
           return -1 * sortDirectionMultiplier;
         }
-        if (t1.org.name > t2.org.name) {
+        if (t1.org > t2.org) {
           return 1 * sortDirectionMultiplier;
         }
         return 0;
