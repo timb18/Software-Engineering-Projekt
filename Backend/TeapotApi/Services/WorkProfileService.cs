@@ -83,6 +83,28 @@ public class WorkProfileService(
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
             .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
 
+        await DeleteExistingProfileAsync(existing, cancellationToken);
+    }
+
+    public async Task DeleteByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ArgumentException("Email is required.", nameof(email));
+        }
+
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+
+        var existing = await repository.GetQueryable()
+            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .FirstOrDefaultAsync(wp => wp.Membership.User.Email.ToLower() == normalizedEmail, cancellationToken);
+
+        await DeleteExistingProfileAsync(existing, cancellationToken);
+    }
+
+    private async Task DeleteExistingProfileAsync(WorkProfile? existing, CancellationToken cancellationToken)
+    {
         if (existing is null)
         {
             throw new KeyNotFoundException("Work profile not found.");

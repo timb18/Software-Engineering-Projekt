@@ -58,5 +58,15 @@ public class WorkProfileControllerTests
             LastDeletedUserId = userId;
             return Task.CompletedTask;
         }
+
+        public Task DeleteByEmailAsync(string email, CancellationToken cancellationToken = default)
+        {
+            if (ExceptionToThrow is not null)
+            {
+                throw ExceptionToThrow;
+            }
+
+            return Task.CompletedTask;
+        }
     }
 }

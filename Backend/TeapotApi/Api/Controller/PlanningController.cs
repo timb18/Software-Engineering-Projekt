@@ -66,4 +66,25 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpDelete("/api/WorkProfile/by-email")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DeleteByEmail([FromQuery] string email, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await workProfileService.DeleteByEmailAsync(email, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }

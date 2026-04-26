@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
 import { useAuth0 } from "@auth0/auth0-react";
+import { defaultUser } from "../../util/default-data";
 
 type Tab = "general" | "work" | "security" | "account";
 
@@ -41,11 +42,11 @@ const User: FC = () => {
   const [isDeletingWorkProfile, setIsDeletingWorkProfile] = useState(false);
 
   const defaultWorkProfile = {
-    capacity: 8,
-    workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    workStart: "09:00",
-    workEnd: "17:00",
-    breakRules: "30m lunch + 10m after 90m focus",
+    capacity: defaultUser.workCapacityHours ?? 8,
+    workDays: defaultUser.workDays ?? ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    workStart: defaultUser.workStart ?? "09:00",
+    workEnd: defaultUser.workEnd ?? "17:00",
+    breakRules: defaultUser.breakRules ?? "30m lunch",
   };
 
   useEffect(() => {
@@ -136,7 +137,11 @@ const User: FC = () => {
     setIsDeletingWorkProfile(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/WorkProfile/${user.id}`, {
+      const deletePath = user.id
+        ? `${apiBaseUrl}/api/WorkProfile/${user.id}`
+        : `${apiBaseUrl}/api/WorkProfile/by-email?email=${encodeURIComponent(user.email)}`;
+
+      const response = await fetch(deletePath, {
         method: "DELETE",
       });
 
