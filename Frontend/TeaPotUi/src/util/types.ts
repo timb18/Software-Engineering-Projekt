@@ -1,10 +1,39 @@
+export type WorkWeekDay = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+
+export type WorkBreak = {
+  id: string;
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+};
+
+export type WorkBlock = {
+  id: string;
+  companyId: string;
+  companyName: string;
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+};
+
+export type WorkDayProfile = {
+  day: WorkWeekDay;
+  blocks: WorkBlock[];
+  breaks: WorkBreak[];
+};
+
+export type WorkProfile = {
+  days: WorkDayProfile[];
+};
+
 export type User = {
-  id?: string;
+  id: string;
   username: string;
   displayName?: string;
   email: string;
   profileImage?: string;
   timezone?: string;
+  plannerViewStart?: string; // HH:mm
+  plannerViewEnd?: string; // HH:mm
+  workProfile?: WorkProfile;
   workCapacityHours?: number;
   workDays?: string[];
   workStart?: string; // HH:mm
@@ -31,6 +60,7 @@ export type Calendar = {
 };
 
 export type Task = {
+  id?: string;
   startDate: Date;
   endDate: Date;
   name: string;
@@ -38,7 +68,7 @@ export type Task = {
   isFixed?: boolean;
   priority?: Priority;
   status?: "todo" | "in-progress" | "done";
-  org: Org;
+  org: string;
   recurrence?: "none" | "daily" | "weekly";
   deadline?: Date;
   dependencies: Task[];

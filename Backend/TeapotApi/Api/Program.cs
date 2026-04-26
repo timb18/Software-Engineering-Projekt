@@ -32,8 +32,6 @@ builder.Services.AddEndpointsApiExplorer()
         o.SwaggerDoc("v1",
             new OpenApiInfo
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
-        o.NonNullableReferenceTypesAsRequired();
-        o.SupportNonNullableReferenceTypes();
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
@@ -75,6 +73,15 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailO
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IMembershipService, MembershipService>();
+
+// User
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Tasks
+builder.Services.AddScoped<IUserTaskService, UserTaskService>();
+
+// Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
 builder.Services.AddControllers()

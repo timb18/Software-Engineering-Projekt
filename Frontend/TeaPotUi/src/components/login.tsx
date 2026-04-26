@@ -2,11 +2,9 @@ import { useEffect, useState, type FC } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import useLoginStore from "../stores/login-store";
 import { useNavigate, useSearchParams } from "react-router";
-
-type Login = {
-  email: string;
-  password: string;
-};
+import { useEffect, type FC } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useNavigate } from "react-router";
 
 const Login: FC = () => {
   const [showWrongPassword, setShowWrongPassword] = useState(false);
@@ -19,6 +17,7 @@ const Login: FC = () => {
     setValue,
   } = useForm<Login>();
   const { tryLogin, ensureLocalAccount, syncAccountFromBackend } = useLoginStore();
+  const { loginWithPopup: login, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
@@ -27,149 +26,32 @@ const Login: FC = () => {
   const inviteMessage = searchParams.get("message");
 
   useEffect(() => {
-    if (invitedEmail) {
-      setValue("email", invitedEmail);
+    if (isAuthenticated) {
+      navigate("/");
     }
-  }, [invitedEmail, setValue]);
-
-  const onLogin: SubmitHandler<Login> = async (data) => {
-    const normalizedEmail = data.email.trim().toLowerCase();
-    const normalizedInvitedEmail = invitedEmail?.trim().toLowerCase();
-
-    setInviteError(null);
-
-    if (invitationId && normalizedInvitedEmail && normalizedEmail !== normalizedInvitedEmail) {
-      setInviteError("Bitte melde dich mit der eingeladenen E-Mail-Adresse an.");
-      return;
-    }
-
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
-    let loggedIn = tryLogin(normalizedEmail, data.password);
-    if (!loggedIn && invitationId && normalizedInvitedEmail === normalizedEmail) {
-      try {
-        const registerResponse = await fetch(`${apiBaseUrl}/api/Auth/register`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: normalizedEmail,
-            username: normalizedEmail.split("@")[0],
-          }),
-        });
-
-        if (!registerResponse.ok) {
-          const payload = await registerResponse.json().catch(() => null);
-          throw new Error(payload?.message ?? "Konto konnte nicht erstellt werden.");
-        }
-
-        const registerPayload = await registerResponse.json();
-        const account = registerPayload?.data;
-
-        if (account?.id && account?.email && account?.username) {
-          syncAccountFromBackend(account);
-        } else {
-          ensureLocalAccount(normalizedEmail);
-        }
-
-        loggedIn = true;
-      } catch (error) {
-        setInviteError(error instanceof Error ? error.message : "Konto konnte nicht erstellt werden.");
-        return;
-      }
-    }
-
-    if (!loggedIn) {
-      setShowWrongPassword(true);
-      return;
-    }
-
-    if (invitationId) {
-      setIsFinishingInvite(true);
-      try {
-        const response = await fetch(`${apiBaseUrl}/api/Invitation/${invitationId}/accept`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: normalizedEmail,
-          }),
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.message ?? "Einladung konnte nicht angenommen werden.");
-        }
-
-        navigate("/teams?inviteStatus=accepted");
-        return;
-      } catch (error) {
-        setInviteError(error instanceof Error ? error.message : "Einladung konnte nicht angenommen werden.");
-        setIsFinishingInvite(false);
-        return;
-      }
-    }
-
-    navigate("/");
-  };
+  }, [isAuthenticated, navigate]);
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center">
-      <div className="flex h-1/2 min-h-100 w-1/5 min-w-110 flex-col items-center gap-10 rounded-4xl bg-emerald-200 p-10">
+    <div className="flex h-screen w-full flex-col items-center justify-center">
+      <div className="flex h-2/5 min-h-100 w-1/5 min-w-110 flex-col items-center gap-10 rounded-4xl bg-emerald-200 p-10">
         <h1 className="text-4xl font-bold">Welcome</h1>
-        {inviteStatus === "pending" && invitedEmail && (
-          <div className="rounded-2xl bg-white px-4 py-3 text-center text-sm text-slate-700">
-            Einladung erkannt fuer <strong>{invitedEmail}</strong>. Bitte melde dich an oder erstelle hier ein lokales Konto,
-            dann trittst du der Organisation bei.
-          </div>
-        )}
-        {inviteStatus === "error" && inviteMessage && (
-          <div className="rounded-2xl bg-rose-100 px-4 py-3 text-center text-sm text-rose-700">{inviteMessage}</div>
-        )}
-        <form
-          className="flex flex-col items-center gap-2"
-          onSubmit={handleSubmit(onLogin)}
-        >
-          {showWrongPassword && (
-            <div className="text-red-600">Incorrect password or email</div>
-          )}
-          {inviteError && (
-            <div className="text-red-600">{inviteError}</div>
-          )}
-          <div className="flex flex-col gap-1">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              className="bg-white px-2"
-              placeholder="email"
-              type="email"
-              {...register("email", {
-                required: true,
-                pattern: /^[\w\-.]+@([\w-]+\.)+[\w-]{2,}$/,
-              })}
-              aria-invalid={errors.email ? "true" : "false"}
-            />
-            {errors.email && <div>incorrect email format</div>}
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              className="bg-white px-2"
-              placeholder="password"
-              type="password"
-              {...register("password", { required: true })}
-            />
-          </div>
+        <div className="flex h-3/5 w-full flex-col items-center justify-center p-5">
           <button
-            type="submit"
-            disabled={isFinishingInvite}
-            className="cursor-pointer rounded-2xl disabled:cursor-default bg-emerald-300 hover:bg-emerald-400 px-5 text-xl"
+            className="w-full rounded-2xl border bg-emerald-300 py-1 hover:bg-emerald-400"
+            onClick={() => login()}
           >
             {invitationId ? "Login / Konto erstellen und Einladung annehmen" : "Login"}
           </button>
-        </form>
+          <div className="my-2 h-0.5 w-full rounded-full bg-neutral-700"></div>
+          <button
+            className="w-full rounded-2xl border bg-emerald-300 py-1 hover:bg-emerald-400"
+            onClick={() =>
+              login({ authorizationParams: { screen_hint: "signup" } })
+            }
+          >
+            Signup
+          </button>
+        </div>
       </div>
     </div>
   );

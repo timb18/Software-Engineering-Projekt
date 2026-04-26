@@ -1,16 +1,22 @@
-import { useEffect, useMemo, useState, type FC } from "react";
-import { useNavigate } from "react-router";
+import { useState, type FC } from "react";
+import { useBlocker, useNavigate } from "react-router";
 import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
+import { useAuth0 } from "@auth0/auth0-react";
+import WorkProfileConfigurator from "./work-profile-configurator";
+import { saveWorkProfile } from "../../util/work-profile-api";
 
 type Tab = "general" | "work" | "security" | "account";
 
 const User: FC = () => {
   const { logout } = useLoginStore();
-  const { user, setUser } = useUserStore();
+  const { user: userFromDb, setUser } = useUserStore();
+  const { logout: authLogout, user: userFromAuth } = useAuth0();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>("general");
+  const [isWorkDirty, setIsWorkDirty] = useState(false);
+  const [pendingTabChange, setPendingTabChange] = useState<Tab | undefined>();
   const [status, setStatus] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [pwdForm, setPwdForm] = useState({
@@ -18,57 +24,26 @@ const User: FC = () => {
     next: "",
     confirm: "",
   });
-  const [profileForm, setProfileForm] = useState({
-    displayName: user?.displayName ?? user?.username ?? "",
-    email: user?.email ?? "",
-    timezone: user?.timezone ?? "Europe/Berlin",
-    profileImage: user?.profileImage ?? "gradient-1",
-  });
-  const [workForm, setWorkForm] = useState({
-    capacity: user?.workCapacityHours ?? 8,
-    workDays: user?.workDays ?? ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    workStart: user?.workStart ?? "09:00",
-    workEnd: user?.workEnd ?? "17:00",
-    breakRules: user?.breakRules ?? "30m lunch + 10m after 90m focus",
-  });
   const [notifForm, setNotifForm] = useState({
-    emailInvites: user?.notifications?.emailInvites ?? true,
-    emailDeadlines: user?.notifications?.emailDeadlines ?? true,
+    emailInvites: userFromDb?.notifications?.emailInvites ?? true,
+    emailDeadlines: userFromDb?.notifications?.emailDeadlines ?? true,
   });
 
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    }
-  }, [navigate, user]);
-
-  if (!user) {
-    return <></>;
-  }
-
-  useEffect(() => {
-    if (user) {
+  /* useEffect(() => {
+    if (userFromDb) {
       setProfileForm({
-        displayName: user.displayName ?? user.username,
-        email: user.email,
-        timezone: user.timezone ?? "Europe/Berlin",
-        profileImage: user.profileImage ?? "gradient-1",
-      });
-      setWorkForm({
-        capacity: user.workCapacityHours ?? 8,
-        workDays: user.workDays ?? ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        workStart: user.workStart ?? "09:00",
-        workEnd: user.workEnd ?? "17:00",
-        breakRules: user.breakRules ?? "30m lunch",
+        displayName: userFromDb.displayName ?? userFromDb.username,
+        email: userFromDb.email,
+        profileImage: userFromDb.profileImage ?? "gradient-1",
       });
       setNotifForm({
-        emailInvites: user.notifications?.emailInvites ?? true,
-        emailDeadlines: user.notifications?.emailDeadlines ?? true,
+        emailInvites: userFromDb.notifications?.emailInvites ?? true,
+        emailDeadlines: userFromDb.notifications?.emailDeadlines ?? true,
       });
     }
-  }, [user]);
+  }, [userFromDb]); */
 
-  const avatarStyle = useMemo(() => {
+  /* const avatarStyle = useMemo(() => {
     if (profileForm.profileImage?.startsWith("http")) {
       return {
         backgroundImage: `url(${profileForm.profileImage})`,
@@ -83,52 +58,38 @@ const User: FC = () => {
     return {
       backgroundImage: gradients[profileForm.profileImage ?? "gradient-1"],
     };
-  }, [profileForm.profileImage]);
+  }, [profileForm.profileImage]); */
 
-  const persist = (nextUser = user) => {
+  const persist = (nextUser = userFromDb) => {
     setUser(nextUser);
+
+    if (nextUser.workProfile && nextUser.username) {
+      saveWorkProfile(nextUser.username, nextUser.workProfile).catch((err) => {
+        console.error("Failed to save work profile to backend:", err);
+      });
+    }
   };
 
   const saveProfile = () => {
-    setStatus(undefined);
+    /* setStatus(undefined);
     setError(undefined);
     if (!profileForm.displayName.trim()) {
       setError("Name can't be empty");
       return;
     }
     const nextUser = {
-      ...user,
+      ...userFromDb,
       displayName: profileForm.displayName.trim(),
       email: profileForm.email.trim(),
-      timezone: profileForm.timezone,
       profileImage: profileForm.profileImage,
     };
     persist(nextUser);
-    setStatus("Profil updated");
-  };
-
-  const saveWork = () => {
-    setStatus(undefined);
-    setError(undefined);
-    if (!workForm.workStart || !workForm.workEnd) {
-      setError("Work hours require a start and end.");
-      return;
-    }
-    const nextUser = {
-      ...user,
-      workCapacityHours: workForm.capacity,
-      workDays: workForm.workDays,
-      workStart: workForm.workStart,
-      workEnd: workForm.workEnd,
-      breakRules: workForm.breakRules,
-    };
-    persist(nextUser);
-    setStatus("work profile saved.");
+    setStatus("Profil updated"); */
   };
 
   const saveNotifications = () => {
     const nextUser = {
-      ...user,
+      ...userFromDb,
       notifications: {
         emailInvites: notifForm.emailInvites,
         emailDeadlines: notifForm.emailDeadlines,
@@ -140,12 +101,7 @@ const User: FC = () => {
 
   const logOut = () => {
     logout();
-    navigate("/login");
-  };
-
-  const logoutAll = () => {
-    setStatus("all sessions closed (Demo: localStorage JWT gelöscht)");
-    localStorage.removeItem("token");
+    authLogout();
   };
 
   const updatePassword = () => {
@@ -176,22 +132,40 @@ const User: FC = () => {
     navigate("/login");
   };
 
-  const toggleWorkDay = (day: string) => {
-    const exists = workForm.workDays.includes(day);
-    const next = exists
-      ? workForm.workDays.filter((d) => d !== day)
-      : [...workForm.workDays, day];
-    setWorkForm({ ...workForm, workDays: next });
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isWorkDirty &&
+      tab === "work" &&
+      currentLocation.pathname !== nextLocation.pathname,
+  );
+
+  const handleTabClick = (next: Tab) => {
+    if (tab === "work" && isWorkDirty && next !== "work") {
+      setPendingTabChange(next);
+    } else {
+      setTab(next);
+    }
   };
 
-  const timezones = [
-    "Europe/Berlin",
-    "UTC",
-    "Europe/Vienna",
-    "Europe/Zurich",
-    "America/New_York",
-  ];
-  const workDayOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const confirmLeave = () => {
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+    } else if (pendingTabChange) {
+      setTab(pendingTabChange);
+      setPendingTabChange(undefined);
+    }
+    setIsWorkDirty(false);
+  };
+
+  const cancelLeave = () => {
+    if (blocker.state === "blocked") {
+      blocker.reset();
+    }
+    setPendingTabChange(undefined);
+  };
+
+  const showUnsavedDialog =
+    blocker.state === "blocked" || pendingTabChange !== undefined;
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">
@@ -209,7 +183,7 @@ const User: FC = () => {
           {(["general", "work", "security", "account"] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => handleTabClick(t)}
               className={`rounded-full px-4 py-2 font-semibold transition ${
                 tab === t
                   ? "border border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
@@ -231,16 +205,27 @@ const User: FC = () => {
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
                 <div className="relative">
-                  <div
-                    className="aspect-square w-24 rounded-full border border-slate-700"
-                    style={avatarStyle}
-                  ></div>
+                  <div className="aspect-square w-24 rounded-full border border-slate-700">
+                    {userFromAuth?.picture ? (
+                      <img
+                        src={userFromAuth.picture}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          background:
+                            "linear-gradient(135deg, #34d399, #2563eb)",
+                        }}
+                      ></div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2 text-sm">
                   <div className="text-xs tracking-[0.14em] text-slate-500 uppercase">
                     Profile Picture
                   </div>
-                  <div className="flex gap-2">
+                  {/* <div className="flex gap-2">
                     {["gradient-1", "gradient-2", "gradient-3"].map((g) => (
                       <button
                         key={g}
@@ -262,22 +247,17 @@ const User: FC = () => {
                         }}
                       />
                     ))}
-                  </div>
+                  </div> */}
                   <input
                     type="url"
                     placeholder="Bild-URL (optional)"
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                    value={
-                      profileForm.profileImage.startsWith("http")
-                        ? profileForm.profileImage
-                        : ""
-                    }
-                    onChange={(e) =>
+                    /* onChange={(e) =>
                       setProfileForm({
                         ...profileForm,
                         profileImage: e.target.value,
                       })
-                    }
+                    } */
                   />
                 </div>
               </div>
@@ -287,16 +267,7 @@ const User: FC = () => {
                   <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
                     Username
                   </label>
-                  <input
-                    value={profileForm.displayName}
-                    onChange={(e) =>
-                      setProfileForm({
-                        ...profileForm,
-                        displayName: e.target.value,
-                      })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
+                  <input className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
@@ -304,34 +275,10 @@ const User: FC = () => {
                   </label>
                   <input
                     type="email"
-                    value={profileForm.email}
-                    onChange={(e) =>
-                      setProfileForm({ ...profileForm, email: e.target.value })
-                    }
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
                   {/* <span className="text-[11px] text-slate-500">Demo: Bestätigungsmail wird angenommen.</span> */}
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Timezone
-                </label>
-                <select
-                  value={profileForm.timezone}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, timezone: e.target.value })
-                  }
-                  className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                >
-                  {timezones.map((tz) => (
-                    <option key={tz} value={tz}>
-                      {tz}
-                    </option>
-                  ))}
-                </select>
-                {/* <span className="text-[11px] text-slate-500">Wichtig für Deadlines und Planer.</span> */}
               </div>
 
               <button
@@ -346,9 +293,11 @@ const User: FC = () => {
               <div className="text-sm font-semibold text-slate-100">
                 Account & Security
               </div>
-              <div className="text-sm text-slate-300">Role: {user.role}</div>
               <div className="text-sm text-slate-300">
-                Username: {user.username}
+                Role: {userFromDb.role}
+              </div>
+              <div className="text-sm text-slate-300">
+                Username: {userFromAuth?.nickname}
               </div>
               {/* <div className="text-xs text-slate-500">Weitere Details in den Tabs Sicherheit/Konto.</div> */}
             </div>
@@ -356,114 +305,14 @@ const User: FC = () => {
         )}
 
         {tab === "work" && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
-            <div className="flex flex-col gap-3">
-              <div className="text-sm font-semibold text-slate-100">
-                Load capacity
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Hours per day
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={16}
-                  value={workForm.capacity}
-                  onChange={(e) =>
-                    setWorkForm({
-                      ...workForm,
-                      capacity: Number(e.target.value),
-                    })
-                  }
-                  className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Work days
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {workDayOptions.map((d) => {
-                    const active = workForm.workDays.includes(d);
-                    return (
-                      <button
-                        key={d}
-                        onClick={() => toggleWorkDay(d)}
-                        className={`rounded-full px-3 py-1 text-sm ${
-                          active
-                            ? "border border-emerald-300/60 bg-emerald-400/20 text-emerald-100"
-                            : "border border-slate-700 bg-slate-900/60 text-slate-300"
-                        }`}
-                      >
-                        {d}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                    Start
-                  </label>
-                  <input
-                    type="time"
-                    value={workForm.workStart}
-                    onChange={(e) =>
-                      setWorkForm({ ...workForm, workStart: e.target.value })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                    End
-                  </label>
-                  <input
-                    type="time"
-                    value={workForm.workEnd}
-                    onChange={(e) =>
-                      setWorkForm({ ...workForm, workEnd: e.target.value })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                  Break rules
-                </label>
-                <textarea
-                  value={workForm.breakRules}
-                  onChange={(e) =>
-                    setWorkForm({ ...workForm, breakRules: e.target.value })
-                  }
-                  className="min-h-22.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  placeholder="z.B. 30m Mittag, 10m nach 90m Fokus"
-                />
-              </div>
-
-              <button
-                onClick={saveWork}
-                className="w-fit rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
-              >
-                Save work profile
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-200">
-              <div className="text-sm font-semibold text-slate-100">
-                Hint
-              </div>
-              <p className="mt-2 text-slate-300">
-                These values are used by the planner to generate deadlines, focus blocks and meeting times to fit your timezone and capacity.
-              </p>
-            </div>
-          </div>
+          <WorkProfileConfigurator
+            key={`${userFromDb.username}-${userFromDb.email}`}
+            user={userFromDb}
+            onSaveUser={persist}
+            onStatusChange={setStatus}
+            onErrorChange={setError}
+            onDirtyChange={setIsWorkDirty}
+          />
         )}
 
         {tab === "security" && (
@@ -533,13 +382,6 @@ const User: FC = () => {
                 >
                   Logout
                 </button>
-                <button
-                  onClick={logoutAll}
-                  className="w-fit rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 text-sm text-slate-100 transition hover:border-emerald-300/60 hover:text-emerald-100"
-                >
-                  Logout all sessions
-                </button>
-                {/* <p className="text-xs text-slate-500">JWT aus localStorage wird entfernt (Demo).</p> */}
               </div>
             </div>
           </div>
@@ -605,6 +447,49 @@ const User: FC = () => {
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm shadow">
           {status && <div className="text-emerald-200">{status}</div>}
           {error && <div className="text-rose-300">{error}</div>}
+        </div>
+      )}
+
+      {showUnsavedDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm"
+          onClick={cancelLeave}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/10 text-xl">
+                ⚠️
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-50">
+                  Unsaved changes
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Your work profile has unsaved changes. Do you want to leave
+                  without saving?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelLeave}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-slate-100"
+              >
+                Stay & save
+              </button>
+              <button
+                type="button"
+                onClick={confirmLeave}
+                className="rounded-xl border border-rose-400/40 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/25"
+              >
+                Leave without saving
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

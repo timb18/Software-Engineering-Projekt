@@ -52,8 +52,8 @@ alternatively start it with a .Net capable IDE e.g. VS Code with C# extension, V
 Open the React project directory in a terminal and run the command (note: node needs to be installed)
 
 ~~~ cmd
-cd Prototype/PrototypeFrontend/PrototypeUi && npm install
-cd Prototype/PrototypeFrontend/PrototypeUi && npm run dev
+cd Frontend/TeaPotUi && npm install
+cd Frontend/TeaPotUi && npm run dev
 ~~~
 
 afterwards enter the url shown in the terminal into a browser
