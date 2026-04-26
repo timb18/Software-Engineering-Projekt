@@ -22,11 +22,11 @@ public class AuthControllerTests
 
         _dbContext = new TeapotDbContext(options);
         var userService = new UserService(
-            _dbContext,
             new GenericRepository<User>(_dbContext),
-            new GenericRepository<Membership>(_dbContext),
             new GenericRepository<Organization>(_dbContext),
-            new GenericRepository<WorkProfile>(_dbContext));
+            new GenericRepository<Membership>(_dbContext),
+            new GenericRepository<WorkProfile>(_dbContext),
+            _dbContext);
         _controller = new AuthController(userService, new GenericRepository<User>(_dbContext));
     }
 

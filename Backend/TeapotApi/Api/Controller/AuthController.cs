@@ -7,7 +7,7 @@ namespace Api.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
-public class AuthController(IUserService userService) : ControllerBase
+public class AuthController : ControllerBase
 {
     private readonly IGenericRepository<User> _userRepository;
     private readonly IUserService _userService;
@@ -18,9 +18,6 @@ public class AuthController(IUserService userService) : ControllerBase
         _userRepository = userRepository;
     }
 
-    /// <summary>
-    /// Finds or creates a user by email and ensures they have a personal work profile.
-    /// Call this once after login. Returns userId and workProfileId for subsequent API calls.
     /// <summary>
     /// Finds or creates a user by email and ensures they have a personal work profile.
     /// Call this once after Auth0 login. Returns userId and workProfileId for subsequent API calls.
