@@ -92,6 +92,7 @@ const defaultTasks: Task[] = [
 ];
 
 const adminA: User = {
+  id: "user-admin-a",
   username: "admin",
   displayName: "Admin A",
   email: "admin@company-a.de",
@@ -108,6 +109,7 @@ const adminA: User = {
   notifications: { emailInvites: true, emailDeadlines: true },
 };
 const userA1: User = {
+  id: "user-a-1",
   username: "userA",
   displayName: "Anna A",
   email: "user@company-a.de",
@@ -132,6 +134,7 @@ const userA1: User = {
 };
 
 const adminB: User = {
+  id: "user-admin-b",
   username: "admin",
   displayName: "Admin B",
   email: "admin@company-b.de",
@@ -148,6 +151,7 @@ const adminB: User = {
   notifications: { emailInvites: true, emailDeadlines: true },
 };
 const userB1: User = {
+  id: "user-b-1",
   username: "userB",
   displayName: "Ben B",
   email: "user@company-b.de",
@@ -235,6 +239,7 @@ export const orgs: Org[] = [
 ];
 
 export const defaultUser: User = {
+  id: "default-user",
   email: "example@default.com",
   role: "user",
   username: "defaultUser123",
