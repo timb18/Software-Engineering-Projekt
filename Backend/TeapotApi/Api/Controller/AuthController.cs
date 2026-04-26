@@ -1,6 +1,7 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Services;
 
 namespace Api.Controller;
 
@@ -9,10 +10,30 @@ namespace Api.Controller;
 public class AuthController : ControllerBase
 {
     private readonly IGenericRepository<User> _userRepository;
+    private readonly IUserService _userService;
 
-    public AuthController(IGenericRepository<User> userRepository)
+    public AuthController(IUserService userService, IGenericRepository<User> userRepository)
     {
+        _userService = userService;
         _userRepository = userRepository;
+    }
+
+    /// <summary>
+    /// Finds or creates a user by email and ensures they have a personal work profile.
+    /// Call this once after login. Returns userId and workProfileId for subsequent API calls.
+    /// </summary>
+    [HttpPost("ensure")]
+    [ProducesResponseType(typeof(EnsureUserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> EnsureUser(
+        [FromBody] EnsureUserRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest("Email is required.");
+
+        var (userId, workProfileId) = await _userService.EnsureUserAsync(request.Email, cancellationToken);
+        return Ok(new EnsureUserResponse(userId, workProfileId));
     }
 
     [HttpPost("register")]
@@ -64,6 +85,9 @@ public class AuthController : ControllerBase
         });
     }
 }
+
+public record EnsureUserRequest(string Email);
+public record EnsureUserResponse(Guid UserId, Guid WorkProfileId);
 
 public class RegisterRequest
 {

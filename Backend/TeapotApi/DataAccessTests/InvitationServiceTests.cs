@@ -128,6 +128,83 @@ public class InvitationServiceTests
     }
 
     [Test]
+    public async Task AcceptInvitationByEmailAsync_PreservesPersonalWorkspaceMembership()
+    {
+        var invitedUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@test.com",
+            Username = "Member",
+            CreatedAt = DateTime.UtcNow
+        };
+        var personalOrganization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Member's Workspace",
+            Description = "Personal workspace",
+            MaxUsers = 1,
+            CreatedAt = DateTime.UtcNow
+        };
+        var personalMembership = new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = invitedUser.Id,
+            OrganizationId = personalOrganization.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow
+        };
+        var personalWorkProfile = new WorkProfile
+        {
+            Id = Guid.NewGuid(),
+            MembershipId = personalMembership.Id,
+            MaxDailyLoad = TimeSpan.FromHours(8),
+            PlannerViewStart = "06:00",
+            PlannerViewEnd = "22:00",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var organizer = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@test.com",
+            Username = "Organizer",
+            CreatedAt = DateTime.UtcNow
+        };
+        var invitedOrganization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "TeaPot GmbH",
+            Description = "Test",
+            MaxUsers = 10,
+            CreatedAt = DateTime.UtcNow
+        };
+        var invitation = new Invitation
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = invitedOrganization.Id,
+            CreatedBy = organizer.Id,
+            Email = invitedUser.Email,
+            Status = EInvitationStatus.Open,
+            CreatedAt = DateTime.UtcNow,
+            ExpiryDate = DateTime.UtcNow.AddDays(7)
+        };
+
+        _dbContext.Users.AddRange(organizer, invitedUser);
+        _dbContext.Organizations.AddRange(personalOrganization, invitedOrganization);
+        _dbContext.Memberships.Add(personalMembership);
+        _dbContext.WorkProfiles.Add(personalWorkProfile);
+        _dbContext.Invitations.Add(invitation);
+        await _dbContext.SaveChangesAsync();
+
+        var accepted = await _service.AcceptInvitationByEmailAsync(invitation.Id, invitedUser.Email);
+
+        Assert.That(accepted, Is.True);
+        Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(2));
+        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id), Is.EqualTo(1));
+    }
+
+    [Test]
     public void AcceptInvitationByEmailAsync_Throws_WhenInvitedUserHasNoAccount()
     {
         var organizer = new User

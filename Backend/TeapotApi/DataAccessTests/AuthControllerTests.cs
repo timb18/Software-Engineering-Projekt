@@ -3,6 +3,7 @@ using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Services;
 
 namespace DataAccessTests;
 
@@ -20,7 +21,13 @@ public class AuthControllerTests
             .Options;
 
         _dbContext = new TeapotDbContext(options);
-        _controller = new AuthController(new GenericRepository<User>(_dbContext));
+        var userService = new UserService(
+            _dbContext,
+            new GenericRepository<User>(_dbContext),
+            new GenericRepository<Membership>(_dbContext),
+            new GenericRepository<Organization>(_dbContext),
+            new GenericRepository<WorkProfile>(_dbContext));
+        _controller = new AuthController(userService, new GenericRepository<User>(_dbContext));
     }
 
     [TearDown]
@@ -63,5 +70,35 @@ public class AuthControllerTests
 
         Assert.That(result, Is.InstanceOf<OkObjectResult>());
         Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task EnsureUser_CreatesMissingUserAndWorkProfile()
+    {
+        var result = await _controller.EnsureUser(
+            new EnsureUserRequest("ensure-user@test.com"),
+            CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task EnsureUser_IsIdempotent_ForExistingUser()
+    {
+        await _controller.EnsureUser(new EnsureUserRequest("repeat@test.com"), CancellationToken.None);
+
+        var secondResult = await _controller.EnsureUser(
+            new EnsureUserRequest("repeat@test.com"),
+            CancellationToken.None);
+
+        Assert.That(secondResult, Is.InstanceOf<OkObjectResult>());
+        Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1));
     }
 }
