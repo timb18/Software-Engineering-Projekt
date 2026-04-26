@@ -1,15 +1,8 @@
 import dayjs from "dayjs";
 import { useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
-import type { Org, Priority, Task } from "../../util/types";
+import type { Task } from "../../util/types";
 import { getDefaults } from "../../util/default-data";
-
-type Filter = {
-  deadline?: { from?: Date; to?: Date };
-  org?: Org;
-  TimeSlot?: { from?: Date; to?: Date };
-  Priority?: Priority;
-};
 
 type Sort = {
   criteria: SortCriteria;
@@ -19,8 +12,6 @@ type Sort = {
 type SortCriteria = "deadline" | "org" | "timeSlot" | "priority";
 
 type SortDirection = "ascending" | "descending";
-
-const filterDefault: Filter = {};
 
 const sortDefault: Sort = {
   criteria: "timeSlot",
@@ -41,7 +32,6 @@ const TaskBoard: FC = () => {
     isFixed: false,
   });
   const [filterAssignee, setFilterAssignee] = useState<string | "all">("all");
-  const [listFilter, setListfilter] = useState<Filter>(filterDefault);
   const [listSort, setListSort] = useState<Sort>(sortDefault);
 
   const [error, setError] = useState<string | undefined>();
@@ -97,7 +87,7 @@ const TaskBoard: FC = () => {
       isFixed: form.isFixed,
       priority: form.priority,
       status: form.status ?? "todo",
-      org: getDefaults().orgs[0],
+      org: getDefaults().orgs[0]?.id ?? "",
       recurrence: "none",
       dependencies,
     };
@@ -146,10 +136,10 @@ const TaskBoard: FC = () => {
         );
 
       case "org":
-        if (t1.org.name < t2.org.name) {
+        if (t1.org < t2.org) {
           return -1 * sortDirectionMultiplier;
         }
-        if (t1.org.name > t2.org.name) {
+        if (t1.org > t2.org) {
           return 1 * sortDirectionMultiplier;
         }
         return 0;
