@@ -23,6 +23,12 @@ public class AuthControllerTests
         _controller = new AuthController(new GenericRepository<User>(_dbContext));
     }
 
+    [TearDown]
+    public void Dispose()
+    {
+        _dbContext?.Dispose();
+    }
+
     [Test]
     public async Task RegisterAsync_CreatesMissingUser()
     {
