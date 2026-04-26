@@ -67,6 +67,7 @@ public class InvitationServiceTests
         var result = await _service.SendInvitationAsync(
             "member@test.com",
             organization.Id,
+            7,
             createdByEmail: organizer.Email,
             firstName: "Member",
             lastName: "Test");
@@ -191,6 +192,7 @@ public class InvitationServiceTests
             await _service.SendInvitationAsync(
                 "member@test.com",
                 organization.Id,
+                7,
                 createdByEmail: user.Email));
     }
 
