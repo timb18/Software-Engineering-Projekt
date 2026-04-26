@@ -106,9 +106,7 @@ const User: FC = () => {
     setIsDeletingWorkProfile(true);
 
     try {
-      const deletePath = userFromDb.id
-        ? `${apiBaseUrl}/api/WorkProfile/${userFromDb.id}`
-        : `${apiBaseUrl}/api/WorkProfile/by-email?email=${encodeURIComponent(userFromDb.email)}`;
+      const deletePath = `${apiBaseUrl}/api/WorkProfile/by-email?email=${encodeURIComponent(userFromDb.email)}`;
 
       const response = await fetch(deletePath, {
         method: "DELETE",
@@ -370,13 +368,21 @@ const User: FC = () => {
               onErrorChange={setError}
               onDirtyChange={setIsWorkDirty}
             />
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowDeleteWorkProfileDialog(true)}
-                className="rounded-xl border border-rose-300/60 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-100 shadow-sm transition hover:bg-rose-500/25"
-              >
-                Delete work profile
-              </button>
+            <div className="rounded-3xl border border-rose-400/40 bg-rose-500/10 p-5 text-sm text-rose-50 shadow-lg">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-sm font-semibold">Danger zone</div>
+                  <p className="mt-2 max-w-2xl text-rose-100/90">
+                    Delete your complete work profile including shifts, breaks and dependent planning data.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDeleteWorkProfileDialog(true)}
+                  className="w-fit rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30"
+                >
+                  Delete work profile
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -563,10 +569,10 @@ const User: FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-3xl border border-rose-400/40 bg-slate-900 p-6 shadow-2xl">
             <div className="text-xs uppercase tracking-[0.2em] text-rose-300">Confirm deletion</div>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-50">Delete work profile?</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-50">Are you sure?</h2>
             <p className="mt-3 text-sm text-slate-300">
-              This removes your work profile, load capacity, break setup and dependent planning data. A new plan will
-              need to be generated afterwards.
+              This removes your work profile, load capacity, break setup and dependent planning data. This action
+              cannot be undone, and a new plan will need to be generated afterwards.
             </p>
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
