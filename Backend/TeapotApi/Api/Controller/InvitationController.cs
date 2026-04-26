@@ -25,12 +25,13 @@ public class InvitationController : ControllerBase
             var result = await _invitationService.SendInvitationAsync(
                 request.Email,
                 request.OrganizationId,
+                request.ExpiryDays,
                 request.CreatedByUserId,
                 request.CreatedByEmail,
                 request.FirstName,
                 request.LastName);
 
-            return Ok(new { success = true, message = "Einladung versendet", data = result });
+            return Ok(new { success = true, message = "Invite sent:", data = result });
         }
         catch (Exception ex)
         {
@@ -56,10 +57,10 @@ public class InvitationController : ControllerBase
             }
             else
             {
-                return BadRequest(new { success = false, message = "UserId oder E-Mail ist erforderlich." });
+                return BadRequest(new { success = false, message = "UserId or Email is required." });
             }
 
-            return Ok(new { success = true, message = "Einladung akzeptiert" });
+            return Ok(new { success = true, message = "Invite accepted" });
         }
         catch (Exception ex)
         {
@@ -82,7 +83,7 @@ public class InvitationController : ControllerBase
         try
         {
             await _invitationService.RejectInvitationAsync(invitationId);
-            return Ok(new { success = true, message = "Einladung abgelehnt" });
+            return Ok(new { success = true, message = "Invite rejected" });
         }
         catch (Exception ex)
         {
@@ -100,7 +101,7 @@ public class InvitationController : ControllerBase
         }
         catch (Exception ex)
         {
-            return Redirect(BuildFrontendRedirect("error", ex.Message));
+            return Redirect(BuildFrontendRedirect("error", message : ex.Message));
         }
     }
 
@@ -165,6 +166,7 @@ public class SendInvitationRequest
     public string? CreatedByEmail { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
+    public int ExpiryDays { get; set; } = 30;
 }
 
 public class AcceptInvitationRequest

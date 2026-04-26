@@ -8,6 +8,7 @@ public interface IInvitationService
     Task<InvitationDto> SendInvitationAsync(
         string email,
         Guid organizationId,
+        int expiryDays,
         Guid? createdByUserId = null,
         string? createdByEmail = null,
         string? firstName = null,

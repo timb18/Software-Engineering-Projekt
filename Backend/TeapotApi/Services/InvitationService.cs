@@ -33,6 +33,7 @@ public class InvitationService : IInvitationService
     public async Task<InvitationDto> SendInvitationAsync(
         string email,
         Guid organizationId,
+        int expiryDays,
         Guid? createdByUserId = null,
         string? createdByEmail = null,
         string? firstName = null,
@@ -42,11 +43,11 @@ public class InvitationService : IInvitationService
         var normalizedCreatorEmail = string.IsNullOrWhiteSpace(createdByEmail) ? null : NormalizeEmail(createdByEmail);
 
         if (string.IsNullOrWhiteSpace(normalizedEmail))
-            throw new ArgumentException("E-Mail ist erforderlich.");
+            throw new ArgumentException("Email is required.");
 
         var organization = await _organizationRepository.GetByIdAsync(organizationId);
         if (organization == null)
-            throw new ArgumentException($"Organisation mit ID {organizationId} nicht gefunden.");
+            throw new ArgumentException($"Organization with ID {organizationId} not found.");
 
         var creator = await ResolveCreatorAsync(createdByUserId, normalizedCreatorEmail);
         var creatorMembership = await _membershipRepository.GetQueryable()
@@ -56,7 +57,7 @@ public class InvitationService : IInvitationService
                 m.Role == ERole.Organizer);
 
         if (creatorMembership == null)
-            throw new InvalidOperationException("Nur Organisierende dürfen Mitglieder einladen.");
+            throw new InvalidOperationException("Only organizers are allowed to invite members.");
 
         var existingMembership = await _membershipRepository.GetQueryable()
             .Include(m => m.User)
@@ -65,7 +66,7 @@ public class InvitationService : IInvitationService
                 m.User.Email.ToLower() == normalizedEmail);
 
         if (existingMembership != null)
-            throw new InvalidOperationException("Benutzer ist bereits Mitglied dieser Organisation.");
+            throw new InvalidOperationException("User is already a member of this organization.");
 
         var existingInvitation = await _invitationRepository.GetQueryable()
             .FirstOrDefaultAsync(i =>
@@ -75,19 +76,17 @@ public class InvitationService : IInvitationService
                 i.ExpiryDate > DateTime.UtcNow);
 
         if (existingInvitation != null)
-            throw new InvalidOperationException("Für diese E-Mail-Adresse existiert bereits eine offene Einladung.");
+            throw new InvalidOperationException("An open invitation already exists for this email address.");
 
         var invitation = new Invitation
         {
-            Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             CreatedBy = creator.Id,
             Email = normalizedEmail,
             FirstName = firstName,
             LastName = lastName,
             Status = EInvitationStatus.Open,
-            CreatedAt = DateTime.UtcNow,
-            ExpiryDate = DateTime.UtcNow.AddDays(7)
+            ExpiryDate = DateTime.UtcNow.AddDays(expiryDays)
         };
 
         await _invitationRepository.AddAsync(invitation);
@@ -100,24 +99,24 @@ public class InvitationService : IInvitationService
     {
         var invitation = await _invitationRepository.GetByIdAsync(invitationId);
         if (invitation == null)
-            throw new ArgumentException($"Einladung mit ID {invitationId} nicht gefunden.");
+            throw new ArgumentException($"Invitation with ID {invitationId} not found.");
 
         if (invitation.Status != EInvitationStatus.Open)
-            throw new InvalidOperationException($"Einladung kann nicht akzeptiert werden. Status: {invitation.Status}");
+            throw new InvalidOperationException($"Invitation cannot be accepted. Status: {invitation.Status}");
 
         if (invitation.ExpiryDate < DateTime.UtcNow)
         {
             invitation.Status = EInvitationStatus.Expired;
             await _invitationRepository.UpdateAsync(invitation);
-            throw new InvalidOperationException("Einladung ist abgelaufen.");
+            throw new InvalidOperationException("Invitation has expired.");
         }
 
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
-            throw new InvalidOperationException("Für diese Einladung muss zuerst ein Konto erstellt oder sich angemeldet werden.");
+            throw new InvalidOperationException("An account must be created or signed in first for this invitation.");
 
         if (!string.Equals(user.Email, invitation.Email, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Die Einladung kann nur mit der eingeladenen E-Mail-Adresse angenommen werden.");
+            throw new InvalidOperationException("The invitation can only be accepted with the invited email address.");
 
         var existingMembership = await _membershipRepository.GetQueryable()
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrganizationId == invitation.OrganizationId);
@@ -153,16 +152,16 @@ public class InvitationService : IInvitationService
         var normalizedEmail = NormalizeEmail(email);
         var invitation = await _invitationRepository.GetByIdAsync(invitationId);
         if (invitation == null)
-            throw new ArgumentException($"Einladung mit ID {invitationId} nicht gefunden.");
+            throw new ArgumentException($"Invitation with ID {invitationId} not found.");
 
         if (!string.Equals(invitation.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Diese Einladung gehört zu einer anderen E-Mail-Adresse.");
+            throw new InvalidOperationException("This invitation belongs to a different email address.");
 
         var existingUser = await _userRepository.GetQueryable()
             .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 
         if (existingUser == null)
-            throw new InvalidOperationException("Bitte erstelle zuerst ein Konto oder melde dich mit der eingeladenen E-Mail-Adresse an.");
+            throw new InvalidOperationException("Please create an account or sign in with the invited email address first.");
 
         return await AcceptInvitationAsync(invitationId, existingUser.Id);
     }
@@ -171,7 +170,7 @@ public class InvitationService : IInvitationService
     {
         var invitation = await _invitationRepository.GetByIdAsync(invitationId);
         if (invitation == null)
-            throw new ArgumentException($"Einladung mit ID {invitationId} nicht gefunden.");
+            throw new ArgumentException($"Invitation with ID {invitationId} not found.");
 
         invitation.Status = EInvitationStatus.Closed;
         invitation.EditedAt = DateTime.UtcNow;
@@ -228,7 +227,7 @@ public class InvitationService : IInvitationService
             string.IsNullOrWhiteSpace(_emailOptions.SmtpPassword) ||
             string.IsNullOrWhiteSpace(_emailOptions.FromEmail))
         {
-            Console.WriteLine("E-Mail-Konfiguration unvollständig. Einladung erstellt, aber E-Mail nicht versendet.");
+            Console.WriteLine("Email configuration incomplete. Invitation created, but email not sent.");
             return;
         }
 
@@ -244,7 +243,7 @@ public class InvitationService : IInvitationService
         var mailMessage = new MailMessage
         {
             From = new MailAddress(_emailOptions.FromEmail, "Teapot"),
-            Subject = $"Du bist eingeladen zu {organization.Name}!",
+            Subject = $"You are invited to {organization.Name}!",
             Body = GenerateInvitationEmailBody(organization, invitation, acceptUrl, rejectUrl),
             IsBodyHtml = false
         };
@@ -254,33 +253,33 @@ public class InvitationService : IInvitationService
         try
         {
             await smtpClient.SendMailAsync(mailMessage);
-            Console.WriteLine($"Einladungs-E-Mail versendet an {invitation.Email}");
+            Console.WriteLine($"Invitation email sent to {invitation.Email}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fehler beim Versenden der Einladungs-E-Mail: {ex.Message}");
+            Console.WriteLine($"Error sending invitation email: {ex.Message}");
         }
     }
 
     private string GenerateInvitationEmailBody(Organization organization, Invitation invitation, string acceptUrl, string rejectUrl)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Hallo {invitation.FirstName ?? ""},");
+        sb.AppendLine($"Hello {invitation.FirstName ?? ""},");
         sb.AppendLine();
-        sb.AppendLine($"Du wurdest eingeladen, der Organisation '{organization.Name}' beizutreten!");
+        sb.AppendLine($"You have been invited to join the organization '{organization.Name}'!");
         sb.AppendLine();
-        sb.AppendLine($"Beschreibung: {organization.Description}");
+        sb.AppendLine($"Description: {organization.Description}");
         sb.AppendLine();
-        sb.AppendLine("Klicke auf den folgenden Link, um dich anzumelden oder ein Konto zu erstellen und danach der Organisation beizutreten:");
+        sb.AppendLine("Click the link below to sign in or create an account and then join the organization:");
         sb.AppendLine(acceptUrl);
         sb.AppendLine();
-        sb.AppendLine("Falls du die Einladung ablehnen möchtest, kannst du alternativ diesen Link verwenden:");
+        sb.AppendLine("If you want to decline the invitation, you can use this link instead:");
         sb.AppendLine(rejectUrl);
         sb.AppendLine();
-        sb.AppendLine("Diese Einladung läuft in 7 Tagen ab.");
+        sb.AppendLine("This invitation expires in 7 days.");
         sb.AppendLine();
-        sb.AppendLine("Viele Grüße,");
-        sb.AppendLine("Das Teapot-Team");
+        sb.AppendLine("Best regards,");
+        sb.AppendLine("The Teapot Team");
 
         return sb.ToString();
     }
@@ -314,7 +313,7 @@ public class InvitationService : IInvitationService
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == createdByEmail);
         }
 
-        return creator ?? throw new ArgumentException("Einladende Person konnte nicht gefunden werden.");
+        return creator ?? throw new ArgumentException("Inviting user could not be found.");
     }
 
     private string BuildAcceptLink(Invitation invitation)
