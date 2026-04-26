@@ -1,4 +1,6 @@
-﻿namespace DataAccess.Models;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace DataAccess.Models;
 
 public class UserTask
 {
@@ -24,6 +26,10 @@ public class UserTask
 
     public string Name { get; set; } = null!;
 
+    /// <summary>todo | in-progress | done</summary>
+    [Column("status")]
+    public string Status { get; set; } = "todo";
+
     public DateTime EarlyStart { get; set; }
 
     public DateTime EarlyFinish { get; set; }
@@ -32,5 +38,5 @@ public class UserTask
 
     public DateTime LateFinish { get; set; }
 
-    public virtual WorkProfile WorkProfile { get; set; } = null!;
+    public virtual WorkProfile? WorkProfile { get; set; }
 }
