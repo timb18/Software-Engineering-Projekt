@@ -6,6 +6,12 @@ namespace Services;
 public class MembershipService(TeapotDbContext dbContext) : IMembershipService
 {
     public async Task LeaveOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+        => await RemoveMembershipAsync(userId, organizationId, cancellationToken);
+
+    public async Task RemoveUserFromOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+        => await RemoveMembershipAsync(userId, organizationId, cancellationToken);
+
+    private async Task RemoveMembershipAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken)
     {
         if (userId == Guid.Empty)
         {

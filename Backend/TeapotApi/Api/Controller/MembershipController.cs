@@ -36,9 +36,45 @@ public class MembershipController(IMembershipService membershipService) : Contro
             return BadRequest(exception.Message);
         }
     }
+
+    [HttpDelete("remove")]
+    public async Task<IActionResult> RemoveUserFromOrganizationAsync(
+        [FromBody] RemoveOrganizationMemberRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(request.UserId, out var userId))
+        {
+            return BadRequest("UserId must be a valid GUID.");
+        }
+
+        if (!Guid.TryParse(request.OrganizationId, out var organizationId))
+        {
+            return BadRequest("OrganizationId must be a valid GUID.");
+        }
+
+        try
+        {
+            await membershipService.RemoveUserFromOrganizationAsync(userId, organizationId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
 }
 
 public class LeaveOrganizationRequest
+{
+    public string UserId { get; set; } = string.Empty;
+    public string OrganizationId { get; set; } = string.Empty;
+}
+
+public class RemoveOrganizationMemberRequest
 {
     public string UserId { get; set; } = string.Empty;
     public string OrganizationId { get; set; } = string.Empty;
