@@ -72,6 +72,15 @@ public partial class TeapotDbContext : DbContext
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.EditedAt).HasColumnName("edited_at");
             entity.Property(e => e.ExpiryDate).HasColumnName("expiry_date");
+            entity.Property(e => e.Email)
+                .HasMaxLength(255)
+                .HasColumnName("email");
+            entity.Property(e => e.FirstName)
+                .HasMaxLength(100)
+                .HasColumnName("first_name");
+            entity.Property(e => e.LastName)
+                .HasMaxLength(100)
+                .HasColumnName("last_name");
             entity.Property(e => e.OrganizationId).HasColumnName("organization_id");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.Invitations)

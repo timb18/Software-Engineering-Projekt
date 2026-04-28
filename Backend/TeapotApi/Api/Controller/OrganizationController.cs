@@ -5,7 +5,9 @@ namespace Api.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
-public class OrganizationController(IOrganizationAdminService organizationAdminService) : ControllerBase
+public class OrganizationController(
+    IOrganizationAdminService organizationAdminService,
+    IOrganizationService organizationService) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(CreateOrganizationResult), StatusCodes.Status201Created)]
@@ -30,6 +32,20 @@ public class OrganizationController(IOrganizationAdminService organizationAdminS
         catch (InvalidOperationException ex)
         {
             return Conflict(ex.Message);
+        }
+    }
+
+    [HttpGet("by-user-email")]
+    public async Task<IActionResult> GetByUserEmail([FromQuery] string email)
+    {
+        try
+        {
+            var organizations = await organizationService.GetOrganizationsForUserAsync(email);
+            return Ok(organizations);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
         }
     }
 }

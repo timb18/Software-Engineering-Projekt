@@ -124,7 +124,8 @@ CREATE TABLE public.user_tasks (
     early_start timestamp with time zone NOT NULL,
     early_finish timestamp with time zone NOT NULL,
     late_start timestamp with time zone NOT NULL,
-    late_finish timestamp with time zone NOT NULL
+    late_finish timestamp with time zone NOT NULL,
+    status character varying(20) NOT NULL DEFAULT 'todo'
 );
 
 CREATE TABLE public.task_blocks (

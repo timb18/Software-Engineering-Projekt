@@ -1,18 +1,17 @@
 import { Outlet, useNavigate } from "react-router";
 import Sidebar from "./components/sidebar";
-import useUserStore from "./stores/user-store";
 import { useEffect } from "react";
-import { defaultUser } from "./util/default-data";
+import { useAuth0 } from "@auth0/auth0-react";
 
 function App() {
-  const {user} = useUserStore();
-  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth0();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (user === defaultUser) {
-      navigate("/login")
+    if (!isAuthenticated) {
+      navigate("/login");
     }
-  }, [navigate, user])
+  }, [isAuthenticated, navigate]);
 
   return (
     <div className="min-h-screen w-full bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
