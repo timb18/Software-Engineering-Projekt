@@ -514,8 +514,6 @@ public class SchedulingAlgorithm
             duration = remaining;
         }
 
-        // TODO: Enforce MaxSplits constraint: if splits already used >= MaxSplits, force all remaining into final block
-
         return duration;
     }
 
