@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
-import type { Org, Task } from "../../util/types";
+import type { Task } from "../../util/types";
 
 const startHour = 7;
 const endHour = 19;
@@ -53,13 +53,6 @@ const Tasks: FC = () => {
     return <></>;
   }
 
-  const personalOrg: Org = user.orgs?.[0] ?? {
-    id: "personal",
-    name: "Personal",
-    users: [user],
-    invites: [],
-  };
-
   const filteredTasks = (user.tasks ?? []).filter((t) => {
     const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
     const byOrg = filterOrgId === "all" || t.org === filterOrgId;
@@ -91,20 +84,7 @@ const Tasks: FC = () => {
   });
 
   const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
-  const orgOptions = useMemo(() => {
-    if ((user.orgs ?? []).length > 0) {
-      return user.orgs;
-    }
-
-    const seen = new Set<string>();
-    return (user.tasks ?? []).reduce<Task["org"][]>((acc, task) => {
-      if (!seen.has(task.org.id)) {
-        seen.add(task.org.id);
-        acc.push(task.org);
-      }
-      return acc;
-    }, []);
-  }, [user.orgs, user.tasks]);
+  const orgOptions = useMemo(() => user.orgs ?? [], [user.orgs]);
 
   const submitTask = () => {
     setError(undefined);
