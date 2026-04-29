@@ -1,7 +1,9 @@
 import { createStore } from "zustand";
 import type { User, Task } from "../util/types";
 import { useStore } from "zustand";
+import { persist } from "zustand/middleware";
 import { defaultUser } from "../util/default-data";
+import { getLegacyWorkSettings } from "../util/work-profile";
 import {
   ensureUser,
   fetchTasks,
@@ -9,16 +11,24 @@ import {
   updateTask,
   deleteTask,
 } from "../util/task-api";
+import { fetchWorkProfile } from "../util/work-profile-api";
+import { fetchOrganizationsByUserEmail } from "../util/org-api";
 
 type UserStore = {
   user: User;
   workProfileId: string | null;
 };
 
-const userStore = createStore<UserStore>(() => ({
+const initialState: UserStore = {
   user: defaultUser,
   workProfileId: null,
-}));
+};
+
+const userStore = createStore<UserStore>()(
+  persist(() => initialState, {
+    name: "teapot-user-store",
+  }),
+);
 
 const useUserStore = () => {
   /**
@@ -26,21 +36,56 @@ const useUserStore = () => {
    * loads their persisted tasks, and sets up the store.
    */
   const initForUser = async (sub: string, email: string) => {
+    const previousState = userStore.getState();
+
     try {
-      const { workProfileId } = await ensureUser(email);
-      const tasks = await fetchTasks(workProfileId);
+      const { userId, workProfileId } = await ensureUser(email);
+      const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
+        fetchTasks(workProfileId),
+        fetchWorkProfile(userId),
+        fetchOrganizationsByUserEmail(email),
+      ]);
+
+      const tasks = tasksResult.status === "fulfilled" ? tasksResult.value : [];
+      const workProfile =
+        workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
+      const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
+      const orgs =
+        organizationsResult.status === "fulfilled"
+          ? organizationsResult.value
+          : previousState.user.email === email
+            ? previousState.user.orgs
+            : [];
+
       userStore.setState({
         user: {
           ...defaultUser,
-          id: sub,
+          id: userId,
           username: email.split("@")[0],
           email,
           tasks,
+          workProfile: workProfile ?? undefined,
+          hasPersistedWorkProfile: workProfile !== null,
+          plannerViewStart: workProfile?.plannerViewStart,
+          plannerViewEnd: workProfile?.plannerViewEnd,
+          workCapacityHours: legacyWorkSettings?.workCapacityHours,
+          workDays: legacyWorkSettings?.workDays,
+          workStart: legacyWorkSettings?.workStart,
+          workEnd: legacyWorkSettings?.workEnd,
+          breakRules: legacyWorkSettings?.breakRules,
+          orgs,
         },
         workProfileId,
       });
     } catch (err) {
-      console.error("initForUser failed, falling back to empty task list", err);
+      console.error("initForUser failed, keeping the last known user state when possible", err);
+      if (
+        previousState.user.email === email &&
+        previousState.user.id !== defaultUser.id
+      ) {
+        return;
+      }
+
       userStore.setState({
         user: {
           ...defaultUser,

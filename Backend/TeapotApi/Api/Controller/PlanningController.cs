@@ -10,6 +10,29 @@ public class PlanningController : ControllerBase
 {
 }
 
+public record WorkProfileSaveRequest(
+    string? MaxDailyLoad,
+    string? PlannerViewStart,
+    string? PlannerViewEnd,
+    List<WorkDayProfileRequest>? Days);
+
+public record WorkDayProfileRequest(
+    string Day,
+    List<WorkBlockRequest>? Blocks,
+    List<WorkBreakRequest>? Breaks);
+
+public record WorkBlockRequest(
+    Guid? Id,
+    string? CompanyId,
+    string? CompanyName,
+    string? StartTime,
+    string? EndTime);
+
+public record WorkBreakRequest(
+    Guid? Id,
+    string? StartTime,
+    string? EndTime);
+
 [Route("api/[controller]/{userId:guid}")]
 [ApiController]
 public class WorkProfileController(IWorkProfileService workProfileService) : ControllerBase
@@ -31,11 +54,12 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
     [HttpPut("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put(Guid userId, [FromBody] WorkProfile profile,
+    public async Task<IActionResult> Put(Guid userId, [FromBody] WorkProfileSaveRequest request,
         CancellationToken cancellationToken)
     {
         try
         {
+            var profile = MapRequestToWorkProfile(request);
             var saved = await workProfileService.SaveAsync(userId, profile, cancellationToken);
             return Ok(saved);
         }
@@ -86,5 +110,35 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
         {
             return BadRequest(ex.Message);
         }
+    }
+
+    private static WorkProfile MapRequestToWorkProfile(WorkProfileSaveRequest request)
+    {
+        TimeSpan.TryParse(request.MaxDailyLoad, out var maxDailyLoad);
+
+        return new WorkProfile
+        {
+            MaxDailyLoad = maxDailyLoad,
+            PlannerViewStart = string.IsNullOrWhiteSpace(request.PlannerViewStart) ? "06:00" : request.PlannerViewStart,
+            PlannerViewEnd = string.IsNullOrWhiteSpace(request.PlannerViewEnd) ? "22:00" : request.PlannerViewEnd,
+            Days = (request.Days ?? []).Select(day => new WorkDayProfile
+            {
+                Day = day.Day,
+                Blocks = (day.Blocks ?? []).Select(block => new WorkBlock
+                {
+                    Id = block.Id ?? Guid.Empty,
+                    CompanyId = block.CompanyId ?? string.Empty,
+                    CompanyName = block.CompanyName ?? string.Empty,
+                    StartTime = string.IsNullOrWhiteSpace(block.StartTime) ? "09:00" : block.StartTime,
+                    EndTime = string.IsNullOrWhiteSpace(block.EndTime) ? "17:00" : block.EndTime,
+                }).ToList(),
+                Breaks = (day.Breaks ?? []).Select(workBreak => new WorkBreak
+                {
+                    Id = workBreak.Id ?? Guid.Empty,
+                    StartTime = string.IsNullOrWhiteSpace(workBreak.StartTime) ? "12:00" : workBreak.StartTime,
+                    EndTime = string.IsNullOrWhiteSpace(workBreak.EndTime) ? "12:30" : workBreak.EndTime,
+                }).ToList(),
+            }).ToList(),
+        };
     }
 }

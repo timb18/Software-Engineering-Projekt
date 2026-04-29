@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Invitation, Org, User } from "../../util/types";
 import acceptInvite from "../../util/accept-invite";
+import { fetchOrganizationsByUserEmail } from "../../util/org-api";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
@@ -41,67 +42,7 @@ const Orgs: FC = () => {
       }
 
       try {
-        const response = await fetch(
-          apiUrl(
-            `/api/Organization/by-user-email?email=${encodeURIComponent(user.email)}`,
-          ),
-        );
-        if (!response.ok) {
-          return;
-        }
-
-        const organizations = (await response.json()) as Array<{
-          id: string;
-          name: string;
-          users: Array<{
-            id: string;
-            email: string;
-            username: string;
-            role: string;
-          }>;
-          invites: Array<{
-            id: string;
-            organizationId: string;
-            email: string;
-            firstName?: string;
-            lastName?: string;
-            status: string;
-            invitationLink?: string;
-          }>;
-        }>;
-
-        const nextOrgs: Org[] = organizations.map((org) => ({
-          id: org.id,
-          name: org.name,
-          users: org.users.map((member) => ({
-            ...user,
-            id: member.id,
-            email: member.email,
-            username: member.username,
-            orgs: [],
-            tasks: [],
-            invites: [],
-            role: member.role === "organizer" ? "admin" : "user",
-          })),
-          adminEmails: org.users
-            .filter((member) => member.role === "organizer")
-            .map((member) => member.email),
-          invites: org.invites.map((invite) => ({
-            id: invite.id,
-            organizationId: invite.organizationId,
-            orgId: invite.organizationId,
-            orgName: org.name,
-            email: invite.email,
-            firstName: invite.firstName,
-            lastName: invite.lastName,
-            status:
-              invite.status === "open"
-                ? "pending"
-                : (invite.status as Invitation["status"]),
-            invitationUrl: invite.invitationLink,
-          })),
-        }));
-
+        const nextOrgs = await fetchOrganizationsByUserEmail(user.email);
         persist({ ...user, orgs: nextOrgs });
       } catch (error) {
         console.error(error);
@@ -376,11 +317,11 @@ const Orgs: FC = () => {
               Du bist noch in keinem Org.
             </div>
           )}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="flex flex-col gap-3">
             {orgs.map((org) => (
               <div
                 key={org.id}
-                className={`rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
+                className={`min-h-[12rem] w-full rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

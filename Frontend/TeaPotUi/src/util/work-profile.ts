@@ -164,17 +164,25 @@ export const getCompanyOptions = (
   profile?: WorkProfile,
 ): CompanyOption[] => {
   const options: CompanyOption[] = [];
-  const seen = new Set<string>();
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
 
   const register = (id: string, name: string) => {
     const normalizedName = name.trim();
     const normalizedId = normalizeCompanyId(id, name);
+    const normalizedNameKey = normalizedName.toLowerCase();
 
-    if (!normalizedName || !normalizedId || seen.has(normalizedId)) {
+    if (
+      !normalizedName ||
+      !normalizedId ||
+      seenIds.has(normalizedId) ||
+      seenNames.has(normalizedNameKey)
+    ) {
       return;
     }
 
-    seen.add(normalizedId);
+    seenIds.add(normalizedId);
+    seenNames.add(normalizedNameKey);
     options.push({ id: normalizedId, name: normalizedName });
   };
 
@@ -187,14 +195,21 @@ export const getCompanyOptions = (
     return FALLBACK_COMPANIES;
   }
 
-  return options.slice(0, 2);
+  return options.sort((left, right) => left.name.localeCompare(right.name));
 };
 
 export const createWorkProfileFromLegacyUser = (
-  user?: Pick<User, "orgs" | "workDays" | "workEnd" | "workProfile" | "workStart">,
+  user?: Pick<
+    User,
+    "orgs" | "workDays" | "workEnd" | "workProfile" | "workStart" | "hasPersistedWorkProfile"
+  >,
 ): WorkProfile => {
   if (user?.workProfile) {
     return normalizeWorkProfile(user.workProfile);
+  }
+
+  if (user?.hasPersistedWorkProfile === false) {
+    return createEmptyWorkProfile();
   }
 
   const company = getCompanyOptions(user?.orgs ?? [])[0];

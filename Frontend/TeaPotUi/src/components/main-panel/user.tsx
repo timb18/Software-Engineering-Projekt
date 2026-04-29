@@ -1,4 +1,4 @@
-import { useState, type FC } from "react";
+import { useEffect, useState, type FC } from "react";
 import { useBlocker, useNavigate } from "react-router";
 import useLoginStore from "../../stores/login-store";
 import useUserStore from "../../stores/user-store";
@@ -6,6 +6,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import WorkProfileConfigurator from "./work-profile-configurator";
 import { defaultUser } from "../../util/default-data";
 import { saveWorkProfile } from "../../util/work-profile-api";
+import { getLegacyWorkSettings } from "../../util/work-profile";
 
 type Tab = "general" | "work" | "security" | "account";
 
@@ -17,6 +18,7 @@ const User: FC = () => {
 
   const [tab, setTab] = useState<Tab>("general");
   const [isWorkDirty, setIsWorkDirty] = useState(false);
+  const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
   const [pendingTabChange, setPendingTabChange] = useState<Tab | undefined>();
   const [status, setStatus] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
@@ -38,6 +40,13 @@ const User: FC = () => {
     workStart: defaultUser.workStart ?? "09:00",
     workEnd: defaultUser.workEnd ?? "17:00",
     breakRules: defaultUser.breakRules ?? "30m lunch",
+  };
+
+  const toTimeSpanString = (hours?: number) => {
+    const safeHours = Math.max(0, hours ?? 0);
+    const wholeHours = Math.floor(safeHours);
+    const minutes = Math.round((safeHours - wholeHours) * 60);
+    return `${wholeHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
   };
 
   /* useEffect(() => {
@@ -71,14 +80,43 @@ const User: FC = () => {
     };
   }, [profileForm.profileImage]); */
 
-  const persist = (nextUser = userFromDb) => {
-    setUser(nextUser);
-
-    if (nextUser.workProfile && nextUser.username) {
-      saveWorkProfile(nextUser.username, nextUser.workProfile).catch((err) => {
-        console.error("Failed to save work profile to backend:", err);
-      });
+  const persist = async (nextUser = userFromDb) => {
+    if (nextUser.workProfile && nextUser.id) {
+      setIsSavingWorkProfile(true);
+      try {
+        const savedWorkProfile = await saveWorkProfile(nextUser.id, {
+          ...nextUser.workProfile,
+          plannerViewStart: nextUser.plannerViewStart,
+          plannerViewEnd: nextUser.plannerViewEnd,
+          maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
+        });
+        const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
+        setUser({
+          ...nextUser,
+          workProfile: savedWorkProfile,
+          hasPersistedWorkProfile: true,
+          plannerViewStart: savedWorkProfile.plannerViewStart ?? nextUser.plannerViewStart,
+          plannerViewEnd: savedWorkProfile.plannerViewEnd ?? nextUser.plannerViewEnd,
+          workCapacityHours: legacyWorkSettings.workCapacityHours,
+          workDays: legacyWorkSettings.workDays,
+          workStart: legacyWorkSettings.workStart,
+          workEnd: legacyWorkSettings.workEnd,
+          breakRules: legacyWorkSettings.breakRules,
+        });
+        setIsWorkDirty(false);
+        setPendingTabChange(undefined);
+        if (blocker.state === "blocked") {
+          blocker.reset();
+        }
+      } finally {
+        setIsSavingWorkProfile(false);
+      }
+      return;
     }
+
+    setUser(nextUser);
+    setIsWorkDirty(false);
+    setPendingTabChange(undefined);
   };
 
   const saveProfile = () => {
@@ -119,18 +157,20 @@ const User: FC = () => {
         throw new Error(message || "Work profile could not be deleted.");
       }
 
-      persist({
+      void persist({
         ...userFromDb,
         workProfile: undefined,
+        hasPersistedWorkProfile: false,
         plannerViewStart: defaultUser.plannerViewStart,
         plannerViewEnd: defaultUser.plannerViewEnd,
         workCapacityHours: defaultWorkProfile.capacity,
-        workDays: defaultWorkProfile.workDays,
-        workStart: defaultWorkProfile.workStart,
-        workEnd: defaultWorkProfile.workEnd,
+        workDays: [],
+        workStart: undefined,
+        workEnd: undefined,
         breakRules: defaultWorkProfile.breakRules,
       });
       setShowDeleteWorkProfileDialog(false);
+      setIsWorkDirty(false);
       setStatus("Work profile deleted. Planning needs to be generated again.");
     } catch (deleteError) {
       if (deleteError instanceof TypeError) {
@@ -151,7 +191,7 @@ const User: FC = () => {
         emailDeadlines: notifForm.emailDeadlines,
       },
     };
-    persist(nextUser);
+    void persist(nextUser);
     setStatus("Notifications updated.");
   };
 
@@ -190,12 +230,17 @@ const User: FC = () => {
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
+      !isSavingWorkProfile &&
       isWorkDirty &&
       tab === "work" &&
       currentLocation.pathname !== nextLocation.pathname,
   );
 
   const handleTabClick = (next: Tab) => {
+    if (tab === "work" && isSavingWorkProfile && next !== "work") {
+      return;
+    }
+
     if (tab === "work" && isWorkDirty && next !== "work") {
       setPendingTabChange(next);
     } else {
@@ -221,7 +266,23 @@ const User: FC = () => {
   };
 
   const showUnsavedDialog =
-    blocker.state === "blocked" || pendingTabChange !== undefined;
+    !isSavingWorkProfile &&
+    isWorkDirty &&
+    (blocker.state === "blocked" || pendingTabChange !== undefined);
+
+  useEffect(() => {
+    if (isWorkDirty) {
+      return;
+    }
+
+    if (blocker.state === "blocked") {
+      blocker.reset();
+    }
+
+    if (pendingTabChange !== undefined) {
+      setPendingTabChange(undefined);
+    }
+  }, [blocker, isWorkDirty, pendingTabChange]);
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">

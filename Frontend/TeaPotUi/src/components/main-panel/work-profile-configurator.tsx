@@ -17,7 +17,7 @@ import "./work-profile-configurator.css";
 
 type WorkProfileConfiguratorProps = {
   user: User;
-  onSaveUser: (nextUser: User) => void;
+  onSaveUser: (nextUser: User) => Promise<void> | void;
   onStatusChange: (value: string | undefined) => void;
   onErrorChange: (value: string | undefined) => void;
   onDirtyChange?: (dirty: boolean) => void;

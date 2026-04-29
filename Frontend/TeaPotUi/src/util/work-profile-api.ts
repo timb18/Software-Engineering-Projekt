@@ -25,7 +25,7 @@ export async function saveWorkProfile(userId: string, profile: WorkProfile): Pro
   const res = await fetch(`${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...profile, userId }),
+    body: JSON.stringify(profile),
   });
 
   if (!res.ok) {
