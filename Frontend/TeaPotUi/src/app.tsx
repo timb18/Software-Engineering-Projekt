@@ -16,13 +16,13 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated && authUser?.sub && authUser?.email) {
-      initForUser(authUser.sub, authUser.email).catch(console.error);
+      initForUser(authUser.sub, authUser.email, authUser.name, authUser.picture).catch(console.error);
     }
-  }, [isAuthenticated, authUser?.sub, authUser?.email]);
+  }, [isAuthenticated, authUser?.sub, authUser?.email, authUser?.name, authUser?.picture]);
 
   return (
     <div className="min-h-screen w-full bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
-      <div className="grid min-h-[80vh] w-full grid-cols-[16rem_1fr] rounded-4xl border border-slate-800 bg-slate-900/60 shadow-2xl backdrop-blur">
+      <div className="grid min-h-[80vh] w-full grid-cols-[18.5rem_1fr] rounded-4xl border border-slate-800 bg-slate-900/60 shadow-2xl backdrop-blur">
         <Sidebar />
         <div className="min-h-[80vh]">
           <Outlet />

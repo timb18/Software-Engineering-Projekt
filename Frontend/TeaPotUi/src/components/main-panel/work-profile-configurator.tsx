@@ -397,7 +397,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-5">
       <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300 shadow-lg">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -433,16 +433,16 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       </div>
 
       <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-slate-100">Week View</div>
             <p className="mt-1 text-xs text-slate-400">
               Drag over empty space for a shift or fully inside an existing shift for a break.
             </p>
           </div>
-          <div className="flex items-center gap-px rounded-2xl border border-slate-800 bg-slate-950/60 p-1 text-xs">
+          <div className="flex w-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-2 text-xs sm:w-auto sm:min-w-[22rem] sm:flex-row sm:items-center sm:gap-px sm:p-1">
             {/* Visible range */}
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl px-3 py-2">
               <span className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Visible</span>
               <input
                 type="time"
@@ -474,7 +474,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             </div>
 
             {/* Divider */}
-            <div className="mx-1 h-6 w-px bg-slate-800" />
+            <div className="mx-1 hidden h-6 w-px bg-slate-800 sm:block" />
 
             {/* Copy day toggle */}
             <button
@@ -488,7 +488,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                   setCopyDayPanelOpen(true);
                 }
               }}
-              className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+              className={`rounded-xl border px-3 py-2 text-xs font-semibold transition sm:shrink-0 ${
                 copyDayPanelOpen
                   ? "border-slate-600 bg-slate-800 text-slate-200"
                   : "border-emerald-300/60 bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/25"
@@ -588,7 +588,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             </div>
           ) : null}
           <div className="relative">
-            <div className="work-planner-calendar min-w-[70rem]" style={calendarStyle}>
+            <div className="work-planner-calendar min-w-[56rem] lg:min-w-[70rem]" style={calendarStyle}>
             <FullCalendar
               ref={calendarRef}
               plugins={[timeGridPlugin, interactionPlugin]}

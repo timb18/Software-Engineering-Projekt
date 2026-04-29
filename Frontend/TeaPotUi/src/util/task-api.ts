@@ -1,22 +1,5 @@
 import type { Task } from "./types";
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-export type EnsureUserResponse = {
-  userId: string;
-  workProfileId: string;
-};
-
-/** After Auth0 login: find-or-create the backend user record, returns IDs for subsequent calls. */
-export async function ensureUser(email: string): Promise<EnsureUserResponse> {
-  const res = await fetch(`${API_BASE}/api/auth/ensure`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!res.ok) throw new Error(`ensureUser failed: ${res.status} ${res.statusText}`);
-  return res.json() as Promise<EnsureUserResponse>;
-}
 
 /** Maps a backend UserTask object to the frontend Task type. */
 const fromApi = (raw: Record<string, unknown>): Task => ({

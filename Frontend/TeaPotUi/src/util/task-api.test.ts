@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { ensureUser, fetchTasks, createTask, updateTask, deleteTask } from "./task-api";
+import { fetchTasks, createTask, updateTask, deleteTask } from "./task-api";
 import type { Task } from "./types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -51,37 +51,6 @@ const apiTask = {
 
 afterEach(() => {
   vi.restoreAllMocks();
-});
-
-// ── ensureUser ────────────────────────────────────────────────────────────────
-
-describe("ensureUser", () => {
-  it("POSTs to /api/auth/ensure with the email in the body", async () => {
-    const response = { userId: "user-1", workProfileId: WORK_PROFILE_ID };
-    globalThis.fetch = mockFetch(response);
-
-    await ensureUser("test@example.com");
-
-    const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe("/api/auth/ensure");
-    expect(init?.method).toBe("POST");
-    expect(JSON.parse(init?.body as string)).toEqual({ email: "test@example.com" });
-  });
-
-  it("returns userId and workProfileId on success", async () => {
-    const response = { userId: "user-1", workProfileId: WORK_PROFILE_ID };
-    globalThis.fetch = mockFetch(response);
-
-    const result = await ensureUser("test@example.com");
-
-    expect(result).toEqual(response);
-  });
-
-  it("throws when the response is not ok", async () => {
-    globalThis.fetch = mockFetch(null, false, 500);
-
-    await expect(ensureUser("test@example.com")).rejects.toThrow("ensureUser failed");
-  });
 });
 
 // ── fetchTasks ────────────────────────────────────────────────────────────────

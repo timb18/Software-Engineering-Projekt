@@ -36,8 +36,12 @@ SET default_table_access_method = heap;
 
 CREATE TABLE public.users (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
+    auth_provider_subject character varying(255),
     username character varying(255),
-    email character varying(40) NOT NULL,
+    display_name character varying(120),
+    email character varying(255) NOT NULL,
+    profile_image_url character varying(500),
+    timezone character varying(100) DEFAULT 'Europe/Berlin',
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     edited_at timestamp with time zone,
     CONSTRAINT valid_email CHECK (((email)::text ~* '^[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'::text))
@@ -143,6 +147,9 @@ CREATE TABLE public.task_dependencies (
 -- Primary Keys
 ALTER TABLE ONLY public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.users ADD CONSTRAINT users_email_key UNIQUE (email);
+CREATE UNIQUE INDEX users_auth_provider_subject_key
+    ON public.users (auth_provider_subject)
+    WHERE (auth_provider_subject IS NOT NULL);
 ALTER TABLE ONLY public.organizations ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.memberships ADD CONSTRAINT memberships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.invitations ADD CONSTRAINT invitations_pkey PRIMARY KEY (id);

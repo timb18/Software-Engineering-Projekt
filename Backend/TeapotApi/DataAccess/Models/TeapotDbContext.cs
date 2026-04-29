@@ -188,17 +188,30 @@ public partial class TeapotDbContext : DbContext
             entity.ToTable("users");
 
             entity.HasIndex(e => e.Email, "users_email_key").IsUnique();
+            entity.HasIndex(e => e.AuthProviderSubject, "users_auth_provider_subject_key").IsUnique();
 
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
                 .HasColumnName("id");
+            entity.Property(e => e.AuthProviderSubject)
+                .HasMaxLength(255)
+                .HasColumnName("auth_provider_subject");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("created_at");
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(120)
+                .HasColumnName("display_name");
             entity.Property(e => e.EditedAt).HasColumnName("edited_at");
             entity.Property(e => e.Email)
-                .HasMaxLength(40)
+                .HasMaxLength(255)
                 .HasColumnName("email");
+            entity.Property(e => e.ProfileImageUrl)
+                .HasMaxLength(500)
+                .HasColumnName("profile_image_url");
+            entity.Property(e => e.Timezone)
+                .HasMaxLength(100)
+                .HasColumnName("timezone");
             entity.Property(e => e.Username)
                 .HasMaxLength(255)
                 .HasColumnName("username");
