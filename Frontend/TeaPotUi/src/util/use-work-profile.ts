@@ -127,7 +127,23 @@ const getShiftValidationError = (dayKey: WorkWeekDay, blocks: WorkBlock[]) => {
 export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
   const { onSaveUser, onStatusChange, onErrorChange, onDirtyChange } = callbacks;
 
-  const [savedWorkProfile, setSavedWorkProfile] = useState(() => createWorkProfileFromLegacyUser(user));
+  const incomingSavedWorkProfile = useMemo(
+    () => normalizeWorkProfile(createWorkProfileFromLegacyUser(user)),
+    [
+      user.workProfile,
+      user.hasPersistedWorkProfile,
+      user.workStart,
+      user.workEnd,
+      user.workDays,
+      user.orgs,
+    ],
+  );
+  const incomingSavedWorkProfileKey = useMemo(
+    () => JSON.stringify(incomingSavedWorkProfile),
+    [incomingSavedWorkProfile],
+  );
+
+  const [savedWorkProfile, setSavedWorkProfile] = useState(() => incomingSavedWorkProfile);
   const [workForm, setWorkForm] = useState(() => savedWorkProfile);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | undefined>();
   const [selectedShift, setSelectedShift] = useState<SelectedShift | undefined>();
@@ -151,13 +167,12 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
   );
 
   useEffect(() => {
-    const nextSavedWorkProfile = createWorkProfileFromLegacyUser(user);
-    setSavedWorkProfile(nextSavedWorkProfile);
-    setWorkForm(nextSavedWorkProfile);
+    setSavedWorkProfile(incomingSavedWorkProfile);
+    setWorkForm(incomingSavedWorkProfile);
     setPendingSelection(undefined);
     setSelectedShift(undefined);
     setSelectedBreak(undefined);
-  }, [user]);
+  }, [incomingSavedWorkProfileKey]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
