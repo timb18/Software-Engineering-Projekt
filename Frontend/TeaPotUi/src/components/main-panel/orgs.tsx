@@ -27,6 +27,9 @@ const Orgs: FC = () => {
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+  const [isDeletingOrg, setIsDeletingOrg] = useState(false);
 
   useEffect(() => {
     if (orgs.length > 0 && !selectedOrgId) {
@@ -332,13 +335,45 @@ const Orgs: FC = () => {
     setRenameValue("");
   };
 
-  const deleteOrg = (org: Org) => {
+  const deleteOrg = async (org: Org) => {
     if (deleteConfirm !== org.name) return;
-    const nextOrgs = orgs.filter((t) => t.id !== org.id);
-    const nextInvites = (user.invites ?? []).filter((i) => i.orgId !== org.id);
-    persist({ ...user, orgs: nextOrgs, invites: nextInvites });
-    setSelectedOrgId(nextOrgs[0]?.id ?? null);
-    setDeleteConfirm("");
+
+    setDeleteError(null);
+    setDeleteSuccess(null);
+    setIsDeletingOrg(true);
+
+    try {
+      const response = await fetch(apiUrl(`/api/Organization/${org.id}`), {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          initiatorUserId: user.id,
+          confirmationText: deleteConfirm,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Organisation konnte nicht gelöscht werden.");
+      }
+
+      const nextOrgs = orgs.filter((t) => t.id !== org.id);
+      const nextInvites = (user.invites ?? []).filter((i) => i.orgId !== org.id);
+      persist({ ...user, orgs: nextOrgs, invites: nextInvites });
+      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      setDeleteConfirm("");
+      setDeleteSuccess("Organisation wurde endgültig gelöscht.");
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setDeleteError("Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.");
+      } else {
+        setDeleteError(error instanceof Error ? error.message : "Organisation konnte nicht gelöscht werden.");
+      }
+    } finally {
+      setIsDeletingOrg(false);
+    }
   };
 
   const selectedOrg = useMemo(
@@ -672,10 +707,12 @@ const Orgs: FC = () => {
 
                   <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4">
                     <div className="text-sm font-semibold text-rose-50">
-                      Org auflösen
+                      Organisation löschen
                     </div>
                     <div className="mt-1 text-xs text-rose-100/80">
-                      Gib den Orgnamen ein, um zu bestätigen.
+                      Alle zugehörigen Daten werden unwiderruflich gelöscht. Die Organisation
+                      muss leer sein, bevor sie gelöscht werden kann. Gib den Organisationsnamen
+                      exakt ein, um zu bestätigen.
                     </div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
@@ -685,15 +722,21 @@ const Orgs: FC = () => {
                         className="flex-1 rounded-xl border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-50 ring-rose-400/40 outline-none focus:border-rose-300/80 focus:ring"
                       />
                       <button
-                        onClick={() => deleteOrg(selectedOrg)}
+                        onClick={() => void deleteOrg(selectedOrg)}
                         disabled={
-                          !isSelectedAdmin || deleteConfirm !== selectedOrg.name
+                          !isSelectedAdmin || deleteConfirm !== selectedOrg.name || isDeletingOrg
                         }
                         className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                       >
-                        Org löschen
+                        {isDeletingOrg ? "Loesche..." : "Organisation löschen"}
                       </button>
                     </div>
+                    {deleteSuccess && (
+                      <div className="mt-2 text-xs text-emerald-300">{deleteSuccess}</div>
+                    )}
+                    {deleteError && (
+                      <div className="mt-2 text-xs text-rose-300">{deleteError}</div>
+                    )}
                     {!isSelectedAdmin && (
                       <div className="text-xs text-rose-100/80">
                         Nur Admins dürfen löschen.
