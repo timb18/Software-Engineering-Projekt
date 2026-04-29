@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Invitation, Org, User } from "../../util/types";
+import acceptInvite from "../../util/accept-invite";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
@@ -14,7 +15,9 @@ const Orgs: FC = () => {
 
   const [orgs, setOrgs] = useState<Org[]>(user?.orgs ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgs[0]?.id ?? null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
+    orgs[0]?.id ?? null,
+  );
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -38,7 +41,11 @@ const Orgs: FC = () => {
       }
 
       try {
-        const response = await fetch(apiUrl(`/api/Organization/by-user-email?email=${encodeURIComponent(user.email)}`));
+        const response = await fetch(
+          apiUrl(
+            `/api/Organization/by-user-email?email=${encodeURIComponent(user.email)}`,
+          ),
+        );
         if (!response.ok) {
           return;
         }
@@ -46,8 +53,21 @@ const Orgs: FC = () => {
         const organizations = (await response.json()) as Array<{
           id: string;
           name: string;
-          users: Array<{ id: string; email: string; username: string; role: string }>;
-          invites: Array<{ id: string; organizationId: string; email: string; firstName?: string; lastName?: string; status: string; invitationLink?: string }>;
+          users: Array<{
+            id: string;
+            email: string;
+            username: string;
+            role: string;
+          }>;
+          invites: Array<{
+            id: string;
+            organizationId: string;
+            email: string;
+            firstName?: string;
+            lastName?: string;
+            status: string;
+            invitationLink?: string;
+          }>;
         }>;
 
         const nextOrgs: Org[] = organizations.map((org) => ({
@@ -63,7 +83,9 @@ const Orgs: FC = () => {
             invites: [],
             role: member.role === "organizer" ? "admin" : "user",
           })),
-          adminEmails: org.users.filter((member) => member.role === "organizer").map((member) => member.email),
+          adminEmails: org.users
+            .filter((member) => member.role === "organizer")
+            .map((member) => member.email),
           invites: org.invites.map((invite) => ({
             id: invite.id,
             organizationId: invite.organizationId,
@@ -72,7 +94,10 @@ const Orgs: FC = () => {
             email: invite.email,
             firstName: invite.firstName,
             lastName: invite.lastName,
-            status: invite.status === "open" ? "pending" : (invite.status as Invitation["status"]),
+            status:
+              invite.status === "open"
+                ? "pending"
+                : (invite.status as Invitation["status"]),
             invitationUrl: invite.invitationLink,
           })),
         }));
@@ -95,31 +120,30 @@ const Orgs: FC = () => {
   const currentRole = (org: Org): "Admin" | "Member" =>
     org.adminEmails?.includes(user.email) ? "Admin" : "Member";
 
-  const acceptInvite = (invite: Invitation) => {
-    const remainingInvites = invites.filter((i) => i !== invite);
-    const existingOrg = orgs.find((t) => t.id === invite.orgId);
-    let nextOrg = orgs;
-    if (existingOrg) {
-      const alreadyInOrg = existingOrg.users.some((u) => u.email === user.email);
-      nextOrg = orgs.map((t) =>
-        t.id === existingOrg.id
-          ? {
-              ...t,
-              users: alreadyInOrg ? t.users : [...t.users, user],
-              invites: (t.invites ?? []).filter((i) => i.email !== user.email),
-            }
-          : t,
-      );
-    } else {
-      const newOrg: Org = {
-        id: invite.orgId,
-        name: invite.orgName,
-        users: [user],
-        adminEmails: [],
-        invites: [],
-      };
-      nextOrg = [...orgs, newOrg];
+  const onAcceptInvite = async (invite: Invitation) => {
+    if (!invite.id) {
+      alert("The selected Invite has no ID");
+      return;
     }
+    const inviteAccepted = await acceptInvite(invite.id);
+    if (inviteAccepted) {
+      alert("there was an issue with accepting the invite");
+      return;
+    }
+
+    alert("invite accepted succesfully");
+
+    const newOrg: Org = {
+      id: invite.orgId,
+      name: invite.orgName,
+      users: [user],
+      adminEmails: [],
+      invites: [],
+    };
+    const nextOrg = [...orgs, newOrg];
+
+    const remainingInvites = invites.filter((i) => i.id !== invite.id);
+
     persist({ ...user, orgs: nextOrg, invites: remainingInvites });
   };
 
@@ -148,7 +172,9 @@ const Orgs: FC = () => {
 
       if (!response.ok) {
         const message = await response.text();
-        throw new Error(message || "Organisation konnte nicht verlassen werden.");
+        throw new Error(
+          message || "Organisation konnte nicht verlassen werden.",
+        );
       }
 
       const nextOrgs = orgs.filter((t) => t.id !== orgId);
@@ -158,9 +184,15 @@ const Orgs: FC = () => {
       }
     } catch (error) {
       if (error instanceof TypeError) {
-        setLeaveError("Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.");
+        setLeaveError(
+          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+        );
       } else {
-        setLeaveError(error instanceof Error ? error.message : "Organisation konnte nicht verlassen werden.");
+        setLeaveError(
+          error instanceof Error
+            ? error.message
+            : "Organisation konnte nicht verlassen werden.",
+        );
       }
     } finally {
       setIsLeavingOrgId(null);
@@ -236,7 +268,13 @@ const Orgs: FC = () => {
         throw new Error(message);
       }
 
-      const payload = (await response.json()) as { data?: { id?: string; organizationId?: string; invitationLink?: string } };
+      const payload = (await response.json()) as {
+        data?: {
+          id?: string;
+          organizationId?: string;
+          invitationLink?: string;
+        };
+      };
       const invite: Invitation = {
         id: payload.data?.id,
         organizationId: payload.data?.organizationId ?? org.id,
@@ -262,9 +300,15 @@ const Orgs: FC = () => {
       );
     } catch (error) {
       if (error instanceof TypeError) {
-        setInviteError("Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.");
+        setInviteError(
+          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+        );
       } else {
-        setInviteError(error instanceof Error ? error.message : "Invitation could not be created.");
+        setInviteError(
+          error instanceof Error
+            ? error.message
+            : "Invitation could not be created.",
+        );
       }
     } finally {
       setIsSendingInvite(false);
@@ -297,16 +341,25 @@ const Orgs: FC = () => {
     setDeleteConfirm("");
   };
 
-  const selectedOrg = useMemo(() => orgs.find((t) => t.id === selectedOrgId) ?? null, [orgs, selectedOrgId]);
-  const isSelectedAdmin = selectedOrg ? selectedOrg.adminEmails?.includes(user.email) : false;
+  const selectedOrg = useMemo(
+    () => orgs.find((t) => t.id === selectedOrgId) ?? null,
+    [orgs, selectedOrgId],
+  );
+  const isSelectedAdmin = selectedOrg
+    ? selectedOrg.adminEmails?.includes(user.email)
+    : false;
 
   return (
     <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.28em] text-emerald-300">Orgs</span>
-          <h1 className="text-4xl font-semibold leading-tight">My orgs</h1>
-          <span className="text-sm text-slate-400">Manage memberships, invites, and settings.</span>
+          <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
+            Orgs
+          </span>
+          <h1 className="text-4xl leading-tight font-semibold">My orgs</h1>
+          <span className="text-sm text-slate-400">
+            Manage memberships, invites, and settings.
+          </span>
         </div>
       </div>
       {leaveError && (
@@ -338,7 +391,9 @@ const Orgs: FC = () => {
                     <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-200">
                       {currentRole(org)}
                     </span>
-                    <span className="text-xs text-slate-400">{org.users.length} Mitglieder</span>
+                    <span className="text-xs text-slate-400">
+                      {org.users.length} Mitglieder
+                    </span>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -365,9 +420,13 @@ const Orgs: FC = () => {
           </div>
 
           <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-            <div className="text-sm font-semibold text-slate-100">Pending invitations</div>
+            <div className="text-sm font-semibold text-slate-100">
+              Pending invitations
+            </div>
             {invites.filter((i) => i.status === "pending").length === 0 && (
-              <div className="mt-2 text-sm text-slate-500">No pending invitations.</div>
+              <div className="mt-2 text-sm text-slate-500">
+                No pending invitations.
+              </div>
             )}
             <div className="mt-3 flex flex-col gap-3">
               {invites
@@ -378,12 +437,16 @@ const Orgs: FC = () => {
                     className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200"
                   >
                     <div>
-                      <div className="font-semibold text-slate-50">{invite.orgName}</div>
-                      <div className="text-xs text-slate-400">Invited as member</div>
+                      <div className="font-semibold text-slate-50">
+                        {invite.orgName}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Invited as member
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => acceptInvite(invite)}
+                        onClick={() => onAcceptInvite(invite)}
                         className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-100 hover:bg-emerald-400/25"
                       >
                         Annehmen
@@ -403,7 +466,9 @@ const Orgs: FC = () => {
 
         <div className="min-w-0 flex h-full min-h-[62vh] flex-col gap-4 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur">
           {!selectedOrg && (
-            <div className="text-sm text-slate-400">Chose your organization to manage.</div>
+            <div className="text-sm text-slate-400">
+              Chose your organization to manage.
+            </div>
           )}
           {selectedOrg && (
             <>
@@ -413,7 +478,7 @@ const Orgs: FC = () => {
                   <div className="break-words text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
                 </div>
                 {!isSelectedAdmin && (
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-300">
+                  <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
                     Nur Admins können bearbeiten
                   </span>
                 )}
@@ -456,13 +521,17 @@ const Orgs: FC = () => {
                         {isSelectedAdmin && member.email !== user.email && (
                           <>
                             <button
-                              onClick={() => toggleRole(selectedOrg, member.email)}
+                              onClick={() =>
+                                toggleRole(selectedOrg, member.email)
+                              }
                               className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                             >
                               Rolle ändern
                             </button>
                             <button
-                              onClick={() => kickUser(selectedOrg, member.email)}
+                              onClick={() =>
+                                kickUser(selectedOrg, member.email)
+                              }
                               className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                             >
                               Kick
@@ -473,7 +542,9 @@ const Orgs: FC = () => {
                     </div>
                   ))}
                   {selectedOrg.users.length === 0 && (
-                    <div className="text-sm text-slate-500">Keine Mitglieder im Org.</div>
+                    <div className="text-sm text-slate-500">
+                      Keine Mitglieder im Org.
+                    </div>
                   )}
                 </div>
               )}
@@ -481,7 +552,9 @@ const Orgs: FC = () => {
               {activeTab === "invites" && (
                 <div className="mt-4 flex min-w-0 flex-col gap-3">
                   {(selectedOrg.invites ?? []).length === 0 && (
-                    <div className="text-sm text-slate-500">Keine offenen Einladungen.</div>
+                    <div className="text-sm text-slate-500">
+                      Keine offenen Einladungen.
+                    </div>
                   )}
                   {(selectedOrg.invites ?? []).map((inv) => (
                     <div
@@ -517,13 +590,15 @@ const Orgs: FC = () => {
 
               {activeTab === "invite" && (
                 <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                  <div className="text-sm font-semibold text-slate-100">Nutzer per E-Mail einladen</div>
+                  <div className="text-sm font-semibold text-slate-100">
+                    Nutzer per E-Mail einladen
+                  </div>
                   <div className="flex gap-2 max-sm:flex-col">
                     <input
                       value={newInviteEmail}
                       onChange={(e) => setNewInviteEmail(e.target.value)}
                       placeholder="email@example.com"
-                      className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                      className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                     />
                     <button
                       onClick={() => sendInvite(selectedOrg)}
@@ -533,10 +608,18 @@ const Orgs: FC = () => {
                       {isSendingInvite ? "Sende..." : "Senden"}
                     </button>
                   </div>
-                  {inviteSuccess && <div className="text-xs text-emerald-300">{inviteSuccess}</div>}
-                  {inviteError && <div className="text-xs text-rose-300">{inviteError}</div>}
+                  {inviteSuccess && (
+                    <div className="text-xs text-emerald-300">
+                      {inviteSuccess}
+                    </div>
+                  )}
+                  {inviteError && (
+                    <div className="text-xs text-rose-300">{inviteError}</div>
+                  )}
                   {!isSelectedAdmin && (
-                    <div className="text-xs text-slate-500">Nur Admins dürfen einladen.</div>
+                    <div className="text-xs text-slate-500">
+                      Nur Admins dürfen einladen.
+                    </div>
                   )}
                 </div>
               )}
@@ -544,13 +627,15 @@ const Orgs: FC = () => {
               {activeTab === "settings" && (
                 <div className="mt-4 flex flex-col gap-4">
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                    <div className="text-sm font-semibold text-slate-100">Org umbenennen</div>
+                    <div className="text-sm font-semibold text-slate-100">
+                      Org umbenennen
+                    </div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         placeholder={selectedOrg.name}
-                        className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                        className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                       />
                       <button
                         onClick={() => renameOrg(selectedOrg)}
@@ -560,28 +645,42 @@ const Orgs: FC = () => {
                         Speichern
                       </button>
                     </div>
-                    {!isSelectedAdmin && <div className="text-xs text-slate-500">Nur Admins dürfen umbenennen.</div>}
+                    {!isSelectedAdmin && (
+                      <div className="text-xs text-slate-500">
+                        Nur Admins dürfen umbenennen.
+                      </div>
+                    )}
                   </div>
 
                   <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4">
-                    <div className="text-sm font-semibold text-rose-50">Org auflösen</div>
-                    <div className="mt-1 text-xs text-rose-100/80">Gib den Orgnamen ein, um zu bestätigen.</div>
+                    <div className="text-sm font-semibold text-rose-50">
+                      Org auflösen
+                    </div>
+                    <div className="mt-1 text-xs text-rose-100/80">
+                      Gib den Orgnamen ein, um zu bestätigen.
+                    </div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
                         value={deleteConfirm}
                         onChange={(e) => setDeleteConfirm(e.target.value)}
                         placeholder={selectedOrg.name}
-                        className="flex-1 rounded-xl border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-50 outline-none ring-rose-400/40 focus:border-rose-300/80 focus:ring"
+                        className="flex-1 rounded-xl border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-50 ring-rose-400/40 outline-none focus:border-rose-300/80 focus:ring"
                       />
                       <button
                         onClick={() => deleteOrg(selectedOrg)}
-                        disabled={!isSelectedAdmin || deleteConfirm !== selectedOrg.name}
+                        disabled={
+                          !isSelectedAdmin || deleteConfirm !== selectedOrg.name
+                        }
                         className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                       >
                         Org löschen
                       </button>
                     </div>
-                    {!isSelectedAdmin && <div className="text-xs text-rose-100/80">Nur Admins dürfen löschen.</div>}
+                    {!isSelectedAdmin && (
+                      <div className="text-xs text-rose-100/80">
+                        Nur Admins dürfen löschen.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

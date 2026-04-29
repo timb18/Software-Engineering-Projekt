@@ -2,10 +2,9 @@ import { Outlet, useNavigate } from "react-router";
 import Sidebar from "./components/sidebar";
 import { useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { initForUser } from "./stores/user-store";
 
 function App() {
-  const { isAuthenticated, user: authUser } = useAuth0();
+  const { isAuthenticated } = useAuth0();
   const navigate = useNavigate();
 
   useEffect(() => {

@@ -93,6 +93,38 @@ export const initForUser = async (
 };
 
 const useUserStore = () => {
+  /**
+   * Called after Auth0 login. Registers the user in the backend (if new),
+   * loads their persisted tasks, and sets up the store.
+   */
+  const initForUser = async (sub: string, email: string) => {
+    try {
+      const { workProfileId } = await ensureUser(email);
+      const tasks = await fetchTasks(workProfileId);
+      userStore.setState({
+        user: {
+          ...defaultUser,
+          id: sub,
+          username: email.split("@")[0],
+          email,
+          tasks,
+        },
+        workProfileId,
+      });
+    } catch (err) {
+      console.error("initForUser failed, falling back to empty task list", err);
+      userStore.setState({
+        user: {
+          ...defaultUser,
+          id: sub,
+          username: email.split("@")[0],
+          email,
+          tasks: [],
+        },
+        workProfileId: null,
+      });
+    }
+  };
   const state = useStore(userStore);
 
   const setUser = (newUser: User = defaultUser) => {
@@ -104,11 +136,15 @@ const useUserStore = () => {
     const { workProfileId } = userStore.getState();
     if (workProfileId) {
       const saved = await createTask(workProfileId, task);
-      userStore.setState((s) => ({ user: { ...s.user, tasks: [...(s.user.tasks ?? []), saved] } }));
+      userStore.setState((s) => ({
+        user: { ...s.user, tasks: [...(s.user.tasks ?? []), saved] },
+      }));
       return saved;
     }
     // No backend connection – still update local state
-    userStore.setState((s) => ({ user: { ...s.user, tasks: [...(s.user.tasks ?? []), task] } }));
+    userStore.setState((s) => ({
+      user: { ...s.user, tasks: [...(s.user.tasks ?? []), task] },
+    }));
     return task;
   };
 
@@ -117,7 +153,12 @@ const useUserStore = () => {
     const { workProfileId } = userStore.getState();
     const updateLocal = (updated: Task) =>
       userStore.setState((s) => ({
-        user: { ...s.user, tasks: (s.user.tasks ?? []).map((t) => (t.id === updated.id ? updated : t)) },
+        user: {
+          ...s.user,
+          tasks: (s.user.tasks ?? []).map((t) =>
+            t.id === updated.id ? updated : t,
+          ),
+        },
       }));
 
     if (workProfileId && task.id) {
@@ -136,11 +177,14 @@ const useUserStore = () => {
       await deleteTask(workProfileId, taskId);
     }
     userStore.setState((s) => ({
-      user: { ...s.user, tasks: (s.user.tasks ?? []).filter((t) => t.id !== taskId) },
+      user: {
+        ...s.user,
+        tasks: (s.user.tasks ?? []).filter((t) => t.id !== taskId),
+      },
     }));
   };
 
-  return { ...state, setUser, addTask, saveTask, removeTask };
+  return { ...state, setUser, addTask, saveTask, removeTask, initForUser };
 };
 
 export default useUserStore;
