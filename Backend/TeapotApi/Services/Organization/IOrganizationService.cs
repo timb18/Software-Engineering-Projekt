@@ -11,20 +11,20 @@ public sealed record DeleteOrganizationCommand(
     Guid InitiatorUserId,
     string ConfirmationText);
 
-public class OrganizationDetailsDto
+public sealed record OrganizationDetailsDto
 {
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public int MaxUsers { get; set; }
-    public List<OrganizationUserDto> Users { get; set; } = [];
-    public List<InvitationDto> Invites { get; set; } = [];
+    public Guid Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
+    public int MaxUsers { get; init; }
+    public List<OrganizationUserDto> Users { get; init; } = [];
+    public List<InvitationDto> Invites { get; init; } = [];
 }
 
-public class OrganizationUserDto
+public sealed record OrganizationUserDto
 {
-    public Guid Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty;
+    public Guid Id { get; init; }
+    public string Email { get; init; } = string.Empty;
+    public string Username { get; init; } = string.Empty;
+    public string Role { get; init; } = string.Empty;
 }

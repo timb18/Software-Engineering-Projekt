@@ -1,6 +1,7 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Services.Tests;
@@ -29,7 +30,8 @@ public class InvitationServiceTests
             {
                 ApiBaseUrl = "http://localhost:5186",
                 FrontendBaseUrl = "http://127.0.0.1:5173/"
-            }));
+            }),
+            NullLogger<InvitationService>.Instance);
     }
 
     [Test]

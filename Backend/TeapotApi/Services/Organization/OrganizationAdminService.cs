@@ -1,18 +1,22 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services.Organizations;
 
 public class OrganizationAdminService(
     IOrganizationRepository organizationRepository,
     IUserRepository userRepository,
-    IMembershipRepository membershipRepository) : IOrganizationAdminService
+    IMembershipRepository membershipRepository,
+    TeapotDbContext dbContext) : IOrganizationAdminService
 {
     public async Task<CreateOrganizationResult> CreateOrganizationAsync(
         CreateOrganizationRequest request,
         CancellationToken cancellationToken = default)
     {
         ValidateRequest(request);
+
+        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var existingOrganization = await organizationRepository.FindByNameAsync(request.OrganizationName, cancellationToken);
         if (existingOrganization is not null)
@@ -44,6 +48,8 @@ public class OrganizationAdminService(
             Role = ERole.Organizer
         };
         await membershipRepository.AddAsync(membership, cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
 
         return new CreateOrganizationResult
         {

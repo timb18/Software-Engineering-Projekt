@@ -6,7 +6,7 @@ namespace DataAccess.Repositories;
 
 public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileRepository
 {
-    private const string PersonalWorkspaceDescription = "Personal workspace";
+    private const string PersonalWorkspaceDescription = "Auto-created personal workspace";
 
     public Task<WorkProfile?> GetPersonalAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
@@ -34,7 +34,7 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
         context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
-            .FirstOrDefaultAsync(wp => wp.Membership.User.Email.ToLower() == normalizedEmail, cancellationToken);
+            .FirstOrDefaultAsync(wp => wp.Membership.User.Email.ToLowerInvariant() == normalizedEmail, cancellationToken);
 
     public async Task AddAsync(WorkProfile profile, CancellationToken cancellationToken = default)
     {

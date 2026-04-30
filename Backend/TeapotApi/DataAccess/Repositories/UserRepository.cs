@@ -15,7 +15,7 @@ public class UserRepository(TeapotDbContext context) : IUserRepository
         await context.Users.FindAsync([id], cancellationToken);
 
     public Task<bool> IsEmailTakenByOtherAsync(Guid userId, string normalizedEmail, CancellationToken cancellationToken = default) =>
-        context.Users.AnyAsync(u => u.Id != userId && u.Email.ToLower() == normalizedEmail.ToLower(), cancellationToken);
+        context.Users.AnyAsync(u => u.Id != userId && u.Email.ToLowerInvariant() == normalizedEmail.ToLowerInvariant(), cancellationToken);
 
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
     {

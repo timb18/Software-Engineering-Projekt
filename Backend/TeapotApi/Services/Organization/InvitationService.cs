@@ -3,6 +3,7 @@ using System.Net.Mail;
 using System.Text;
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Services.Organizations;
@@ -12,7 +13,8 @@ public class InvitationService(
     IOrganizationRepository organizationRepository,
     IUserRepository userRepository,
     IMembershipRepository membershipRepository,
-    IOptions<EmailOptions> emailOptions) : IInvitationService
+    IOptions<EmailOptions> emailOptions,
+    ILogger<InvitationService> logger) : IInvitationService
 {
     private readonly EmailOptions _emailOptions = emailOptions.Value;
 
@@ -188,7 +190,7 @@ public class InvitationService(
             string.IsNullOrWhiteSpace(_emailOptions.SmtpPassword) ||
             string.IsNullOrWhiteSpace(_emailOptions.FromEmail))
         {
-            Console.WriteLine("Email configuration incomplete. Invitation created, but email not sent.");
+            logger.LogWarning("Email configuration incomplete. Invitation {InvitationId} created, but email not sent.", invitation.Id);
             return;
         }
 
@@ -214,11 +216,11 @@ public class InvitationService(
         try
         {
             await smtpClient.SendMailAsync(mailMessage);
-            Console.WriteLine($"Invitation email sent to {invitation.Email}");
+            logger.LogInformation("Invitation email sent to {Email}.", invitation.Email);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending invitation email: {ex.Message}");
+            logger.LogError(ex, "Error sending invitation email to {Email}.", invitation.Email);
         }
     }
 
