@@ -1,12 +1,11 @@
 import { useEffect, type FC } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuth0 } from "@auth0/auth0-react";
-import useUserStore from "../stores/user-store";
+import { initForUser } from "../stores/user-store";
 import acceptInvite from "../util/accept-invite";
 
 const Login: FC = () => {
   const { loginWithPopup: login, isAuthenticated, user } = useAuth0();
-  const { initForUser } = useUserStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
