@@ -1,34 +1,17 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
-using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
-namespace Services;
+namespace Services.WorkProfiles;
 
 public class WorkProfileService(
-    TeapotDbContext dbContext,
-    IGenericRepository<WorkProfile> repository,
-    IGenericRepository<Membership> membershipRepository) : IWorkProfileService
+    IWorkProfileRepository workProfileRepository,
+    IMembershipRepository membershipRepository) : IWorkProfileService
 {
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    private const string PersonalWorkspaceDescription = "Personal workspace";
 
     public async Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var profile = await repository.GetQueryable()
-            .Include(wp => wp.Days)
-                .ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days)
-                .ThenInclude(d => d.Breaks)
-            .Include(wp => wp.Membership)
-                .ThenInclude(m => m.Organization)
-            .Where(wp => wp.Membership.UserId == userId)
-            .OrderByDescending(wp =>
-                wp.Membership.Role == ERole.Organizer &&
-                wp.Membership.Organization.MaxUsers == 1 &&
-                wp.Membership.Organization.Description == PersonalWorkspaceDescription)
-            .FirstOrDefaultAsync(cancellationToken);
-
+        var profile = await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
         if (profile is null) return null;
 
         var existingDays = profile.Days.ToDictionary(d => d.Day);
@@ -43,36 +26,18 @@ public class WorkProfileService(
 
     public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, CancellationToken cancellationToken = default)
     {
-        var existing = await repository.GetQueryable()
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
-            .Include(wp => wp.Membership)
-                .ThenInclude(m => m.Organization)
-            .Where(wp => wp.Membership.UserId == userId)
-            .OrderByDescending(wp =>
-                wp.Membership.Role == ERole.Organizer &&
-                wp.Membership.Organization.MaxUsers == 1 &&
-                wp.Membership.Organization.Description == PersonalWorkspaceDescription)
-            .FirstOrDefaultAsync(cancellationToken);
-
+        var existing = await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
         var normalized = NormalizeProfile(profile);
 
         if (existing is null)
         {
-            var membership = await membershipRepository.GetQueryable()
-                .Include(m => m.Organization)
-                .Where(m => m.UserId == userId)
-                .OrderByDescending(m =>
-                    m.Role == ERole.Organizer &&
-                    m.Organization.MaxUsers == 1 &&
-                    m.Organization.Description == PersonalWorkspaceDescription)
-                .FirstOrDefaultAsync(cancellationToken)
+            var membership = await membershipRepository.FindPersonalAsync(userId, cancellationToken)
                 ?? throw new ArgumentException("No membership found for this user.");
 
             normalized.MembershipId = membership.Id;
             normalized.CreatedAt = DateTime.UtcNow;
             PrepareProfileGraph(normalized);
-            await repository.AddAsync(normalized, cancellationToken);
+            await workProfileRepository.AddAsync(normalized, cancellationToken);
             return await GetAsync(userId, cancellationToken) ?? normalized;
         }
 
@@ -81,34 +46,29 @@ public class WorkProfileService(
         existing.PlannerViewEnd = normalized.PlannerViewEnd;
         existing.EditedAt = DateTime.UtcNow;
 
-        var existingDayIds = existing.Days.Select(day => day.Id).ToList();
-        if (existingDayIds.Count > 0)
+        var oldDays = existing.Days.ToList();
+        // Prepare FKs on new days without touching the tracked navigation property.
+        // This avoids EF change-tracker conflicts from navigation-collection reassignment.
+        var newDays = normalized.Days.Select(day =>
         {
-            var existingBlocks = await dbContext.WorkBlocks
-                .Where(block => existingDayIds.Contains(block.WorkDayProfileId))
-                .ToListAsync(cancellationToken);
-            var existingBreaks = await dbContext.WorkBreaks
-                .Where(workBreak => existingDayIds.Contains(workBreak.WorkDayProfileId))
-                .ToListAsync(cancellationToken);
-
-            if (existingBlocks.Count > 0)
+            if (day.Id == Guid.Empty) day.Id = Guid.NewGuid();
+            day.WorkProfileId = existing.Id;
+            foreach (var block in day.Blocks)
             {
-                dbContext.WorkBlocks.RemoveRange(existingBlocks);
+                if (block.Id == Guid.Empty) block.Id = Guid.NewGuid();
+                block.WorkDayProfileId = day.Id;
             }
-
-            if (existingBreaks.Count > 0)
+            foreach (var workBreak in day.Breaks)
             {
-                dbContext.WorkBreaks.RemoveRange(existingBreaks);
+                if (workBreak.Id == Guid.Empty) workBreak.Id = Guid.NewGuid();
+                workBreak.WorkDayProfileId = day.Id;
             }
+            return day;
+        }).ToList();
 
-            dbContext.WorkDayProfiles.RemoveRange(existing.Days);
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        existing.Days = normalized.Days;
-        PrepareProfileGraph(existing);
-        await dbContext.WorkDayProfiles.AddRangeAsync(existing.Days, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        // ReplaceDaysAsync calls SaveChangesAsync internally, which also persists
+        // the scalar-property changes on the tracked `existing` entity.
+        await workProfileRepository.ReplaceDaysAsync(oldDays, newDays, cancellationToken);
 
         return await GetAsync(userId, cancellationToken) ?? existing;
     }
@@ -116,98 +76,27 @@ public class WorkProfileService(
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
-        {
             throw new ArgumentException("UserId is required.", nameof(userId));
-        }
 
-        var existing = await repository.GetQueryable()
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
-            .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
+        var profile = await workProfileRepository.GetForDeleteByUserIdAsync(userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Work profile not found.");
 
-        await DeleteExistingProfileAsync(existing, cancellationToken);
+        await workProfileRepository.DeleteAsync(profile, cancellationToken);
     }
 
     public async Task DeleteByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email))
-        {
             throw new ArgumentException("Email is required.", nameof(email));
-        }
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
 
-        var existing = await repository.GetQueryable()
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
-            .FirstOrDefaultAsync(wp => wp.Membership.User.Email.ToLower() == normalizedEmail, cancellationToken);
+        var profile = await workProfileRepository.GetForDeleteByEmailAsync(normalizedEmail, cancellationToken)
+            ?? throw new KeyNotFoundException("Work profile not found.");
 
-        await DeleteExistingProfileAsync(existing, cancellationToken);
+        await workProfileRepository.DeleteAsync(profile, cancellationToken);
     }
 
-    private async Task DeleteExistingProfileAsync(WorkProfile? existing, CancellationToken cancellationToken)
-    {
-        if (existing is null)
-        {
-            throw new KeyNotFoundException("Work profile not found.");
-        }
-
-        var workProfileId = existing.Id;
-
-        var userTasks = await dbContext.UserTasks
-            .Where(task => task.WorkProfileId == workProfileId)
-            .ToListAsync(cancellationToken);
-
-        if (userTasks.Count > 0)
-        {
-            dbContext.UserTasks.RemoveRange(userTasks);
-        }
-
-        var workDayProfiles = await dbContext.WorkDayProfiles
-            .Where(day => day.WorkProfileId == workProfileId)
-            .ToListAsync(cancellationToken);
-
-        if (workDayProfiles.Count > 0)
-        {
-            var workDayProfileIds = workDayProfiles.Select(day => day.Id).ToList();
-
-                var workBlocks = await dbContext.WorkBlocks
-                    .Where(block => workDayProfileIds.Contains(block.WorkDayProfileId))
-                    .ToListAsync(cancellationToken);
-
-                var workBreaks = await dbContext.WorkBreaks
-                    .Where(workBreak => workDayProfileIds.Contains(workBreak.WorkDayProfileId))
-                    .ToListAsync(cancellationToken);
-
-            if (workBlocks.Count > 0)
-            {
-                    dbContext.WorkBlocks.RemoveRange(workBlocks);
-                }
-
-                if (workBreaks.Count > 0)
-                {
-                    dbContext.WorkBreaks.RemoveRange(workBreaks);
-                }
-
-                dbContext.WorkDayProfiles.RemoveRange(workDayProfiles);
-            }
-
-        if (dbContext.Database.IsRelational())
-        {
-            await dbContext.Database.ExecuteSqlRawAsync(
-                @"DELETE FROM work_profile_time_intervals WHERE work_profile_id = @workProfileId",
-                [new NpgsqlParameter("workProfileId", workProfileId)],
-                cancellationToken);
-        }
-
-        dbContext.WorkProfiles.Remove(existing);
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Ensures the profile has exactly one entry per weekday in Mon–Sun order,
-    /// and that blocks/breaks within each day are sorted by start time.
-    /// </summary>
     private static WorkProfile NormalizeProfile(WorkProfile profile)
     {
         var lookup = profile.Days
@@ -231,25 +120,19 @@ public class WorkProfileService(
     private static void PrepareProfileGraph(WorkProfile profile)
     {
         if (profile.Id == Guid.Empty)
-        {
             profile.Id = Guid.NewGuid();
-        }
 
         foreach (var day in profile.Days)
         {
             if (day.Id == Guid.Empty)
-            {
                 day.Id = Guid.NewGuid();
-            }
 
             day.WorkProfileId = profile.Id;
 
             foreach (var block in day.Blocks)
             {
                 if (block.Id == Guid.Empty)
-                {
                     block.Id = Guid.NewGuid();
-                }
 
                 block.WorkDayProfileId = day.Id;
             }
@@ -257,9 +140,7 @@ public class WorkProfileService(
             foreach (var workBreak in day.Breaks)
             {
                 if (workBreak.Id == Guid.Empty)
-                {
                     workBreak.Id = Guid.NewGuid();
-                }
 
                 workBreak.WorkDayProfileId = day.Id;
             }

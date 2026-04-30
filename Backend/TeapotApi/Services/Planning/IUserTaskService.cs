@@ -1,6 +1,6 @@
 using DataAccess.Models;
 
-namespace Services;
+namespace Services.Planning;
 
 public interface IUserTaskService
 {

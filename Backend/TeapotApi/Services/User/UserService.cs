@@ -1,15 +1,15 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
-using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
-namespace Services;
+namespace Services.Users;
 
 public class UserService(
-    IGenericRepository<User> userRepository,
-    IGenericRepository<Organization> orgRepository,
-    IGenericRepository<Membership> membershipRepository,
-    IGenericRepository<WorkProfile> workProfileRepository,
+    IUserRepository userRepository,
+    IOrganizationRepository organizationRepository,
+    IMembershipRepository membershipRepository,
+    IWorkProfileRepository workProfileRepository,
     TeapotDbContext dbContext) : IUserService
 {
     private static readonly EmailAddressAttribute EmailValidator = new();
@@ -26,114 +26,51 @@ public class UserService(
 
         // Wrap in a transaction to prevent race conditions when two requests
         // arrive simultaneously for the same new user
-        var tx = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
-            : null;
+        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        try
+        var user = await FindOrCreateUserAsync(normalizedEmail, authProviderSubject, displayName, profileImageUrl, cancellationToken);
+
+        var existingProfile = await workProfileRepository.FindByUserIdAsync(user.Id, cancellationToken);
+        if (existingProfile is not null)
         {
-            User? user = null;
-
-            if (!string.IsNullOrWhiteSpace(authProviderSubject))
-            {
-                user = await userRepository.GetQueryable()
-                    .FirstOrDefaultAsync(u => u.AuthProviderSubject == authProviderSubject, cancellationToken);
-            }
-
-            if (user is null)
-            {
-                user = await userRepository.GetQueryable()
-                    .FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
-            }
-
-            if (user is null)
-            {
-                user = new User
-                {
-                    Email = normalizedEmail,
-                    AuthProviderSubject = NormalizeOptional(authProviderSubject),
-                    DisplayName = NormalizeOptional(displayName),
-                    Username = BuildUsername(normalizedEmail, displayName),
-                    ProfileImageUrl = NormalizeOptional(profileImageUrl),
-                    Timezone = "Europe/Berlin",
-                    CreatedAt = DateTime.UtcNow,
-                };
-                await userRepository.AddAsync(user, cancellationToken);
-            }
-            else
-            {
-                var changed = false;
-
-                if (!string.IsNullOrWhiteSpace(authProviderSubject) &&
-                    string.IsNullOrWhiteSpace(user.AuthProviderSubject) &&
-                    !string.Equals(user.AuthProviderSubject, authProviderSubject, StringComparison.Ordinal))
-                {
-                    user.AuthProviderSubject = authProviderSubject;
-                    changed = true;
-                }
-
-                if (changed)
-                {
-                    user.EditedAt = DateTime.UtcNow;
-                    await userRepository.UpdateAsync(user, cancellationToken);
-                }
-            }
-
-            // Look for an existing personal work profile (membership to a personal org)
-            var existingProfile = await workProfileRepository.GetQueryable()
-                .FirstOrDefaultAsync(wp => wp.Membership.UserId == user.Id, cancellationToken);
-
-            if (existingProfile is not null)
-            {
-                if (tx is not null)
-                    await tx.CommitAsync(cancellationToken);
-
-                return (user.Id, existingProfile.Id);
-            }
-
-            // No work profile yet — create a personal org + membership + work profile
-            var personalOrg = new Organization
-            {
-                Name = $"Personal ({normalizedEmail})",
-                Description = "Auto-created personal workspace",
-                MaxUsers = 1,
-                CreatedAt = DateTime.UtcNow,
-            };
-            await orgRepository.AddAsync(personalOrg, cancellationToken);
-
-            var membership = new Membership
-            {
-                UserId = user.Id,
-                OrganizationId = personalOrg.Id,
-                Role = ERole.Organizer,
-                CreatedAt = DateTime.UtcNow,
-            };
-            await membershipRepository.AddAsync(membership, cancellationToken);
-
-            var workProfile = new WorkProfile
-            {
-                MembershipId = membership.Id,
-                MaxDailyLoad = TimeSpan.FromHours(8),
-                CreatedAt = DateTime.UtcNow,
-            };
-            await workProfileRepository.AddAsync(workProfile, cancellationToken);
-
-            if (tx is not null)
-                await tx.CommitAsync(cancellationToken);
-
-            return (user.Id, workProfile.Id);
+            await tx.CommitAsync(cancellationToken);
+            return (user.Id, existingProfile.Id);
         }
-        finally
+
+        // No work profile yet — create a personal org + membership + work profile
+        var personalOrg = new Organization
         {
-            if (tx is not null)
-                await tx.DisposeAsync();
-        }
+            Name = $"Personal ({normalizedEmail})",
+            Description = "Auto-created personal workspace",
+            MaxUsers = 1,
+            CreatedAt = DateTime.UtcNow,
+        };
+        await organizationRepository.AddAsync(personalOrg, cancellationToken);
+
+        var membership = new Membership
+        {
+            UserId = user.Id,
+            OrganizationId = personalOrg.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow,
+        };
+        await membershipRepository.AddAsync(membership, cancellationToken);
+
+        var workProfile = new WorkProfile
+        {
+            MembershipId = membership.Id,
+            MaxDailyLoad = TimeSpan.FromHours(8),
+            CreatedAt = DateTime.UtcNow,
+        };
+        await workProfileRepository.AddAsync(workProfile, cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
+        return (user.Id, workProfile.Id);
     }
 
     public async Task<UserProfileDto> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetQueryable()
-            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+        var user = await userRepository.FindByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("User not found.");
 
         return MapProfile(user);
@@ -142,8 +79,7 @@ public class UserService(
     public async Task<UserProfileDto> UpdateProfileAsync(Guid userId, UpdateUserProfileCommand command,
         CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetQueryable()
-            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+        var user = await userRepository.FindByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("User not found.");
 
         var normalizedDisplayName = NormalizeRequired(command.DisplayName, "Display name is required.");
@@ -153,17 +89,8 @@ public class UserService(
 
         ValidateProfileImageUrl(normalizedProfileImageUrl);
 
-        var emailTaken = await userRepository.GetQueryable()
-            .AnyAsync(
-                existing =>
-                    existing.Id != userId &&
-                    existing.Email.ToLower() == normalizedEmail.ToLower(),
-                cancellationToken);
-
-        if (emailTaken)
-        {
+        if (await userRepository.IsEmailTakenByOtherAsync(userId, normalizedEmail, cancellationToken))
             throw new ArgumentException("Email is already in use.");
-        }
 
         user.DisplayName = normalizedDisplayName;
         user.Email = normalizedEmail;
@@ -174,6 +101,41 @@ public class UserService(
 
         await userRepository.UpdateAsync(user, cancellationToken);
         return MapProfile(user);
+    }
+
+    private async Task<User> FindOrCreateUserAsync(string normalizedEmail, string? authProviderSubject, string? displayName, string? profileImageUrl, CancellationToken cancellationToken)
+    {
+        User? user = null;
+
+        if (!string.IsNullOrWhiteSpace(authProviderSubject))
+            user = await userRepository.FindByAuthProviderSubjectAsync(authProviderSubject, cancellationToken);
+
+        user ??= await userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
+
+        if (user is null)
+        {
+            user = new User
+            {
+                Email = normalizedEmail,
+                AuthProviderSubject = NormalizeOptional(authProviderSubject),
+                DisplayName = NormalizeOptional(displayName),
+                Username = BuildUsername(normalizedEmail, displayName),
+                ProfileImageUrl = NormalizeOptional(profileImageUrl),
+                Timezone = "Europe/Berlin",
+                CreatedAt = DateTime.UtcNow,
+            };
+            await userRepository.AddAsync(user, cancellationToken);
+        }
+        else if (!string.IsNullOrWhiteSpace(authProviderSubject) &&
+                 string.IsNullOrWhiteSpace(user.AuthProviderSubject) &&
+                 !string.Equals(user.AuthProviderSubject, authProviderSubject, StringComparison.Ordinal))
+        {
+            user.AuthProviderSubject = authProviderSubject;
+            user.EditedAt = DateTime.UtcNow;
+            await userRepository.UpdateAsync(user, cancellationToken);
+        }
+
+        return user;
     }
 
     private static UserProfileDto MapProfile(User user) => new(

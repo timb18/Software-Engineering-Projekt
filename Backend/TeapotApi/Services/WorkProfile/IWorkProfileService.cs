@@ -1,6 +1,6 @@
 using DataAccess.Models;
 
-namespace Services;
+namespace Services.WorkProfiles;
 
 public interface IWorkProfileService
 {

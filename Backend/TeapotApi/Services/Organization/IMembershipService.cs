@@ -1,4 +1,4 @@
-namespace Services;
+namespace Services.Organizations;
 
 public interface IMembershipService
 {

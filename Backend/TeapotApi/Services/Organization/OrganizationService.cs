@@ -1,24 +1,15 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
-using Microsoft.EntityFrameworkCore;
 
-namespace Services;
+namespace Services.Organizations;
 
 public class OrganizationService(
-    IGenericRepository<Organization> organizationRepository,
-    TeapotDbContext dbContext) : IOrganizationService
+    IOrganizationRepository organizationRepository) : IOrganizationService
 {
     public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
-
-        var organizations = await organizationRepository.GetQueryable()
-            .Include(o => o.Memberships)
-                .ThenInclude(m => m.User)
-            .Include(o => o.Invitations)
-            .Where(o => o.Memberships.Any(m => m.User.Email.ToLower() == normalizedEmail))
-            .OrderBy(o => o.Name)
-            .ToListAsync();
+        var organizations = await organizationRepository.GetForUserAsync(normalizedEmail);
 
         return organizations.Select(o => new OrganizationDetailsDto
         {
@@ -63,11 +54,7 @@ public class OrganizationService(
         if (command.InitiatorUserId == Guid.Empty)
             throw new ArgumentException("InitiatorUserId is required.", nameof(command.InitiatorUserId));
 
-        var organization = await dbContext.Organizations
-            .Include(o => o.Memberships)
-                .ThenInclude(m => m.WorkProfile)
-            .Include(o => o.Invitations)
-            .FirstOrDefaultAsync(o => o.Id == command.OrganizationId, cancellationToken)
+        var organization = await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId, cancellationToken)
             ?? throw new KeyNotFoundException("Organization not found.");
 
         var initiatorMembership = organization.Memberships
@@ -87,64 +74,6 @@ public class OrganizationService(
         if (!string.Equals(organization.Name, command.ConfirmationText?.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("Confirmation text does not match the organization name.");
 
-        foreach (var membership in organization.Memberships.ToList())
-            await DeleteMembershipDataAsync(membership, cancellationToken);
-
-        if (organization.Invitations.Count > 0)
-            dbContext.Invitations.RemoveRange(organization.Invitations);
-
-        dbContext.Organizations.Remove(organization);
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task DeleteMembershipDataAsync(Membership membership, CancellationToken cancellationToken)
-    {
-        if (membership.WorkProfile is not null)
-        {
-            var workProfileId = membership.WorkProfile.Id;
-
-            var workDayProfiles = await dbContext.WorkDayProfiles
-                .Where(day => day.WorkProfileId == workProfileId)
-                .ToListAsync(cancellationToken);
-
-            if (workDayProfiles.Count > 0)
-            {
-                var workDayProfileIds = workDayProfiles.Select(day => day.Id).ToList();
-
-                var workBlocks = await dbContext.WorkBlocks
-                    .Where(block => workDayProfileIds.Contains(block.WorkDayProfileId))
-                    .ToListAsync(cancellationToken);
-
-                var workBreaks = await dbContext.WorkBreaks
-                    .Where(workBreak => workDayProfileIds.Contains(workBreak.WorkDayProfileId))
-                    .ToListAsync(cancellationToken);
-
-                if (workBlocks.Count > 0)
-                    dbContext.WorkBlocks.RemoveRange(workBlocks);
-
-                if (workBreaks.Count > 0)
-                    dbContext.WorkBreaks.RemoveRange(workBreaks);
-
-                dbContext.WorkDayProfiles.RemoveRange(workDayProfiles);
-            }
-
-            var timeIntervals = await dbContext.WorkProfileTimeIntervals
-                .Where(interval => interval.WorkProfileId == workProfileId)
-                .ToListAsync(cancellationToken);
-
-            if (timeIntervals.Count > 0)
-                dbContext.WorkProfileTimeIntervals.RemoveRange(timeIntervals);
-
-            var userTasks = await dbContext.UserTasks
-                .Where(task => task.WorkProfileId == workProfileId)
-                .ToListAsync(cancellationToken);
-
-            if (userTasks.Count > 0)
-                dbContext.UserTasks.RemoveRange(userTasks);
-
-            dbContext.WorkProfiles.Remove(membership.WorkProfile);
-        }
-
-        dbContext.Memberships.Remove(membership);
+        await organizationRepository.DeleteWithCascadeAsync(organization, cancellationToken);
     }
 }
