@@ -30,11 +30,11 @@ public class OrganizationControllerTests
     }
 
     [Test]
-    public async Task Delete_Returns_Conflict_When_Organization_Is_Not_Empty()
+    public async Task Delete_Returns_Conflict_When_Organization_Has_Additional_Organizers()
     {
         var controller = new OrganizationController(
             new StubOrganizationAdminService(),
-            new StubOrganizationService { ExceptionToThrow = new InvalidOperationException("Organisation muss leer sein, bevor sie gelöscht werden kann.") });
+            new StubOrganizationService { ExceptionToThrow = new InvalidOperationException("Die Organisation kann nicht gelöscht werden, solange es weitere Organizer gibt.") });
 
         var result = await controller.Delete(
             Guid.NewGuid(),

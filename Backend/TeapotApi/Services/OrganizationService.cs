@@ -77,13 +77,18 @@ public class OrganizationService(
         if (initiatorMembership.Role != ERole.Organizer)
             throw new UnauthorizedAccessException("Only organizers can delete an organization.");
 
+        var otherOrganizers = organization.Memberships
+            .Where(m => m.UserId != command.InitiatorUserId && m.Role == ERole.Organizer)
+            .ToList();
+
+        if (otherOrganizers.Count > 0)
+            throw new InvalidOperationException("Die Organisation kann nicht gelöscht werden, solange es weitere Organizer gibt.");
+
         if (!string.Equals(organization.Name, command.ConfirmationText?.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("Confirmation text does not match the organization name.");
 
-        if (organization.Memberships.Count != 1)
-            throw new InvalidOperationException("Organisation muss leer sein, bevor sie gelöscht werden kann.");
-
-        await DeleteMembershipDataAsync(initiatorMembership, cancellationToken);
+        foreach (var membership in organization.Memberships.ToList())
+            await DeleteMembershipDataAsync(membership, cancellationToken);
 
         if (organization.Invitations.Count > 0)
             dbContext.Invitations.RemoveRange(organization.Invitations);

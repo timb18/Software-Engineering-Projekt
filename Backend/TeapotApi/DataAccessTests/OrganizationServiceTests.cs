@@ -136,7 +136,25 @@ public class OrganizationServiceTests
     }
 
     [Test]
-    public void DeleteOrganizationAsync_Throws_When_Organization_Has_Additional_Members()
+    public void DeleteOrganizationAsync_Throws_When_Organization_Has_Additional_Organizers()
+    {
+        var organizer = new User { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };
+        var coOrganizer = new User { Id = Guid.NewGuid(), Email = "co-organizer@example.com", Username = "co", CreatedAt = DateTime.UtcNow };
+        var organization = new Organization { Id = Guid.NewGuid(), Name = "Team Org", Description = "Test", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
+
+        _dbContext.Users.AddRange(organizer, coOrganizer);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.AddRange(
+            new Membership { Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
+            new Membership { Id = Guid.NewGuid(), UserId = coOrganizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow });
+        _dbContext.SaveChanges();
+
+        Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, organization.Name)));
+    }
+
+    [Test]
+    public async Task DeleteOrganizationAsync_Removes_Organization_And_All_Members_When_Only_Organizer()
     {
         var organizer = new User { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };
         var member = new User { Id = Guid.NewGuid(), Email = "member@example.com", Username = "member", CreatedAt = DateTime.UtcNow };
@@ -147,10 +165,15 @@ public class OrganizationServiceTests
         _dbContext.Memberships.AddRange(
             new Membership { Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
             new Membership { Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = organization.Id, Role = ERole.User, CreatedAt = DateTime.UtcNow });
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
 
-        Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, organization.Name)));
+        await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, organization.Name));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_dbContext.Organizations.Any(), Is.False);
+            Assert.That(_dbContext.Memberships.Any(), Is.False);
+        });
     }
 
     [Test]
