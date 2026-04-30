@@ -3,7 +3,13 @@ namespace Services;
 public interface IOrganizationService
 {
     Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email);
+    Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default);
 }
+
+public sealed record DeleteOrganizationCommand(
+    Guid OrganizationId,
+    Guid InitiatorUserId,
+    string ConfirmationText);
 
 public class OrganizationDetailsDto
 {
