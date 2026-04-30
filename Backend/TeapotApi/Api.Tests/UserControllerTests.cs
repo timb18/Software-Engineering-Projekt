@@ -3,9 +3,8 @@ using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Services;
 
-namespace DataAccessTests;
+namespace Api.Tests;
 
 [TestFixture]
 public class UserControllerTests
@@ -22,10 +21,10 @@ public class UserControllerTests
 
         _dbContext = new TeapotDbContext(options);
         var userService = new UserService(
-            new GenericRepository<User>(_dbContext),
-            new GenericRepository<Organization>(_dbContext),
-            new GenericRepository<Membership>(_dbContext),
-            new GenericRepository<WorkProfile>(_dbContext),
+            new UserRepository(_dbContext),
+            new OrganizationRepository(_dbContext),
+            new MembershipRepository(_dbContext),
+            new WorkProfileRepository(_dbContext),
             _dbContext);
 
         _controller = new UserController(userService);

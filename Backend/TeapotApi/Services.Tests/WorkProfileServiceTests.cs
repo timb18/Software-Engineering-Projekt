@@ -1,9 +1,8 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Services;
 
-namespace DataAccessTests;
+namespace Services.Tests;
 
 [TestFixture]
 public class WorkProfileServiceTests
@@ -20,9 +19,8 @@ public class WorkProfileServiceTests
 
         _dbContext = new TeapotDbContext(options);
         _service = new WorkProfileService(
-            _dbContext,
-            new GenericRepository<WorkProfile>(_dbContext),
-            new GenericRepository<Membership>(_dbContext));
+            new WorkProfileRepository(_dbContext),
+            new MembershipRepository(_dbContext));
     }
 
     [Test]

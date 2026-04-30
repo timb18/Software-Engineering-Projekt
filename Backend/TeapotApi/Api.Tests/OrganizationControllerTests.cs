@@ -1,8 +1,7 @@
 using Api.Controller;
 using Microsoft.AspNetCore.Mvc;
-using Services;
 
-namespace DataAccessTests;
+namespace Api.Tests;
 
 [TestFixture]
 public class OrganizationControllerTests

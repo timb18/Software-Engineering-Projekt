@@ -2,9 +2,8 @@ using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Services;
 
-namespace DataAccessTests;
+namespace Services.Tests;
 
 [Category("Integration")]
 public class InvitationServiceTests
@@ -22,10 +21,10 @@ public class InvitationServiceTests
         _dbContext = new TeapotDbContext(options);
 
         _service = new InvitationService(
-            new GenericRepository<Invitation>(_dbContext),
-            new GenericRepository<Organization>(_dbContext),
-            new GenericRepository<User>(_dbContext),
-            new GenericRepository<Membership>(_dbContext),
+            new InvitationRepository(_dbContext),
+            new OrganizationRepository(_dbContext),
+            new UserRepository(_dbContext),
+            new MembershipRepository(_dbContext),
             Options.Create(new EmailOptions
             {
                 ApiBaseUrl = "http://localhost:5186",

@@ -2,9 +2,8 @@ using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Services;
 
-namespace DataAccessTests;
+namespace Services.Tests;
 
 [TestFixture]
 public class UserServiceTests
@@ -28,10 +27,10 @@ public class UserServiceTests
     public void TearDown() => _dbContext.Dispose();
 
     private static UserService BuildService(TeapotDbContext db) => new(
-        new GenericRepository<User>(db),
-        new GenericRepository<Organization>(db),
-        new GenericRepository<Membership>(db),
-        new GenericRepository<WorkProfile>(db),
+        new UserRepository(db),
+        new OrganizationRepository(db),
+        new MembershipRepository(db),
+        new WorkProfileRepository(db),
         db);
 
     // ── EnsureUserAsync – new user ────────────────────────────────────────────

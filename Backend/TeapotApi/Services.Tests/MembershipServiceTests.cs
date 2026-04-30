@@ -1,8 +1,8 @@
 using DataAccess.Models;
+using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Services;
 
-namespace DataAccessTests;
+namespace Services.Tests;
 
 [TestFixture]
 public class MembershipServiceTests
@@ -18,7 +18,7 @@ public class MembershipServiceTests
             .Options;
 
         _dbContext = new TeapotDbContext(options);
-        _service = new MembershipService(_dbContext);
+        _service = new MembershipService(new MembershipRepository(_dbContext));
     }
 
     [Test]

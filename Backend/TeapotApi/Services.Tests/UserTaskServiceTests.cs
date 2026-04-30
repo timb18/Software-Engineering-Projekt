@@ -1,9 +1,8 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Services;
 
-namespace DataAccessTests;
+namespace Services.Tests;
 
 [TestFixture]
 public class UserTaskServiceTests
@@ -42,7 +41,7 @@ public class UserTaskServiceTests
         _dbContext.SaveChanges();
 
         _workProfileId = workProfile.Id;
-        _service = new UserTaskService(new GenericRepository<UserTask>(_dbContext));
+        _service = new UserTaskService(new UserTaskRepository(_dbContext));
     }
 
     [TearDown]

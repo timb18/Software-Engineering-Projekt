@@ -1,9 +1,8 @@
 using Api.Controller;
 using DataAccess.Models;
 using Microsoft.AspNetCore.Mvc;
-using Services;
 
-namespace DataAccessTests;
+namespace Api.Tests;
 
 [TestFixture]
 public class WorkProfileControllerTests

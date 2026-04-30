@@ -1,9 +1,8 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Services;
 
-namespace DataAccessTests;
+namespace Services.Tests;
 
 [TestFixture]
 public class OrganizationServiceTests
@@ -19,7 +18,8 @@ public class OrganizationServiceTests
             .Options;
 
         _dbContext = new TeapotDbContext(options);
-        _service = new OrganizationService(new GenericRepository<Organization>(_dbContext), _dbContext);
+        _service = new OrganizationService(
+            new OrganizationRepository(_dbContext));
     }
 
     [TearDown]
