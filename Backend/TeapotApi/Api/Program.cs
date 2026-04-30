@@ -54,10 +54,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
     connectionString = TryBuildConnectionStringFromDiscreteEnvironmentVariables();
 }
 
-if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException(
-        "Required connection string 'ConnectionStrings:DefaultConnection' is not configured. " +
-        "Set it in configuration, provide DATABASE_URL, or set PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD.");
+var useInMemory = string.IsNullOrWhiteSpace(connectionString);
+if (useInMemory)
+    Console.WriteLine("[DEV] No connection string found — using in-memory database.");
 
 static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
 {
@@ -164,11 +163,17 @@ static Dictionary<string, string> ParseQueryString(string query)
     return result;
 }
 
-builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString, o => o
-        .MapEnum<EInvitationStatus>("invitation_status")
-        .MapEnum<ERole>("role")
-        .MapEnum<ETaskPriority>("task_priority")
-        .MapEnum<ETaskIntensity>("task_intensity")))
+builder.Services.AddDbContext<TeapotDbContext>(options =>
+{
+    if (useInMemory)
+        options.UseInMemoryDatabase("TeapotDev");
+    else
+        options.UseNpgsql(connectionString, o => o
+            .MapEnum<EInvitationStatus>("invitation_status")
+            .MapEnum<ERole>("role")
+            .MapEnum<ETaskPriority>("task_priority")
+            .MapEnum<ETaskIntensity>("task_intensity"));
+})
     .AddScoped<IUserRepository, UserRepository>()
     .AddScoped<IOrganizationRepository, OrganizationRepository>()
     .AddScoped<IMembershipRepository, MembershipRepository>()
