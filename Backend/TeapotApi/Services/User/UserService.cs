@@ -127,8 +127,7 @@ public class UserService(
             await userRepository.AddAsync(user, cancellationToken);
         }
         else if (!string.IsNullOrWhiteSpace(authProviderSubject) &&
-                 string.IsNullOrWhiteSpace(user.AuthProviderSubject) &&
-                 !string.Equals(user.AuthProviderSubject, authProviderSubject, StringComparison.Ordinal))
+                 string.IsNullOrWhiteSpace(user.AuthProviderSubject))
         {
             user.AuthProviderSubject = authProviderSubject;
             user.EditedAt = DateTime.UtcNow;

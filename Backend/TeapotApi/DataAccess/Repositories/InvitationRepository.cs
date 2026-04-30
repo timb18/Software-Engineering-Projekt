@@ -11,13 +11,13 @@ public class InvitationRepository(TeapotDbContext context) : IInvitationReposito
     public Task<Invitation?> FindOpenAsync(Guid organizationId, string normalizedEmail, CancellationToken cancellationToken = default) =>
         context.Invitations.FirstOrDefaultAsync(i =>
             i.OrganizationId == organizationId &&
-            i.Email.ToLower() == normalizedEmail &&
+            i.Email.ToLowerInvariant() == normalizedEmail &&
             i.Status == EInvitationStatus.Open &&
             i.ExpiryDate > DateTime.UtcNow, cancellationToken);
 
     public async Task<IEnumerable<Invitation>> GetPendingForEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
         await context.Invitations
-            .Where(i => i.Email.ToLower() == normalizedEmail &&
+            .Where(i => i.Email.ToLowerInvariant() == normalizedEmail &&
                         i.Status == EInvitationStatus.Open &&
                         i.ExpiryDate > DateTime.UtcNow)
             .ToListAsync(cancellationToken);

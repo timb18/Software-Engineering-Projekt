@@ -44,6 +44,8 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
 
     public async Task ReplaceDaysAsync(IList<WorkDayProfile> oldDays, IList<WorkDayProfile> newDays, CancellationToken cancellationToken = default)
     {
+        await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
+
         if (oldDays.Count > 0)
         {
             var dayIds = oldDays.Select(d => d.Id).ToList();
@@ -63,6 +65,8 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
 
         await context.WorkDayProfiles.AddRangeAsync(newDays, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(WorkProfile profile, CancellationToken cancellationToken = default)

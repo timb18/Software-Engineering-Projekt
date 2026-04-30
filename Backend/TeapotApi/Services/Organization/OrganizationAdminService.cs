@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -22,13 +23,14 @@ public class OrganizationAdminService(
         if (existingOrganization is not null)
             throw new InvalidOperationException("Organization name already exists.");
 
-        var organizer = await userRepository.FindByEmailAsync(request.OrganizerEmail, cancellationToken);
+        var normalizedEmail = request.OrganizerEmail.Trim().ToLowerInvariant();
+        var organizer = await userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
         if (organizer is null)
         {
             organizer = new User
             {
                 Username = request.OrganizerUserName,
-                Email = request.OrganizerEmail,
+                Email = normalizedEmail,
             };
             await userRepository.AddAsync(organizer, cancellationToken);
         }
@@ -72,7 +74,7 @@ public class OrganizationAdminService(
         if (string.IsNullOrWhiteSpace(request.OrganizerEmail))
             throw new ArgumentException("OrganizerEmail is required.");
 
-        if (!request.OrganizerEmail.Contains('@'))
+        if (!new EmailAddressAttribute().IsValid(request.OrganizerEmail.Trim()))
             throw new ArgumentException("OrganizerEmail is invalid.");
     }
 }
