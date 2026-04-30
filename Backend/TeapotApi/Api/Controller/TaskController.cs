@@ -1,6 +1,5 @@
 using DataAccess.Models;
 using Microsoft.AspNetCore.Mvc;
-using Services;
 
 namespace Api.Controller;
 

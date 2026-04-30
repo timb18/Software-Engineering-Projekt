@@ -6,7 +6,6 @@ using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
-using Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -170,28 +169,19 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
         .MapEnum<ERole>("role")
         .MapEnum<ETaskPriority>("task_priority")
         .MapEnum<ETaskIntensity>("task_intensity")))
-    .AddScoped<IGenericRepository<Invitation>, GenericRepository<Invitation>>()
-    .AddScoped<IGenericRepository<Membership>, GenericRepository<Membership>>()
-    .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
-    .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
-    .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
-    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
+    .AddScoped<IUserRepository, UserRepository>()
+    .AddScoped<IOrganizationRepository, OrganizationRepository>()
+    .AddScoped<IMembershipRepository, MembershipRepository>()
+    .AddScoped<IInvitationRepository, InvitationRepository>()
+    .AddScoped<IWorkProfileRepository, WorkProfileRepository>()
+    .AddScoped<IUserTaskRepository, UserTaskRepository>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 
 // Services
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
-builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IMembershipService, MembershipService>();
-
-// User
-builder.Services.AddScoped<IUserService, UserService>();
-
-// Tasks
-builder.Services.AddScoped<IUserTaskService, UserTaskService>();
-
-// Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
 builder.Services.AddControllers()

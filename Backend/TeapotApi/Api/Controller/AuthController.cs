@@ -1,7 +1,6 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Services;
 
 namespace Api.Controller;
 
@@ -9,10 +8,10 @@ namespace Api.Controller;
 [ApiController]
 public class AuthController : ControllerBase
 {
-    private readonly IGenericRepository<User> _userRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUserService _userService;
 
-    public AuthController(IUserService userService, IGenericRepository<User> userRepository)
+    public AuthController(IUserService userService, IUserRepository userRepository)
     {
         _userService = userService;
         _userRepository = userRepository;
@@ -49,8 +48,7 @@ public class AuthController : ControllerBase
 
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        var existingUser = _userRepository.GetQueryable()
-            .FirstOrDefault(u => u.Email.ToLower() == normalizedEmail);
+        var existingUser = await _userRepository.FindByEmailAsync(normalizedEmail);
 
         if (existingUser != null)
         {
@@ -75,7 +73,7 @@ public class AuthController : ControllerBase
             CreatedAt = DateTime.UtcNow
         };
 
-        await _userRepository.AddAsync(user);
+        await _userRepository.AddAsync(user, CancellationToken.None);
 
         return Ok(new
         {
