@@ -76,7 +76,7 @@ public class AuthControllerTests
     public async Task EnsureUser_CreatesMissingUserAndWorkProfile()
     {
         var result = await _controller.EnsureUser(
-            new EnsureUserRequest("ensure-user@test.com"),
+            new EnsureUserRequest("ensure-user@test.com", "auth0|ensure", "Ensure User", "https://example.com/u.png"),
             CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<OkObjectResult>());
@@ -84,6 +84,7 @@ public class AuthControllerTests
         Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(1));
         Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(1));
         Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.Users.Single().AuthProviderSubject, Is.EqualTo("auth0|ensure"));
     }
 
     [Test]

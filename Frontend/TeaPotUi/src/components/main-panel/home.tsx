@@ -27,7 +27,9 @@ const Home: FC = () => {
     <div className="grid h-full w-full grid-rows-[auto_1fr] gap-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 text-slate-50">
       <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl backdrop-blur">
         <div className="text-sm uppercase tracking-[0.22em] text-emerald-300">Welcome back</div>
-        <div className="mt-2 text-4xl font-semibold">Hi {user.username}, plan your week.</div>
+        <div className="mt-2 text-4xl font-semibold">
+          Hi {user.displayName ?? user.username}, plan your week.
+        </div>
         <div className="mt-2 text-slate-400">Keep tasks and teams aligned in one glance.</div>
       </div>
 

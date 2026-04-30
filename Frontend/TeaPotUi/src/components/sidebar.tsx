@@ -1,9 +1,9 @@
 import { useMemo, type FC } from "react";
 import { useNavigate } from "react-router";
-import { useAuth0 } from "@auth0/auth0-react";
+import useUserStore from "../stores/user-store";
 
 const Sidebar: FC = () => {
-  const { user } = useAuth0();
+  const { user } = useUserStore();
   const navigate = useNavigate();
 
   const goToProfile = () => {
@@ -31,10 +31,11 @@ const Sidebar: FC = () => {
   };
 
   const avatarStyle = useMemo(() => {
-    if (user?.picture?.startsWith("http")) {
+    if (user?.profileImage?.startsWith("http")) {
       return {
-        backgroundImage: `url(${user.picture})`,
+        backgroundImage: `url(${user.profileImage})`,
         backgroundSize: "cover",
+        backgroundPosition: "center",
       };
     }
     const gradients: Record<string, string> = {
@@ -42,8 +43,8 @@ const Sidebar: FC = () => {
       "gradient-2": "linear-gradient(135deg, #ec4899, #8b5cf6)",
       "gradient-3": "linear-gradient(135deg, #f59e0b, #ef4444)",
     };
-    return { backgroundImage: gradients[user?.picture ?? "gradient-1"] };
-  }, [user?.picture]);
+    return { backgroundImage: gradients[user?.profileImage ?? "gradient-1"] };
+  }, [user?.profileImage]);
 
   return (
     <aside className="flex h-full flex-col gap-6 rounded-l-4xl border-r border-slate-800 bg-slate-900/70 p-6">
@@ -61,9 +62,9 @@ const Sidebar: FC = () => {
               Signed in
             </div>
             <div className="text-lg leading-tight font-bold text-emerald-100">
-              {user?.nickname}
+              {user.displayName ?? user.username}
             </div>
-            <div className="text-[11px] text-slate-500">{user?.email}</div>
+            <div className="text-[11px] text-slate-500">{user.email}</div>
           </div>
         </div>
       </button>

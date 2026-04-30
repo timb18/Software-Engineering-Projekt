@@ -4,9 +4,17 @@ public class User
 {
     public Guid Id { get; set; }
 
+    public string? AuthProviderSubject { get; set; }
+
     public string? Username { get; set; }
 
+    public string? DisplayName { get; set; }
+
     public string Email { get; set; } = null!;
+
+    public string? ProfileImageUrl { get; set; }
+
+    public string? Timezone { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

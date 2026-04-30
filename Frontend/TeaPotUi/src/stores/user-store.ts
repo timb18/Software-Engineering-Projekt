@@ -4,14 +4,9 @@ import { useStore } from "zustand";
 import { persist } from "zustand/middleware";
 import { defaultUser } from "../util/default-data";
 import { getLegacyWorkSettings } from "../util/work-profile";
-import {
-  ensureUser,
-  fetchTasks,
-  createTask,
-  updateTask,
-  deleteTask,
-} from "../util/task-api";
+import { fetchTasks, createTask, updateTask, deleteTask } from "../util/task-api";
 import { fetchWorkProfile } from "../util/work-profile-api";
+import { ensureUser, fetchUserProfile } from "../util/user-api";
 import { fetchOrganizationsByUserEmail } from "../util/org-api";
 
 type UserStore = {
@@ -30,74 +25,96 @@ const userStore = createStore<UserStore>()(
   }),
 );
 
-const useUserStore = () => {
-  /**
-   * Called after Auth0 login. Registers the user in the backend (if new),
-   * loads their persisted tasks, and sets up the store.
-   */
-  const initForUser = async (sub: string, email: string) => {
-    const previousState = userStore.getState();
+export const initForUser = async (
+  sub: string,
+  email: string,
+  displayName?: string,
+  profileImageUrl?: string,
+) => {
+  const previousState = userStore.getState();
 
-    try {
-      const { userId, workProfileId } = await ensureUser(email);
-      const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
-        fetchTasks(workProfileId),
-        fetchWorkProfile(userId),
-        fetchOrganizationsByUserEmail(email),
-      ]);
+  try {
+    const { userId, workProfileId } = await ensureUser({
+      email,
+      authProviderSubject: sub,
+      displayName,
+      profileImageUrl,
+    });
+    const profile = await fetchUserProfile(userId);
 
-      const tasks = tasksResult.status === "fulfilled" ? tasksResult.value : [];
-      const workProfile =
-        workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
-      const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
-      const orgs =
-        organizationsResult.status === "fulfilled"
-          ? organizationsResult.value
-          : previousState.user.email === email
-            ? previousState.user.orgs
-            : [];
+    const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
+      fetchTasks(workProfileId),
+      fetchWorkProfile(userId),
+      fetchOrganizationsByUserEmail(email),
+    ]);
 
-      userStore.setState({
-        user: {
-          ...defaultUser,
-          id: userId,
-          username: email.split("@")[0],
-          email,
-          tasks,
-          workProfile: workProfile ?? undefined,
-          hasPersistedWorkProfile: workProfile !== null,
-          plannerViewStart: workProfile?.plannerViewStart,
-          plannerViewEnd: workProfile?.plannerViewEnd,
-          workCapacityHours: legacyWorkSettings?.workCapacityHours,
-          workDays: legacyWorkSettings?.workDays,
-          workStart: legacyWorkSettings?.workStart,
-          workEnd: legacyWorkSettings?.workEnd,
-          breakRules: legacyWorkSettings?.breakRules,
-          orgs,
-        },
-        workProfileId,
-      });
-    } catch (err) {
-      console.error("initForUser failed, keeping the last known user state when possible", err);
-      if (
-        previousState.user.email === email &&
-        previousState.user.id !== defaultUser.id
-      ) {
-        return;
-      }
+    const tasks = tasksResult.status === "fulfilled" ? tasksResult.value : [];
+    const workProfile = workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
+    const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
+    const orgs =
+      organizationsResult.status === "fulfilled"
+        ? organizationsResult.value
+        : previousState.user.email === email
+          ? previousState.user.orgs
+          : [];
 
-      userStore.setState({
-        user: {
-          ...defaultUser,
-          id: sub,
-          username: email.split("@")[0],
-          email,
-          tasks: [],
-        },
-        workProfileId: null,
-      });
+    if (tasksResult.status === "rejected") {
+      console.error("fetchTasks failed during initForUser", tasksResult.reason);
     }
-  };
+    if (workProfileResult.status === "rejected") {
+      console.error("fetchWorkProfile failed during initForUser", workProfileResult.reason);
+    }
+
+    userStore.setState({
+      user: {
+        ...defaultUser,
+        id: userId,
+        username: profile.username,
+        displayName: profile.displayName,
+        email: profile.email,
+        profileImage: profile.profileImageUrl,
+        timezone: profile.timezone,
+        tasks,
+        workProfile: workProfile ?? undefined,
+        hasPersistedWorkProfile: workProfile !== null,
+        plannerViewStart: workProfile?.plannerViewStart,
+        plannerViewEnd: workProfile?.plannerViewEnd,
+        workCapacityHours: legacyWorkSettings?.workCapacityHours,
+        workDays: legacyWorkSettings?.workDays,
+        workStart: legacyWorkSettings?.workStart,
+        workEnd: legacyWorkSettings?.workEnd,
+        breakRules: legacyWorkSettings?.breakRules,
+        orgs,
+      },
+      workProfileId,
+    });
+  } catch (err) {
+    console.error("initForUser failed, falling back to empty task list", err);
+    const currentState = userStore.getState();
+    const hasPersistedUser =
+      currentState.user.id !== defaultUser.id &&
+      (currentState.user.email === email || currentState.user.id === sub);
+
+    if (hasPersistedUser) {
+      return;
+    }
+
+    userStore.setState({
+      user: {
+        ...defaultUser,
+        id: sub,
+        username: email.split("@")[0],
+        displayName: displayName ?? email.split("@")[0],
+        email,
+        profileImage: profileImageUrl,
+        tasks: [],
+      },
+      workProfileId: null,
+    });
+  }
+};
+
+const useUserStore = () => {
   const state = useStore(userStore);
 
   const setUser = (newUser: User = defaultUser) => {
@@ -157,7 +174,7 @@ const useUserStore = () => {
     }));
   };
 
-  return { ...state, setUser, addTask, saveTask, removeTask, initForUser };
+  return { ...state, setUser, addTask, saveTask, removeTask };
 };
 
 export default useUserStore;

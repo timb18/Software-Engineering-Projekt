@@ -7,6 +7,7 @@ import WorkProfileConfigurator from "./work-profile-configurator";
 import { defaultUser } from "../../util/default-data";
 import { saveWorkProfile } from "../../util/work-profile-api";
 import { getLegacyWorkSettings } from "../../util/work-profile";
+import { updateUserProfile } from "../../util/user-api";
 
 type Tab = "general" | "work" | "security" | "account";
 
@@ -22,10 +23,17 @@ const User: FC = () => {
   const [pendingTabChange, setPendingTabChange] = useState<Tab | undefined>();
   const [status, setStatus] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [pwdForm, setPwdForm] = useState({
     current: "",
     next: "",
     confirm: "",
+  });
+  const [profileForm, setProfileForm] = useState({
+    displayName: userFromDb.displayName ?? userFromDb.username,
+    email: userFromDb.email,
+    timezone: userFromDb.timezone ?? "Europe/Berlin",
+    profileImageUrl: userFromDb.profileImage ?? "",
   });
   const [notifForm, setNotifForm] = useState({
     emailInvites: userFromDb?.notifications?.emailInvites ?? true,
@@ -41,6 +49,8 @@ const User: FC = () => {
     workEnd: defaultUser.workEnd ?? "17:00",
     breakRules: defaultUser.breakRules ?? "30m lunch",
   };
+  const hasBackendUserId = (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
   const toTimeSpanString = (hours?: number) => {
     const safeHours = Math.max(0, hours ?? 0);
@@ -49,19 +59,18 @@ const User: FC = () => {
     return `${wholeHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
   };
 
-  /* useEffect(() => {
-    if (userFromDb) {
-      setProfileForm({
-        displayName: userFromDb.displayName ?? userFromDb.username,
-        email: userFromDb.email,
-        profileImage: userFromDb.profileImage ?? "gradient-1",
-      });
-      setNotifForm({
-        emailInvites: userFromDb.notifications?.emailInvites ?? true,
-        emailDeadlines: userFromDb.notifications?.emailDeadlines ?? true,
-      });
-    }
-  }, [userFromDb]); */
+  useEffect(() => {
+    setProfileForm({
+      displayName: userFromDb.displayName ?? userFromDb.username,
+      email: userFromDb.email,
+      timezone: userFromDb.timezone ?? "Europe/Berlin",
+      profileImageUrl: userFromDb.profileImage ?? userFromAuth?.picture ?? "",
+    });
+    setNotifForm({
+      emailInvites: userFromDb.notifications?.emailInvites ?? true,
+      emailDeadlines: userFromDb.notifications?.emailDeadlines ?? true,
+    });
+  }, [userFromAuth?.picture, userFromDb]);
 
   /* const avatarStyle = useMemo(() => {
     if (profileForm.profileImage?.startsWith("http")) {
@@ -81,7 +90,7 @@ const User: FC = () => {
   }, [profileForm.profileImage]); */
 
   const persist = async (nextUser = userFromDb) => {
-    if (nextUser.workProfile && nextUser.id) {
+    if (nextUser.workProfile && nextUser.id && hasBackendUserId(nextUser.id)) {
       setIsSavingWorkProfile(true);
       try {
         const savedWorkProfile = await saveWorkProfile(nextUser.id, {
@@ -119,21 +128,45 @@ const User: FC = () => {
     setPendingTabChange(undefined);
   };
 
-  const saveProfile = () => {
-    /* setStatus(undefined);
+  const saveProfile = async () => {
+    setStatus(undefined);
     setError(undefined);
+
     if (!profileForm.displayName.trim()) {
-      setError("Name can't be empty");
+      setError("Name is required.");
       return;
     }
-    const nextUser = {
-      ...userFromDb,
-      displayName: profileForm.displayName.trim(),
-      email: profileForm.email.trim(),
-      profileImage: profileForm.profileImage,
-    };
-    persist(nextUser);
-    setStatus("Profil updated"); */
+
+    if (!hasBackendUserId(userFromDb.id)) {
+      setError("User profile is not initialized yet.");
+      return;
+    }
+
+    setIsSavingProfile(true);
+
+    try {
+      const savedProfile = await updateUserProfile(userFromDb.id, {
+        displayName: profileForm.displayName.trim(),
+        email: profileForm.email.trim(),
+        profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
+        timezone: profileForm.timezone.trim() || "Europe/Berlin",
+      });
+
+      setUser({
+        ...userFromDb,
+        id: savedProfile.id,
+        username: savedProfile.username,
+        displayName: savedProfile.displayName,
+        email: savedProfile.email,
+        profileImage: savedProfile.profileImageUrl,
+        timezone: savedProfile.timezone,
+      });
+      setStatus("Profile updated.");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Profile could not be saved.");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const deleteWorkProfile = async () => {
@@ -285,7 +318,7 @@ const User: FC = () => {
   }, [blocker, isWorkDirty, pendingTabChange]);
 
   return (
-    <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">
+    <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
@@ -296,37 +329,40 @@ const User: FC = () => {
             Manage account, work profile and security
           </span>
         </div>
-        <div className="flex flex-wrap gap-2 text-sm">
-          {(["general", "work", "security", "account"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => handleTabClick(t)}
-              className={`rounded-full px-4 py-2 font-semibold transition ${
-                tab === t
-                  ? "border border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
-                  : "border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-              }`}
-            >
-              {t === "general" && "General"}
-              {t === "work" && "Work profile"}
-              {t === "security" && "Security"}
-              {t === "account" && "Account"}
-            </button>
-          ))}
+        <div className="min-w-0 overflow-x-auto pb-1">
+          <div className="flex min-w-max flex-nowrap gap-2 pr-1 text-sm xl:min-w-0 xl:flex-wrap">
+            {(["general", "work", "security", "account"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => handleTabClick(t)}
+                className={`shrink-0 rounded-full px-4 py-2 font-semibold transition ${
+                  tab === t
+                    ? "border border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
+                    : "border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
+                }`}
+              >
+                {t === "general" && "General"}
+                {t === "work" && "Work profile"}
+                {t === "security" && "Security"}
+                {t === "account" && "Account"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl">
+      <div className="min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl">
         {tab === "general" && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
                 <div className="relative">
                   <div className="aspect-square w-24 rounded-full border border-slate-700">
-                    {userFromAuth?.picture ? (
+                    {profileForm.profileImageUrl || userFromAuth?.picture ? (
                       <img
-                        src={userFromAuth.picture}
-                        className="rounded-full"
+                        src={profileForm.profileImageUrl || userFromAuth?.picture}
+                        alt="Profile"
+                        className="h-full w-full rounded-full object-cover object-center"
                       />
                     ) : (
                       <div
@@ -368,13 +404,14 @@ const User: FC = () => {
                   <input
                     type="url"
                     placeholder="Bild-URL (optional)"
+                    value={profileForm.profileImageUrl}
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                    /* onChange={(e) =>
+                    onChange={(e) =>
                       setProfileForm({
                         ...profileForm,
-                        profileImage: e.target.value,
+                        profileImageUrl: e.target.value,
                       })
-                    } */
+                    }
                   />
                 </div>
               </div>
@@ -382,9 +419,15 @@ const User: FC = () => {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                    Username
+                    Name
                   </label>
-                  <input className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring" />
+                  <input
+                    value={profileForm.displayName}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, displayName: e.target.value })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
@@ -392,17 +435,21 @@ const User: FC = () => {
                   </label>
                   <input
                     type="email"
+                    value={profileForm.email}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, email: e.target.value })
+                    }
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
-                  {/* <span className="text-[11px] text-slate-500">Demo: Bestätigungsmail wird angenommen.</span> */}
                 </div>
               </div>
 
               <button
                 onClick={saveProfile}
+                disabled={isSavingProfile}
                 className="w-fit rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
               >
-                Save changes
+                {isSavingProfile ? "Saving..." : "Save changes"}
               </button>
             </div>
 
@@ -414,7 +461,7 @@ const User: FC = () => {
                 Role: {userFromDb.role}
               </div>
               <div className="text-sm text-slate-300">
-                Username: {userFromAuth?.nickname}
+                Username: {userFromDb.username}
               </div>
               {/* <div className="text-xs text-slate-500">Weitere Details in den Tabs Sicherheit/Konto.</div> */}
             </div>

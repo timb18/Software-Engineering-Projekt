@@ -326,7 +326,7 @@ const Orgs: FC = () => {
     : false;
 
   return (
-    <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 p-6">
+    <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
@@ -344,8 +344,8 @@ const Orgs: FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
-        <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
+      <div className="grid min-w-0 grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
+        <div className="min-w-0 flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
           <div className="text-lg font-semibold text-slate-50">Meine Orgs </div>
           {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
@@ -356,19 +356,15 @@ const Orgs: FC = () => {
             {orgs.map((org) => (
               <div
                 key={org.id}
-                className={`min-h-[12rem] w-full rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
+                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-sm tracking-[0.16em] text-slate-400 uppercase">
-                      Org
-                    </div>
-                    <div className="text-lg font-semibold text-slate-50">
-                      {org.name}
-                    </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-sm uppercase tracking-[0.16em] text-slate-400">Org</div>
+                    <div className="break-words text-lg font-semibold text-slate-50">{org.name}</div>
                   </div>
-                  <div className="flex flex-col items-end gap-1 text-right">
-                    <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-200 uppercase">
+                  <div className="flex flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-end sm:gap-1 sm:text-right">
+                    <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-200">
                       {currentRole(org)}
                     </span>
                     <span className="text-xs text-slate-400">
@@ -376,7 +372,7 @@ const Orgs: FC = () => {
                     </span>
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
                     onClick={() => setSelectedOrgId(org.id)}
                     className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
@@ -444,7 +440,7 @@ const Orgs: FC = () => {
           </div>
         </div>
 
-        <div className="flex h-full min-h-[62vh] flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur">
+        <div className="min-w-0 flex h-full min-h-[62vh] flex-col gap-4 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur">
           {!selectedOrg && (
             <div className="text-sm text-slate-400">
               Chose your organization to manage.
@@ -452,14 +448,10 @@ const Orgs: FC = () => {
           )}
           {selectedOrg && (
             <>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs tracking-[0.18em] text-emerald-300 uppercase">
-                    Org verwalten
-                  </div>
-                  <div className="text-2xl font-semibold text-slate-50">
-                    {selectedOrg.name}
-                  </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Org verwalten</div>
+                  <div className="break-words text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
                 </div>
                 {!isSelectedAdmin && (
                   <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
@@ -488,25 +480,19 @@ const Orgs: FC = () => {
               </div>
 
               {activeTab === "members" && (
-                <div className="mt-4 flex flex-col gap-3">
+                <div className="mt-4 flex min-w-0 flex-col gap-3">
                   {selectedOrg.users.map((member) => (
                     <div
                       key={member.email}
-                      className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200"
+                      className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200 md:flex-row md:items-center md:justify-between"
                     >
-                      <div>
-                        <div className="font-semibold text-slate-50">
-                          {member.username}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          {member.email}
-                        </div>
+                      <div className="min-w-0">
+                        <div className="break-words font-semibold text-slate-50">{member.username}</div>
+                        <div className="break-all text-xs text-slate-400">{member.email}</div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
-                          {selectedOrg.adminEmails?.includes(member.email)
-                            ? "Admin"
-                            : "Mitglied"}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] uppercase tracking-wide text-slate-300">
+                          {selectedOrg.adminEmails?.includes(member.email) ? "Admin" : "Mitglied"}
                         </span>
                         {isSelectedAdmin && member.email !== user.email && (
                           <>
@@ -540,7 +526,7 @@ const Orgs: FC = () => {
               )}
 
               {activeTab === "invites" && (
-                <div className="mt-4 flex flex-col gap-3">
+                <div className="mt-4 flex min-w-0 flex-col gap-3">
                   {(selectedOrg.invites ?? []).length === 0 && (
                     <div className="text-sm text-slate-500">
                       Keine offenen Einladungen.
@@ -549,15 +535,11 @@ const Orgs: FC = () => {
                   {(selectedOrg.invites ?? []).map((inv) => (
                     <div
                       key={`${inv.email}-${inv.orgId}`}
-                      className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200"
+                      className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200 md:flex-row md:items-center md:justify-between"
                     >
-                      <div>
-                        <div className="font-semibold text-slate-50">
-                          {inv.email}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          Status: {inv.status}
-                        </div>
+                      <div className="min-w-0">
+                        <div className="break-all font-semibold text-slate-50">{inv.email}</div>
+                        <div className="text-xs text-slate-400">Status: {inv.status}</div>
                         {inv.invitationUrl && (
                           <a
                             href={inv.invitationUrl}

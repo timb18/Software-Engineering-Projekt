@@ -135,4 +135,111 @@ public class UserServiceTests
 
         Assert.That(profileA, Is.Not.EqualTo(profileB));
     }
+
+    [Test]
+    public async Task EnsureUserAsync_Reuses_User_When_Auth_Subject_Matches_After_Email_Change()
+    {
+        var (firstUserId, firstProfileId) = await _service.EnsureUserAsync(
+            "before@example.com",
+            "auth0|abc",
+            "Anna Before",
+            "https://example.com/a.png");
+
+        var (secondUserId, secondProfileId) = await _service.EnsureUserAsync(
+            "after@example.com",
+            "auth0|abc",
+            "Anna After",
+            "https://example.com/b.png");
+
+        var user = await _dbContext.Users.FindAsync(secondUserId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(secondUserId, Is.EqualTo(firstUserId));
+            Assert.That(secondProfileId, Is.EqualTo(firstProfileId));
+            Assert.That(user!.Email, Is.EqualTo("before@example.com"));
+            Assert.That(user.DisplayName, Is.EqualTo("Anna Before"));
+            Assert.That(user.ProfileImageUrl, Is.EqualTo("https://example.com/a.png"));
+            Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task UpdateProfileAsync_Persists_Profile_Fields()
+    {
+        var (userId, _) = await _service.EnsureUserAsync("profile-update@example.com");
+
+        var updated = await _service.UpdateProfileAsync(
+            userId,
+            new UpdateUserProfileCommand(
+                "Updated Name",
+                "updated@example.com",
+                "https://example.com/avatar.png",
+                "Europe/Paris"));
+
+        var user = await _dbContext.Users.FindAsync(userId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(updated.DisplayName, Is.EqualTo("Updated Name"));
+            Assert.That(updated.Email, Is.EqualTo("updated@example.com"));
+            Assert.That(updated.ProfileImageUrl, Is.EqualTo("https://example.com/avatar.png"));
+            Assert.That(updated.Timezone, Is.EqualTo("Europe/Paris"));
+            Assert.That(user!.EditedAt, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public async Task EnsureUserAsync_Does_Not_Overwrite_Existing_Profile_Customizations()
+    {
+        var (userId, _) = await _service.EnsureUserAsync(
+            "custom@example.com",
+            "auth0|custom",
+            "Auth Name",
+            "https://example.com/auth.png");
+
+        await _service.UpdateProfileAsync(
+            userId,
+            new UpdateUserProfileCommand(
+                "Custom Name",
+                "custom@example.com",
+                "https://example.com/custom.png",
+                "Europe/Berlin"));
+
+        await _service.EnsureUserAsync(
+            "custom@example.com",
+            "auth0|custom",
+            "Auth Name Reloaded",
+            "https://example.com/auth-reloaded.png");
+
+        var user = await _dbContext.Users.FindAsync(userId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(user!.DisplayName, Is.EqualTo("Custom Name"));
+            Assert.That(user.ProfileImageUrl, Is.EqualTo("https://example.com/custom.png"));
+        });
+    }
+
+    [Test]
+    public void UpdateProfileAsync_Rejects_Empty_Display_Name()
+    {
+        var (userId, _) = _service.EnsureUserAsync("empty-name@example.com").GetAwaiter().GetResult();
+
+        Assert.ThrowsAsync<ArgumentException>(async () =>
+            await _service.UpdateProfileAsync(
+                userId,
+                new UpdateUserProfileCommand("", "valid@example.com", null, "Europe/Berlin")));
+    }
+
+    [Test]
+    public void UpdateProfileAsync_Rejects_Invalid_Email()
+    {
+        var (userId, _) = _service.EnsureUserAsync("invalid-email-start@example.com").GetAwaiter().GetResult();
+
+        Assert.ThrowsAsync<ArgumentException>(async () =>
+            await _service.UpdateProfileAsync(
+                userId,
+                new UpdateUserProfileCommand("Valid Name", "invalid-email", null, "Europe/Berlin")));
+    }
 }

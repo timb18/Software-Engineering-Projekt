@@ -1,10 +1,14 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import useUserStore from "./user-store";
+import useUserStore, { initForUser } from "./user-store";
 import { defaultUser } from "../util/default-data";
 
-vi.mock("../util/task-api", () => ({
+vi.mock("../util/user-api", () => ({
   ensureUser: vi.fn(),
+  fetchUserProfile: vi.fn(),
+}));
+
+vi.mock("../util/task-api", () => ({
   fetchTasks: vi.fn(),
   createTask: vi.fn(),
   updateTask: vi.fn(),
@@ -19,7 +23,8 @@ vi.mock("../util/org-api", () => ({
   fetchOrganizationsByUserEmail: vi.fn(),
 }));
 
-import { ensureUser, fetchTasks } from "../util/task-api";
+import { ensureUser, fetchUserProfile } from "../util/user-api";
+import { fetchTasks } from "../util/task-api";
 import { fetchWorkProfile } from "../util/work-profile-api";
 import { fetchOrganizationsByUserEmail } from "../util/org-api";
 
@@ -69,6 +74,14 @@ describe("user-store initForUser", () => {
       userId: backendUserId,
       workProfileId: backendWorkProfileId,
     });
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      id: backendUserId,
+      username: "test",
+      displayName: "Test User",
+      email: "test@example.com",
+      profileImageUrl: undefined,
+      timezone: "Europe/Berlin",
+    });
     vi.mocked(fetchTasks).mockResolvedValue([]);
     vi.mocked(fetchWorkProfile).mockResolvedValue(savedWorkProfile);
     vi.mocked(fetchOrganizationsByUserEmail).mockResolvedValue(organizations);
@@ -76,7 +89,7 @@ describe("user-store initForUser", () => {
     const { result } = renderHook(() => useUserStore());
 
     await act(async () => {
-      await result.current.initForUser("auth0|abc123", "test@example.com");
+      await initForUser("auth0|abc123", "test@example.com");
     });
 
     expect(vi.mocked(fetchWorkProfile)).toHaveBeenCalledWith(backendUserId);

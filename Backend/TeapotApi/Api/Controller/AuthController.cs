@@ -32,7 +32,12 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email))
             return BadRequest("Email is required.");
 
-        var (userId, workProfileId) = await _userService.EnsureUserAsync(request.Email, cancellationToken);
+        var (userId, workProfileId) = await _userService.EnsureUserAsync(
+            request.Email,
+            request.AuthProviderSubject,
+            request.DisplayName,
+            request.ProfileImageUrl,
+            cancellationToken);
         return Ok(new EnsureUserResponse(userId, workProfileId));
     }
 
@@ -86,7 +91,11 @@ public class AuthController : ControllerBase
     }
 }
 
-public record EnsureUserRequest(string Email);
+public record EnsureUserRequest(
+    string Email,
+    string? AuthProviderSubject = null,
+    string? DisplayName = null,
+    string? ProfileImageUrl = null);
 public record EnsureUserResponse(Guid UserId, Guid WorkProfileId);
 
 public class RegisterRequest

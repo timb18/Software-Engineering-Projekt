@@ -32,7 +32,11 @@ const Sidebar: FC = () => {
 
   const avatarStyle = useMemo(() => {
     if (user.profileImage?.startsWith("http")) {
-      return { backgroundImage: `url(${user.profileImage})`, backgroundSize: "cover" };
+      return {
+        backgroundImage: `url(${user.profileImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      };
     }
     const gradients: Record<string, string> = {
       "gradient-1": "linear-gradient(135deg, #34d399, #2563eb)",
@@ -55,7 +59,9 @@ const Sidebar: FC = () => {
           ></div>
           <div className="flex flex-col">
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Signed in</div>
-            <div className="text-lg font-bold text-emerald-100 leading-tight">{user.username}</div>
+            <div className="text-lg font-bold text-emerald-100 leading-tight">
+              {user.displayName ?? user.username}
+            </div>
             <div className="text-[11px] text-slate-500">{user.email}</div>
           </div>
         </div>
