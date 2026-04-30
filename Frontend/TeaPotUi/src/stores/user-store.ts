@@ -93,38 +93,6 @@ export const initForUser = async (
 };
 
 const useUserStore = () => {
-  /**
-   * Called after Auth0 login. Registers the user in the backend (if new),
-   * loads their persisted tasks, and sets up the store.
-   */
-  const initForUser = async (sub: string, email: string) => {
-    try {
-      const { workProfileId } = await ensureUser(email);
-      const tasks = await fetchTasks(workProfileId);
-      userStore.setState({
-        user: {
-          ...defaultUser,
-          id: sub,
-          username: email.split("@")[0],
-          email,
-          tasks,
-        },
-        workProfileId,
-      });
-    } catch (err) {
-      console.error("initForUser failed, falling back to empty task list", err);
-      userStore.setState({
-        user: {
-          ...defaultUser,
-          id: sub,
-          username: email.split("@")[0],
-          email,
-          tasks: [],
-        },
-        workProfileId: null,
-      });
-    }
-  };
   const state = useStore(userStore);
 
   const setUser = (newUser: User = defaultUser) => {

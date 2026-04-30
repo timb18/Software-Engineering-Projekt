@@ -1,11 +1,13 @@
 import { Outlet, useNavigate } from "react-router";
 import Sidebar from "./components/sidebar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { initForUser } from "./stores/user-store";
 
 function App() {
-  const { isAuthenticated } = useAuth0();
+  const { isAuthenticated, user: authUser } = useAuth0();
   const navigate = useNavigate();
+  const initialized = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -14,7 +16,8 @@ function App() {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && authUser?.sub && authUser?.email) {
+    if (isAuthenticated && authUser?.sub && authUser?.email && !initialized.current) {
+      initialized.current = true;
       initForUser(authUser.sub, authUser.email, authUser.name, authUser.picture).catch(console.error);
     }
   }, [isAuthenticated, authUser?.sub, authUser?.email, authUser?.name, authUser?.picture]);
