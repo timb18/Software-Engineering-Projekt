@@ -63,7 +63,7 @@ public class InvitationService(
         };
 
         await invitationRepository.AddAsync(invitation, cancellationToken);
-        await SendInvitationEmailAsync(invitation, organization, cancellationToken);
+        await SendInvitationEmailAsync(invitation, organization, expiryDays, cancellationToken);
 
         return MapToDto(invitation);
     }
@@ -195,16 +195,16 @@ public class InvitationService(
         throw new ArgumentException("Inviting user could not be found.");
     }
 
-    private async Task SendInvitationEmailAsync(Invitation invitation, Organization organization, CancellationToken cancellationToken)
+    private async Task SendInvitationEmailAsync(Invitation invitation, Organization organization, int expiryDays, CancellationToken cancellationToken)
     {
         var acceptUrl = BuildAcceptLink(invitation);
         var rejectUrl = $"{TrimTrailingSlash(_emailOptions.ApiBaseUrl)}/api/Invitation/{invitation.Id}/reject-link";
-        var body = GenerateInvitationEmailBody(organization, invitation, acceptUrl, rejectUrl);
+        var body = GenerateInvitationEmailBody(organization, invitation, acceptUrl, rejectUrl, expiryDays);
         var subject = $"You are invited to {organization.Name}!";
         await emailSender.SendAsync(invitation.Email, subject, body, cancellationToken);
     }
 
-    private static string GenerateInvitationEmailBody(Organization organization, Invitation invitation, string acceptUrl, string rejectUrl)
+    private static string GenerateInvitationEmailBody(Organization organization, Invitation invitation, string acceptUrl, string rejectUrl, int expiryDays)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Hello {invitation.FirstName ?? ""},");
@@ -219,7 +219,7 @@ public class InvitationService(
         sb.AppendLine("If you want to decline the invitation, you can use this link instead:");
         sb.AppendLine(rejectUrl);
         sb.AppendLine();
-        sb.AppendLine("This invitation expires in 7 days.");
+        sb.AppendLine($"This invitation expires in {expiryDays} day(s).");
         sb.AppendLine();
         sb.AppendLine("Best regards,");
         sb.AppendLine("The Teapot Team");

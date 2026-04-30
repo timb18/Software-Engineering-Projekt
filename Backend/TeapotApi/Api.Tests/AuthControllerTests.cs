@@ -45,7 +45,7 @@ public class AuthControllerTests
         {
             Email = "new-user@test.com",
             Username = "new-user"
-        });
+        }, CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<OkObjectResult>());
         Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
@@ -68,7 +68,7 @@ public class AuthControllerTests
         {
             Email = "existing@test.com",
             Username = "ignored"
-        });
+        }, CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<OkObjectResult>());
         Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));

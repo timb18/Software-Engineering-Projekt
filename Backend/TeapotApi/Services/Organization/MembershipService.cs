@@ -10,6 +10,9 @@ public class MembershipService(IMembershipRepository membershipRepository) : IMe
         if (userId == Guid.Empty)
             throw new ArgumentException("UserId is required.", nameof(userId));
 
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.", nameof(organizationId));
+
         var membership = await membershipRepository.FindWithWorkProfileAsync(userId, organizationId, cancellationToken)
             ?? throw new KeyNotFoundException("Membership not found.");
 

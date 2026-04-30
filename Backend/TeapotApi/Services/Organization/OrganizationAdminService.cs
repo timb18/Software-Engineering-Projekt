@@ -11,6 +11,7 @@ public class OrganizationAdminService(
     IMembershipRepository membershipRepository,
     IUnitOfWork unitOfWork) : IOrganizationAdminService
 {
+    private static readonly EmailAddressAttribute EmailValidator = new();
     public async Task<CreateOrganizationResult> CreateOrganizationAsync(
         CreateOrganizationRequest request,
         CancellationToken cancellationToken = default)
@@ -47,7 +48,8 @@ public class OrganizationAdminService(
         {
             UserId = organizer.Id,
             OrganizationId = organization.Id,
-            Role = ERole.Organizer
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow
         };
         await membershipRepository.AddAsync(membership, cancellationToken);
 
@@ -74,7 +76,7 @@ public class OrganizationAdminService(
         if (string.IsNullOrWhiteSpace(request.OrganizerEmail))
             throw new ArgumentException("OrganizerEmail is required.");
 
-        if (!new EmailAddressAttribute().IsValid(request.OrganizerEmail.Trim()))
+        if (!EmailValidator.IsValid(request.OrganizerEmail.Trim()))
             throw new ArgumentException("OrganizerEmail is invalid.");
     }
 }

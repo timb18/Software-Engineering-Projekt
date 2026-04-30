@@ -41,14 +41,14 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request)
+    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
             return BadRequest(new { success = false, message = "E-Mail ist erforderlich." });
 
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        var existingUser = await _userRepository.FindByEmailAsync(normalizedEmail);
+        var existingUser = await _userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
 
         if (existingUser != null)
         {
@@ -73,7 +73,7 @@ public class AuthController : ControllerBase
             CreatedAt = DateTime.UtcNow
         };
 
-        await _userRepository.AddAsync(user, CancellationToken.None);
+        await _userRepository.AddAsync(user, cancellationToken);
 
         return Ok(new
         {

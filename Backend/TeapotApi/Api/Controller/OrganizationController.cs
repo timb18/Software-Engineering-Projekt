@@ -42,7 +42,11 @@ public class OrganizationController(
             var organizations = await organizationService.GetOrganizationsForUserAsync(email, cancellationToken);
             return Ok(organizations);
         }
-        catch (Exception ex)
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
         }

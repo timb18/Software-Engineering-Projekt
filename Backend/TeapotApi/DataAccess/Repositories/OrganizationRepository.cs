@@ -5,8 +5,8 @@ namespace DataAccess.Repositories;
 
 public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepository
 {
-    public Task<Organization?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        context.Organizations.FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
+    public async Task<Organization?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await context.Organizations.FindAsync([id], cancellationToken);
 
     public Task<Organization?> FindByNameAsync(string name, CancellationToken cancellationToken = default) =>
         context.Organizations.FirstOrDefaultAsync(o => o.Name == name, cancellationToken);

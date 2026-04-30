@@ -7,24 +7,6 @@ namespace Api.Tests;
 public class MembershipControllerTests
 {
     [Test]
-    public async Task LeaveOrganizationAsync_Returns_BadRequest_When_OrganizationId_Is_Invalid()
-    {
-        var controller = new MembershipController(new StubMembershipService());
-
-        var result = await controller.LeaveOrganizationAsync(
-            new LeaveOrganizationRequest
-            {
-                UserId = Guid.NewGuid().ToString(),
-                OrganizationId = "org-a"
-            },
-            CancellationToken.None);
-
-        var badRequest = result as BadRequestObjectResult;
-        Assert.That(badRequest, Is.Not.Null);
-        Assert.That(badRequest!.Value, Is.EqualTo("OrganizationId must be a valid GUID."));
-    }
-
-    [Test]
     public async Task LeaveOrganizationAsync_Returns_NotFound_When_Membership_Is_Missing()
     {
         var controller = new MembershipController(new StubMembershipService
@@ -35,8 +17,8 @@ public class MembershipControllerTests
         var result = await controller.LeaveOrganizationAsync(
             new LeaveOrganizationRequest
             {
-                UserId = Guid.NewGuid().ToString(),
-                OrganizationId = Guid.NewGuid().ToString()
+                UserId = Guid.NewGuid(),
+                OrganizationId = Guid.NewGuid()
             },
             CancellationToken.None);
 
@@ -54,8 +36,8 @@ public class MembershipControllerTests
         var result = await controller.LeaveOrganizationAsync(
             new LeaveOrganizationRequest
             {
-                UserId = userId.ToString(),
-                OrganizationId = organizationId.ToString()
+                UserId = userId,
+                OrganizationId = organizationId
             },
             CancellationToken.None);
 
@@ -65,24 +47,6 @@ public class MembershipControllerTests
             Assert.That(service.LastUserId, Is.EqualTo(userId));
             Assert.That(service.LastOrganizationId, Is.EqualTo(organizationId));
         });
-    }
-
-    [Test]
-    public async Task LeaveOrganizationAsync_Returns_BadRequest_When_UserId_Is_Invalid()
-    {
-        var controller = new MembershipController(new StubMembershipService());
-
-        var result = await controller.LeaveOrganizationAsync(
-            new LeaveOrganizationRequest
-            {
-                UserId = "not-a-guid",
-                OrganizationId = Guid.NewGuid().ToString()
-            },
-            CancellationToken.None);
-
-        var badRequest = result as BadRequestObjectResult;
-        Assert.That(badRequest, Is.Not.Null);
-        Assert.That(badRequest!.Value, Is.EqualTo("UserId must be a valid GUID."));
     }
 
     private sealed class StubMembershipService : IMembershipService

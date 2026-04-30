@@ -33,6 +33,10 @@ public class InvitationController : ControllerBase
 
             return Ok(new { success = true, message = "Invite sent:", data = result });
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
@@ -62,6 +66,10 @@ public class InvitationController : ControllerBase
 
             return Ok(new { success = true, message = "Invite accepted" });
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
@@ -69,7 +77,7 @@ public class InvitationController : ControllerBase
     }
 
     [HttpGet("{invitationId}/accept-link")]
-    public IActionResult AcceptInvitationLinkAsync([FromRoute] Guid invitationId, [FromQuery] string email)
+    public IActionResult AcceptInvitationLink([FromRoute] Guid invitationId, [FromQuery] string email)
     {
         return Redirect(BuildFrontendRedirect("pending", invitationId, email));
     }
@@ -85,6 +93,10 @@ public class InvitationController : ControllerBase
             await _invitationService.RejectInvitationAsync(invitationId, cancellationToken);
             return Ok(new { success = true, message = "Invite rejected" });
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
@@ -92,7 +104,7 @@ public class InvitationController : ControllerBase
     }
 
     [HttpGet("{invitationId}/reject-link")]
-    public async Task<IActionResult> RejectInvitationLinkAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
+    public async Task<IActionResult> RejectInvitationLink([FromRoute] Guid invitationId, CancellationToken cancellationToken)
     {
         try
         {
@@ -115,6 +127,10 @@ public class InvitationController : ControllerBase
         {
             var invitations = await _invitationService.GetPendingInvitationsForEmailAsync(email, cancellationToken);
             return Ok(new { success = true, data = invitations });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
         }
         catch (Exception ex)
         {

@@ -1,6 +1,5 @@
 using DataAccess.Models;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace DataAccess.Repositories;
 
@@ -84,6 +83,8 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
 
     public async Task DeleteAsync(WorkProfile profile, CancellationToken cancellationToken = default)
     {
+        await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
+
         var workProfileId = profile.Id;
 
         var userTasks = await context.UserTasks
@@ -113,5 +114,7 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
 
         context.WorkProfiles.Remove(profile);
         await context.SaveChangesAsync(cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
     }
 }
