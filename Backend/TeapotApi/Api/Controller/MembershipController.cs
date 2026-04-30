@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Services;
 
 namespace Api.Controller;
 
@@ -12,19 +11,9 @@ public class MembershipController(IMembershipService membershipService) : Contro
         [FromBody] LeaveOrganizationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(request.UserId, out var userId))
-        {
-            return BadRequest("UserId must be a valid GUID.");
-        }
-
-        if (!Guid.TryParse(request.OrganizationId, out var organizationId))
-        {
-            return BadRequest("OrganizationId must be a valid GUID.");
-        }
-
         try
         {
-            await membershipService.LeaveOrganizationAsync(userId, organizationId, cancellationToken);
+            await membershipService.LeaveOrganizationAsync(request.UserId, request.OrganizationId, cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -40,6 +29,6 @@ public class MembershipController(IMembershipService membershipService) : Contro
 
 public class LeaveOrganizationRequest
 {
-    public string UserId { get; set; } = string.Empty;
-    public string OrganizationId { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
+    public Guid OrganizationId { get; set; }
 }

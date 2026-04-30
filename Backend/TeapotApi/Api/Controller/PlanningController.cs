@@ -1,6 +1,5 @@
 using DataAccess.Models;
 using Microsoft.AspNetCore.Mvc;
-using Services;
 
 namespace Api.Controller;
 
@@ -114,7 +113,12 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
 
     private static WorkProfile MapRequestToWorkProfile(WorkProfileSaveRequest request)
     {
-        TimeSpan.TryParse(request.MaxDailyLoad, out var maxDailyLoad);
+        var maxDailyLoad = TimeSpan.Zero;
+        if (!string.IsNullOrWhiteSpace(request.MaxDailyLoad) &&
+            !TimeSpan.TryParse(request.MaxDailyLoad, out maxDailyLoad))
+        {
+            throw new ArgumentException($"Invalid MaxDailyLoad format: '{request.MaxDailyLoad}'. Expected HH:mm:ss.");
+        }
 
         return new WorkProfile
         {

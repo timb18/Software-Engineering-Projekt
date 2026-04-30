@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Services;
 
 namespace Api.Controller;
 
@@ -36,14 +35,18 @@ public class OrganizationController(
     }
 
     [HttpGet("by-user-email")]
-    public async Task<IActionResult> GetByUserEmail([FromQuery] string email)
+    public async Task<IActionResult> GetByUserEmail([FromQuery] string email, CancellationToken cancellationToken)
     {
         try
         {
-            var organizations = await organizationService.GetOrganizationsForUserAsync(email);
+            var organizations = await organizationService.GetOrganizationsForUserAsync(email, cancellationToken);
             return Ok(organizations);
         }
-        catch (Exception ex)
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
         }

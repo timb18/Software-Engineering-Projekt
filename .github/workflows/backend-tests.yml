@@ -23,7 +23,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore Backend/TeapotApi/DataAccessTests/DataAccessTests.csproj
+        run: dotnet restore Backend/TeapotApi/TeapotApi.slnx
 
       - name: Test
-        run: dotnet test Backend/TeapotApi/DataAccessTests/DataAccessTests.csproj --no-restore --verbosity normal
+        run: dotnet test Backend/TeapotApi/TeapotApi.slnx --no-restore --verbosity normal
