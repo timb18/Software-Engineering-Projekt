@@ -21,6 +21,11 @@ export type WorkDayProfile = {
 };
 
 export type WorkProfile = {
+  id?: string;
+  membershipId?: string;
+  maxDailyLoad?: string;
+  plannerViewStart?: string;
+  plannerViewEnd?: string;
   days: WorkDayProfile[];
 };
 
@@ -34,6 +39,7 @@ export type User = {
   plannerViewStart?: string; // HH:mm
   plannerViewEnd?: string; // HH:mm
   workProfile?: WorkProfile;
+  hasPersistedWorkProfile?: boolean;
   workCapacityHours?: number;
   workDays?: string[];
   workStart?: string; // HH:mm

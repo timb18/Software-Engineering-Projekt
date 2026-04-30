@@ -36,7 +36,7 @@ export type SelectedBreak = {
 };
 
 export type UseWorkProfileCallbacks = {
-  onSaveUser: (nextUser: User) => void;
+  onSaveUser: (nextUser: User) => Promise<void> | void;
   onStatusChange: (value: string | undefined) => void;
   onErrorChange: (value: string | undefined) => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -127,7 +127,24 @@ const getShiftValidationError = (dayKey: WorkWeekDay, blocks: WorkBlock[]) => {
 export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
   const { onSaveUser, onStatusChange, onErrorChange, onDirtyChange } = callbacks;
 
-  const [workForm, setWorkForm] = useState(() => createWorkProfileFromLegacyUser(user));
+  const incomingSavedWorkProfile = useMemo(
+    () => normalizeWorkProfile(createWorkProfileFromLegacyUser(user)),
+    [
+      user.workProfile,
+      user.hasPersistedWorkProfile,
+      user.workStart,
+      user.workEnd,
+      user.workDays,
+      user.orgs,
+    ],
+  );
+  const incomingSavedWorkProfileKey = useMemo(
+    () => JSON.stringify(incomingSavedWorkProfile),
+    [incomingSavedWorkProfile],
+  );
+
+  const [savedWorkProfile, setSavedWorkProfile] = useState(() => incomingSavedWorkProfile);
+  const [workForm, setWorkForm] = useState(() => savedWorkProfile);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | undefined>();
   const [selectedShift, setSelectedShift] = useState<SelectedShift | undefined>();
   const [selectedBreak, setSelectedBreak] = useState<SelectedBreak | undefined>();
@@ -142,13 +159,20 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
   );
   const workSummary = useMemo(() => getWorkProfileSummary(workForm), [workForm]);
 
-  const savedWorkProfile = useMemo(() => createWorkProfileFromLegacyUser(user), [user]);
   const isDirty = useMemo(
     () =>
       JSON.stringify(normalizeWorkProfile(workForm)) !==
       JSON.stringify(normalizeWorkProfile(savedWorkProfile)),
     [workForm, savedWorkProfile],
   );
+
+  useEffect(() => {
+    setSavedWorkProfile(incomingSavedWorkProfile);
+    setWorkForm(incomingSavedWorkProfile);
+    setPendingSelection(undefined);
+    setSelectedShift(undefined);
+    setSelectedBreak(undefined);
+  }, [incomingSavedWorkProfileKey]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -708,7 +732,7 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
    * The caller supplies the planner view window settings since those live in
    * the calendar component, not in this hook.
    */
-  const saveWork = (
+  const saveWork = async (
     plannerViewStart: string,
     plannerViewEnd: string,
     plannerViewValidationError?: string,
@@ -743,8 +767,16 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
     };
 
     setWorkForm(normalizedWorkProfile);
-    onSaveUser(nextUser);
-    onStatusChange("Work profile saved.");
+    try {
+      await Promise.resolve(onSaveUser(nextUser));
+      setSavedWorkProfile(normalizedWorkProfile);
+      onDirtyChange?.(false);
+      onStatusChange("Work profile saved.");
+    } catch (error) {
+      onErrorChange(
+        error instanceof Error ? error.message : "Work profile could not be saved.",
+      );
+    }
   };
 
   // ── Return ──────────────────────────────────────────────────────────────────

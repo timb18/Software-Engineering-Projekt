@@ -11,6 +11,7 @@ import {
   createWorkProfileFromLegacyUser,
   getLegacyWorkSettings,
   getProductiveHoursForBlock,
+  getCompanyOptions,
 } from "./work-profile";
 import type { User, WorkProfile } from "./types";
 
@@ -106,6 +107,55 @@ describe("createWorkBlock", () => {
     const block = createWorkBlock(company);
     expect(block.startTime).toBe("09:00");
     expect(block.endTime).toBe("17:00");
+  });
+});
+
+describe("getCompanyOptions", () => {
+  it("returns all organizations for a user instead of limiting the list", () => {
+    const user = minimalUser({
+      orgs: [
+        { id: "co-3", name: "Charlie Org", users: [] },
+        { id: "co-1", name: "Alpha Org", users: [] },
+        { id: "co-2", name: "Beta Org", users: [] },
+      ],
+    });
+
+    const options = getCompanyOptions(user.orgs);
+
+    expect(options.map((option) => option.name)).toEqual([
+      "Alpha Org",
+      "Beta Org",
+      "Charlie Org",
+    ]);
+  });
+
+  it("includes organizations already stored on work blocks", () => {
+    const profile: WorkProfile = {
+      days: [
+        {
+          day: "Mon",
+          blocks: [
+            {
+              id: "block-1",
+              companyId: "legacy-co",
+              companyName: "Legacy Company",
+              startTime: "09:00",
+              endTime: "17:00",
+            },
+          ],
+          breaks: [],
+        },
+        ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => ({
+          day: day as never,
+          blocks: [],
+          breaks: [],
+        })),
+      ],
+    };
+
+    const options = getCompanyOptions([], profile);
+
+    expect(options.some((option) => option.id === "legacy-co" && option.name === "Legacy Company")).toBe(true);
   });
 });
 

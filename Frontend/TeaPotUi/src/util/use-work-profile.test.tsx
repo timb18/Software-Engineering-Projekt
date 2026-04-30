@@ -150,6 +150,39 @@ describe("useWorkProfile – initial state", () => {
     );
     expect(result.current.showEncouragement).toBe(false);
   });
+
+  it("replaces the visible form when a saved work profile arrives after rerender", () => {
+    const callbacks = makeCallbacks();
+    const emptyUser = userWithEmptyProfile();
+    const loadedProfile: WorkProfile = {
+      days: [
+        { day: "Mon", blocks: [createWorkBlock(company2, "10:00", "14:00")], breaks: [] },
+        ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
+          day: d as never,
+          blocks: [],
+          breaks: [],
+        })),
+      ],
+    };
+
+    const { result, rerender } = renderHook(
+      (u: User) => useWorkProfile(u, callbacks),
+      { initialProps: emptyUser },
+    );
+
+    expect(
+      result.current.workForm.days.find((day) => day.day === "Mon")?.blocks,
+    ).toHaveLength(0);
+
+    rerender(userWithProfile(loadedProfile));
+
+    const mondayBlocks = result.current.workForm.days.find(
+      (day) => day.day === "Mon",
+    )?.blocks;
+    expect(mondayBlocks).toHaveLength(1);
+    expect(mondayBlocks?.[0].companyName).toBe("Globex");
+    expect(mondayBlocks?.[0].startTime).toBe("10:00");
+  });
 });
 
 // ── useWorkProfile – addShift ─────────────────────────────────────────────────
@@ -485,7 +518,7 @@ describe("useWorkProfile – selectRange", () => {
 // ── useWorkProfile – saveWork ─────────────────────────────────────────────────
 
 describe("useWorkProfile – saveWork", () => {
-  it("calls onSaveUser and onStatusChange when profile is valid", () => {
+  it("calls onSaveUser and onStatusChange when profile is valid", async () => {
     const profile: WorkProfile = {
       days: [
         { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
@@ -501,8 +534,8 @@ describe("useWorkProfile – saveWork", () => {
       useWorkProfile(userWithProfile(profile), callbacks),
     );
 
-    act(() => {
-      result.current.saveWork("06:00", "22:00");
+    await act(async () => {
+      await result.current.saveWork("06:00", "22:00");
     });
 
     expect(callbacks.onSaveUser).toHaveBeenCalledOnce();
@@ -541,18 +574,10 @@ describe("useWorkProfile – saveWork", () => {
     expect(callbacks.onErrorChange).toHaveBeenCalled();
   });
 
-  it("isDirty becomes false when parent re-renders with the saved user", () => {
-    // isDirty compares workForm against savedWorkProfile = createWorkProfileFromLegacyUser(user).
-    // The hook expects the parent to pass the updated user back after saveWork calls onSaveUser.
+  it("isDirty becomes false immediately after a successful save", async () => {
     const callbacks = makeCallbacks();
-    let user = userWithEmptyProfile();
-    callbacks.onSaveUser.mockImplementation((nextUser: User) => {
-      user = nextUser;
-    });
-
-    const { result, rerender } = renderHook(
-      (u: User) => useWorkProfile(u, callbacks),
-      { initialProps: user },
+    const { result } = renderHook(() =>
+      useWorkProfile(userWithEmptyProfile(), callbacks),
     );
 
     act(() => {
@@ -561,14 +586,32 @@ describe("useWorkProfile – saveWork", () => {
 
     expect(result.current.isDirty).toBe(true);
 
-    act(() => {
-      result.current.saveWork("06:00", "22:00");
+    await act(async () => {
+      await result.current.saveWork("06:00", "22:00");
     });
 
-    // Re-render with the saved user that onSaveUser received
-    rerender(user);
-
     expect(result.current.isDirty).toBe(false);
+    expect(callbacks.onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps the profile dirty when saving fails", async () => {
+    const callbacks = makeCallbacks();
+    callbacks.onSaveUser.mockRejectedValue(new Error("save failed"));
+
+    const { result } = renderHook(() =>
+      useWorkProfile(userWithEmptyProfile(), callbacks),
+    );
+
+    act(() => {
+      result.current.addShift("Mon", "09:00", "17:00");
+    });
+
+    await act(async () => {
+      await result.current.saveWork("06:00", "22:00");
+    });
+
+    expect(result.current.isDirty).toBe(true);
+    expect(callbacks.onErrorChange).toHaveBeenCalledWith("save failed");
   });
 });
 

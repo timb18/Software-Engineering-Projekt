@@ -240,6 +240,199 @@ public class WorkProfileServiceTests
         Assert.That(_dbContext.WorkProfiles.Any(), Is.False);
     }
 
+    [Test]
+    public async Task SaveAsync_Preserves_Block_Organization_Assignment_For_Multiple_Organizations()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@example.com",
+            Username = "member",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var personalOrganization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Personal workspace",
+            Description = "Personal workspace",
+            MaxUsers = 1,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var teamOrganization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Team Org",
+            Description = "Shared team",
+            MaxUsers = 10,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var personalMembership = new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            OrganizationId = personalOrganization.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow,
+            User = user,
+            Organization = personalOrganization
+        };
+
+        var teamMembership = new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            OrganizationId = teamOrganization.Id,
+            Role = ERole.User,
+            CreatedAt = DateTime.UtcNow,
+            User = user,
+            Organization = teamOrganization
+        };
+
+        _dbContext.Users.Add(user);
+        _dbContext.Organizations.AddRange(personalOrganization, teamOrganization);
+        _dbContext.Memberships.AddRange(personalMembership, teamMembership);
+        await _dbContext.SaveChangesAsync();
+
+        var profile = new WorkProfile
+        {
+            Days =
+            [
+                new WorkDayProfile
+                {
+                    Day = "Mon",
+                    Blocks =
+                    [
+                        new WorkBlock
+                        {
+                            CompanyId = teamOrganization.Id.ToString(),
+                            CompanyName = teamOrganization.Name,
+                            StartTime = "09:00",
+                            EndTime = "17:00"
+                        }
+                    ],
+                    Breaks = []
+                }
+            ]
+        };
+
+        await _service.SaveAsync(user.Id, profile);
+        var saved = await _service.GetAsync(user.Id);
+
+        var mondayBlock = saved!.Days.Single(day => day.Day == "Mon").Blocks.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(mondayBlock.CompanyId, Is.EqualTo(teamOrganization.Id.ToString()));
+            Assert.That(mondayBlock.CompanyName, Is.EqualTo(teamOrganization.Name));
+        });
+    }
+
+    [Test]
+    public async Task SaveAsync_Updates_Persisted_Profile_And_Replaces_Removed_Blocks()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@example.com",
+            Username = "member",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var personalOrganization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Personal workspace",
+            Description = "Personal workspace",
+            MaxUsers = 1,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var membership = new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            OrganizationId = personalOrganization.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow,
+            User = user,
+            Organization = personalOrganization
+        };
+
+        _dbContext.Users.Add(user);
+        _dbContext.Organizations.Add(personalOrganization);
+        _dbContext.Memberships.Add(membership);
+        await _dbContext.SaveChangesAsync();
+
+        await _service.SaveAsync(user.Id, new WorkProfile
+        {
+            PlannerViewStart = "06:00",
+            PlannerViewEnd = "22:00",
+            MaxDailyLoad = TimeSpan.FromHours(8),
+            Days =
+            [
+                new WorkDayProfile
+                {
+                    Day = "Mon",
+                    Blocks =
+                    [
+                        new WorkBlock
+                        {
+                            CompanyId = personalOrganization.Id.ToString(),
+                            CompanyName = personalOrganization.Name,
+                            StartTime = "09:00",
+                            EndTime = "12:00"
+                        }
+                    ],
+                    Breaks = []
+                }
+            ]
+        });
+
+        var updated = await _service.SaveAsync(user.Id, new WorkProfile
+        {
+            PlannerViewStart = "07:00",
+            PlannerViewEnd = "21:00",
+            MaxDailyLoad = TimeSpan.FromHours(6),
+            Days =
+            [
+                new WorkDayProfile
+                {
+                    Day = "Tue",
+                    Blocks =
+                    [
+                        new WorkBlock
+                        {
+                            CompanyId = personalOrganization.Id.ToString(),
+                            CompanyName = personalOrganization.Name,
+                            StartTime = "13:00",
+                            EndTime = "17:00"
+                        }
+                    ],
+                    Breaks =
+                    [
+                        new WorkBreak
+                        {
+                            StartTime = "15:00",
+                            EndTime = "15:30"
+                        }
+                    ]
+                }
+            ]
+        });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(updated.PlannerViewStart, Is.EqualTo("07:00"));
+            Assert.That(updated.PlannerViewEnd, Is.EqualTo("21:00"));
+            Assert.That(updated.MaxDailyLoad, Is.EqualTo(TimeSpan.FromHours(6)));
+            Assert.That(updated.Days.Single(day => day.Day == "Mon").Blocks, Is.Empty);
+            Assert.That(updated.Days.Single(day => day.Day == "Tue").Blocks.Select(block => block.StartTime), Is.EqualTo(["13:00"]));
+            Assert.That(updated.Days.Single(day => day.Day == "Tue").Breaks.Select(workBreak => workBreak.StartTime), Is.EqualTo(["15:00"]));
+        });
+    }
+
     [TearDown]
     public async Task TearDown()
     {
