@@ -1,0 +1,112 @@
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import useUserStore, { initForUser } from "./user-store";
+import { defaultUser } from "../util/default-data";
+
+vi.mock("../util/user-api", () => ({
+  ensureUser: vi.fn(),
+  fetchUserProfile: vi.fn(),
+}));
+
+vi.mock("../util/task-api", () => ({
+  fetchTasks: vi.fn(),
+  createTask: vi.fn(),
+  updateTask: vi.fn(),
+  deleteTask: vi.fn(),
+}));
+
+vi.mock("../util/work-profile-api", () => ({
+  fetchWorkProfile: vi.fn(),
+}));
+
+vi.mock("../util/org-api", () => ({
+  fetchOrganizationsByUserEmail: vi.fn(),
+}));
+
+import { ensureUser, fetchUserProfile } from "../util/user-api";
+import { fetchTasks } from "../util/task-api";
+import { fetchWorkProfile } from "../util/work-profile-api";
+import { fetchOrganizationsByUserEmail } from "../util/org-api";
+
+describe("user-store initForUser", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    const { result } = renderHook(() => useUserStore());
+    act(() => {
+      result.current.setUser(defaultUser);
+    });
+  });
+
+  it("loads the saved work profile from the backend using the backend user id", async () => {
+    const backendUserId = "11111111-2222-3333-4444-555555555555";
+    const backendWorkProfileId = "99999999-8888-7777-6666-555555555555";
+    const savedWorkProfile = {
+      plannerViewStart: "07:00",
+      plannerViewEnd: "21:00",
+      maxDailyLoad: "03:00:00",
+      days: [
+        {
+          day: "Mon" as const,
+          blocks: [
+            {
+              id: "block-1",
+              companyId: "org-1",
+              companyName: "Northwind Labs",
+              startTime: "09:00",
+              endTime: "12:00",
+            },
+          ],
+          breaks: [],
+        },
+      ],
+    };
+    const organizations = [
+      {
+        id: "org-1",
+        name: "Northwind Labs",
+        users: [],
+        adminEmails: ["test@example.com"],
+        invites: [],
+      },
+    ];
+
+    vi.mocked(ensureUser).mockResolvedValue({
+      userId: backendUserId,
+      workProfileId: backendWorkProfileId,
+    });
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      id: backendUserId,
+      username: "test",
+      displayName: "Test User",
+      email: "test@example.com",
+      profileImageUrl: undefined,
+      timezone: "Europe/Berlin",
+    });
+    vi.mocked(fetchTasks).mockResolvedValue([]);
+    vi.mocked(fetchWorkProfile).mockResolvedValue(savedWorkProfile);
+    vi.mocked(fetchOrganizationsByUserEmail).mockResolvedValue(organizations);
+
+    const { result } = renderHook(() => useUserStore());
+
+    await act(async () => {
+      await initForUser("auth0|abc123", "test@example.com");
+    });
+
+    expect(vi.mocked(fetchWorkProfile)).toHaveBeenCalledWith(backendUserId);
+    expect(vi.mocked(fetchOrganizationsByUserEmail)).toHaveBeenCalledWith(
+      "test@example.com",
+    );
+
+    await waitFor(() => {
+      expect(result.current.user.id).toBe(backendUserId);
+      expect(result.current.workProfileId).toBe(backendWorkProfileId);
+      expect(result.current.user.workProfile).toEqual(savedWorkProfile);
+      expect(result.current.user.plannerViewStart).toBe("07:00");
+      expect(result.current.user.plannerViewEnd).toBe("21:00");
+      expect(result.current.user.workCapacityHours).toBe(3);
+      expect(result.current.user.workStart).toBe("09:00");
+      expect(result.current.user.workEnd).toBe("12:00");
+      expect(result.current.user.orgs).toEqual(organizations);
+    });
+  });
+});

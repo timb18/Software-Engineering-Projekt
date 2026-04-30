@@ -71,25 +71,46 @@ public class WorkProfileService(
 
             normalized.MembershipId = membership.Id;
             normalized.CreatedAt = DateTime.UtcNow;
+            PrepareProfileGraph(normalized);
             await repository.AddAsync(normalized, cancellationToken);
-        }
-        else
-        {
-            existing.MaxDailyLoad = normalized.MaxDailyLoad;
-            existing.PlannerViewStart = normalized.PlannerViewStart;
-            existing.PlannerViewEnd = normalized.PlannerViewEnd;
-            existing.EditedAt = DateTime.UtcNow;
-            existing.Days.Clear();
-            foreach (var day in normalized.Days)
-            {
-                day.WorkProfileId = existing.Id;
-                existing.Days.Add(day);
-            }
-            await repository.UpdateAsync(existing, cancellationToken);
-            return existing;
+            return await GetAsync(userId, cancellationToken) ?? normalized;
         }
 
-        return normalized;
+        existing.MaxDailyLoad = normalized.MaxDailyLoad;
+        existing.PlannerViewStart = normalized.PlannerViewStart;
+        existing.PlannerViewEnd = normalized.PlannerViewEnd;
+        existing.EditedAt = DateTime.UtcNow;
+
+        var existingDayIds = existing.Days.Select(day => day.Id).ToList();
+        if (existingDayIds.Count > 0)
+        {
+            var existingBlocks = await dbContext.WorkBlocks
+                .Where(block => existingDayIds.Contains(block.WorkDayProfileId))
+                .ToListAsync(cancellationToken);
+            var existingBreaks = await dbContext.WorkBreaks
+                .Where(workBreak => existingDayIds.Contains(workBreak.WorkDayProfileId))
+                .ToListAsync(cancellationToken);
+
+            if (existingBlocks.Count > 0)
+            {
+                dbContext.WorkBlocks.RemoveRange(existingBlocks);
+            }
+
+            if (existingBreaks.Count > 0)
+            {
+                dbContext.WorkBreaks.RemoveRange(existingBreaks);
+            }
+
+            dbContext.WorkDayProfiles.RemoveRange(existing.Days);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        existing.Days = normalized.Days;
+        PrepareProfileGraph(existing);
+        await dbContext.WorkDayProfiles.AddRangeAsync(existing.Days, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await GetAsync(userId, cancellationToken) ?? existing;
     }
 
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -205,5 +226,43 @@ public class WorkProfileService(
 
         profile.Days = normalizedDays;
         return profile;
+    }
+
+    private static void PrepareProfileGraph(WorkProfile profile)
+    {
+        if (profile.Id == Guid.Empty)
+        {
+            profile.Id = Guid.NewGuid();
+        }
+
+        foreach (var day in profile.Days)
+        {
+            if (day.Id == Guid.Empty)
+            {
+                day.Id = Guid.NewGuid();
+            }
+
+            day.WorkProfileId = profile.Id;
+
+            foreach (var block in day.Blocks)
+            {
+                if (block.Id == Guid.Empty)
+                {
+                    block.Id = Guid.NewGuid();
+                }
+
+                block.WorkDayProfileId = day.Id;
+            }
+
+            foreach (var workBreak in day.Breaks)
+            {
+                if (workBreak.Id == Guid.Empty)
+                {
+                    workBreak.Id = Guid.NewGuid();
+                }
+
+                workBreak.WorkDayProfileId = day.Id;
+            }
+        }
     }
 }
