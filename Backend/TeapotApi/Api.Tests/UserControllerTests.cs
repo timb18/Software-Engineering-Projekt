@@ -1,4 +1,5 @@
 using Api.Controller;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -25,7 +26,7 @@ public class UserControllerTests
             new OrganizationRepository(_dbContext),
             new MembershipRepository(_dbContext),
             new WorkProfileRepository(_dbContext),
-            _dbContext);
+            new UnitOfWork(_dbContext));
 
         _controller = new UserController(userService);
     }

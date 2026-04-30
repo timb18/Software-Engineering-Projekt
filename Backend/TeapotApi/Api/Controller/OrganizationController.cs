@@ -35,11 +35,11 @@ public class OrganizationController(
     }
 
     [HttpGet("by-user-email")]
-    public async Task<IActionResult> GetByUserEmail([FromQuery] string email)
+    public async Task<IActionResult> GetByUserEmail([FromQuery] string email, CancellationToken cancellationToken)
     {
         try
         {
-            var organizations = await organizationService.GetOrganizationsForUserAsync(email);
+            var organizations = await organizationService.GetOrganizationsForUserAsync(email, cancellationToken);
             return Ok(organizations);
         }
         catch (Exception ex)

@@ -6,10 +6,10 @@ namespace Services.Organizations;
 public class OrganizationService(
     IOrganizationRepository organizationRepository) : IOrganizationService
 {
-    public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email)
+    public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
-        var organizations = await organizationRepository.GetForUserAsync(normalizedEmail);
+        var organizations = await organizationRepository.GetForUserAsync(normalizedEmail, cancellationToken);
 
         return organizations.Select(o => new OrganizationDetailsDto
         {
@@ -69,7 +69,7 @@ public class OrganizationService(
             .ToList();
 
         if (otherOrganizers.Count > 0)
-            throw new InvalidOperationException("Die Organisation kann nicht gelöscht werden, solange es weitere Organizer gibt.");
+            throw new InvalidOperationException("The organization cannot be deleted while there are other organizers.");
 
         if (!string.Equals(organization.Name, command.ConfirmationText?.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("Confirmation text does not match the organization name.");

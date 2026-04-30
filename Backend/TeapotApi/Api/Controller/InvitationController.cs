@@ -17,7 +17,7 @@ public class InvitationController : ControllerBase
     /// Sendet eine Einladung an einen Benutzer
     /// </summary>
     [HttpPost("send")]
-    public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request)
+    public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -28,7 +28,8 @@ public class InvitationController : ControllerBase
                 request.CreatedByUserId,
                 request.CreatedByEmail,
                 request.FirstName,
-                request.LastName);
+                request.LastName,
+                cancellationToken);
 
             return Ok(new { success = true, message = "Invite sent:", data = result });
         }
@@ -42,17 +43,17 @@ public class InvitationController : ControllerBase
     /// Akzeptiert eine Einladung
     /// </summary>
     [HttpPost("{invitationId}/accept")]
-    public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId, [FromBody] AcceptInvitationRequest request)
+    public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId, [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
     {
         try
         {
             if (request.UserId.HasValue)
             {
-                await _invitationService.AcceptInvitationAsync(invitationId, request.UserId.Value);
+                await _invitationService.AcceptInvitationAsync(invitationId, request.UserId.Value, cancellationToken);
             }
             else if (!string.IsNullOrWhiteSpace(request.Email))
             {
-                await _invitationService.AcceptInvitationByEmailAsync(invitationId, request.Email);
+                await _invitationService.AcceptInvitationByEmailAsync(invitationId, request.Email, cancellationToken);
             }
             else
             {
@@ -77,11 +78,11 @@ public class InvitationController : ControllerBase
     /// Lehnt eine Einladung ab
     /// </summary>
     [HttpPost("{invitationId}/reject")]
-    public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId)
+    public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
     {
         try
         {
-            await _invitationService.RejectInvitationAsync(invitationId);
+            await _invitationService.RejectInvitationAsync(invitationId, cancellationToken);
             return Ok(new { success = true, message = "Invite rejected" });
         }
         catch (Exception ex)
@@ -91,11 +92,11 @@ public class InvitationController : ControllerBase
     }
 
     [HttpGet("{invitationId}/reject-link")]
-    public async Task<IActionResult> RejectInvitationLinkAsync([FromRoute] Guid invitationId)
+    public async Task<IActionResult> RejectInvitationLinkAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
     {
         try
         {
-            await _invitationService.RejectInvitationAsync(invitationId);
+            await _invitationService.RejectInvitationAsync(invitationId, cancellationToken);
             return Redirect(BuildFrontendRedirect("rejected"));
         }
         catch (Exception ex)
@@ -108,11 +109,11 @@ public class InvitationController : ControllerBase
     /// Ruft offene Einladungen für eine E-Mail-Adresse ab
     /// </summary>
     [HttpGet("pending")]
-    public async Task<IActionResult> GetPendingInvitationsAsync([FromQuery] string email)
+    public async Task<IActionResult> GetPendingInvitationsAsync([FromQuery] string email, CancellationToken cancellationToken)
     {
         try
         {
-            var invitations = await _invitationService.GetPendingInvitationsForEmailAsync(email);
+            var invitations = await _invitationService.GetPendingInvitationsForEmailAsync(email, cancellationToken);
             return Ok(new { success = true, data = invitations });
         }
         catch (Exception ex)
@@ -125,11 +126,11 @@ public class InvitationController : ControllerBase
     /// Ruft alle Einladungen für eine Organisation ab
     /// </summary>
     [HttpGet("organization/{organizationId}")]
-    public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId)
+    public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId, CancellationToken cancellationToken)
     {
         try
         {
-            var invitations = await _invitationService.GetInvitationsForOrganizationAsync(organizationId);
+            var invitations = await _invitationService.GetInvitationsForOrganizationAsync(organizationId, cancellationToken);
             return Ok(new { success = true, data = invitations });
         }
         catch (Exception ex)

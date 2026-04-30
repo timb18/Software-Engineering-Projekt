@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
-using Microsoft.EntityFrameworkCore;
 
 namespace Services.Organizations;
 
@@ -9,7 +9,7 @@ public class OrganizationAdminService(
     IOrganizationRepository organizationRepository,
     IUserRepository userRepository,
     IMembershipRepository membershipRepository,
-    TeapotDbContext dbContext) : IOrganizationAdminService
+    IUnitOfWork unitOfWork) : IOrganizationAdminService
 {
     public async Task<CreateOrganizationResult> CreateOrganizationAsync(
         CreateOrganizationRequest request,
@@ -17,7 +17,7 @@ public class OrganizationAdminService(
     {
         ValidateRequest(request);
 
-        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var tx = await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         var existingOrganization = await organizationRepository.FindByNameAsync(request.OrganizationName, cancellationToken);
         if (existingOrganization is not null)
@@ -39,7 +39,7 @@ public class OrganizationAdminService(
         {
             Name = request.OrganizationName.Trim(),
             Description = request.OrganizationDescription.Trim(),
-            MaxUsers = request.maxUsers
+            MaxUsers = request.MaxUsers
         };
         await organizationRepository.AddAsync(organization, cancellationToken);
 
@@ -65,8 +65,8 @@ public class OrganizationAdminService(
         if (string.IsNullOrWhiteSpace(request.OrganizationName))
             throw new ArgumentException("OrganizationName is required.");
 
-        if (request.maxUsers < 0)
-            throw new ArgumentException("InvitationQuota must be >= 0.");
+        if (request.MaxUsers < 0)
+            throw new ArgumentException("MaxUsers must be >= 0.");
 
         if (string.IsNullOrWhiteSpace(request.OrganizerUserName))
             throw new ArgumentException("OrganizerUserName is required.");

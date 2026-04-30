@@ -1,7 +1,9 @@
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Services.Tests;
 
@@ -31,7 +33,7 @@ public class UserServiceTests
         new OrganizationRepository(db),
         new MembershipRepository(db),
         new WorkProfileRepository(db),
-        db);
+        new UnitOfWork(db));
 
     // ── EnsureUserAsync – new user ────────────────────────────────────────────
 

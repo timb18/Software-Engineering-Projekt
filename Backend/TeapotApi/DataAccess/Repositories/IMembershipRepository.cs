@@ -9,6 +9,7 @@ public interface IMembershipRepository
     Task<Membership?> FindOrganizerAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default);
     Task<bool> IsMemberByEmailAsync(Guid organizationId, string normalizedEmail, CancellationToken cancellationToken = default);
     Task<Membership?> FindPersonalAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<int> CountOrganizersAsync(Guid organizationId, CancellationToken cancellationToken = default);
     Task AddAsync(Membership membership, CancellationToken cancellationToken = default);
     Task DeleteWithWorkProfileDataAsync(Membership membership, CancellationToken cancellationToken = default);
 }

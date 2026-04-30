@@ -2,7 +2,7 @@ namespace Services.Organizations;
 
 public interface IOrganizationService
 {
-    Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email);
+    Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default);
     Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default);
 }
 

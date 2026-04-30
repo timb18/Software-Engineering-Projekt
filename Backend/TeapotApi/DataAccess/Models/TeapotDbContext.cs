@@ -37,17 +37,6 @@ public partial class TeapotDbContext : DbContext
 
     public virtual DbSet<WorkBreak> WorkBreaks { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (!optionsBuilder.IsConfigured)
-        {
-            optionsBuilder.UseNpgsql(o => o.MapEnum<EInvitationStatus>("invitation_status")
-                .MapEnum<ERole>("role")
-                .MapEnum<ETaskPriority>("task_priority")
-                .MapEnum<ETaskIntensity>("task_intensity"));
-        }
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder

@@ -64,7 +64,7 @@ public class OrganizationControllerTests
         public Exception? ExceptionToThrow { get; init; }
         public DeleteOrganizationCommand? LastCommand { get; private set; }
 
-        public Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email) =>
+        public Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default) =>
             Task.FromResult<IEnumerable<OrganizationDetailsDto>>([]);
 
         public Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default)

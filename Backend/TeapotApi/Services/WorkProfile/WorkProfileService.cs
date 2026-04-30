@@ -11,7 +11,7 @@ public class WorkProfileService(
 
     public async Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var profile = await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
+        var profile = await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
         if (profile is null) return null;
 
         var existingDays = profile.Days.ToDictionary(d => d.Day);

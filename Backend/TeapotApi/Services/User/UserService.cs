@@ -1,6 +1,6 @@
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace Services.Users;
@@ -10,7 +10,7 @@ public class UserService(
     IOrganizationRepository organizationRepository,
     IMembershipRepository membershipRepository,
     IWorkProfileRepository workProfileRepository,
-    TeapotDbContext dbContext) : IUserService
+    IUnitOfWork unitOfWork) : IUserService
 {
     private static readonly EmailAddressAttribute EmailValidator = new();
 
@@ -26,7 +26,7 @@ public class UserService(
 
         // Wrap in a transaction to prevent race conditions when two requests
         // arrive simultaneously for the same new user
-        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var tx = await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         var user = await FindOrCreateUserAsync(normalizedEmail, authProviderSubject, displayName, profileImageUrl, cancellationToken);
 

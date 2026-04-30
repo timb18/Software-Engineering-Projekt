@@ -20,6 +20,19 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
                 wp.Membership.Organization.Description == PersonalWorkspaceDescription)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<WorkProfile?> GetPersonalNoTrackingAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        context.WorkProfiles
+            .AsNoTracking()
+            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.Membership).ThenInclude(m => m.Organization)
+            .Where(wp => wp.Membership.UserId == userId)
+            .OrderByDescending(wp =>
+                wp.Membership.Role == ERole.Organizer &&
+                wp.Membership.Organization.MaxUsers == 1 &&
+                wp.Membership.Organization.Description == PersonalWorkspaceDescription)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public Task<WorkProfile?> FindByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
             .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
@@ -34,7 +47,7 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
         context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
-            .FirstOrDefaultAsync(wp => wp.Membership.User.Email.ToLowerInvariant() == normalizedEmail, cancellationToken);
+            .FirstOrDefaultAsync(wp => wp.Membership.User.Email == normalizedEmail, cancellationToken);
 
     public async Task AddAsync(WorkProfile profile, CancellationToken cancellationToken = default)
     {
@@ -96,14 +109,6 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
             if (workBlocks.Count > 0) context.WorkBlocks.RemoveRange(workBlocks);
             if (workBreaks.Count > 0) context.WorkBreaks.RemoveRange(workBreaks);
             context.WorkDayProfiles.RemoveRange(workDayProfiles);
-        }
-
-        if (context.Database.IsRelational())
-        {
-            await context.Database.ExecuteSqlRawAsync(
-                "DELETE FROM work_profile_time_intervals WHERE work_profile_id = @workProfileId",
-                [new NpgsqlParameter("workProfileId", workProfileId)],
-                cancellationToken);
         }
 
         context.WorkProfiles.Remove(profile);

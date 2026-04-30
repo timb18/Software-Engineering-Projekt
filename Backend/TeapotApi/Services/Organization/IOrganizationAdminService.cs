@@ -13,7 +13,7 @@ public record CreateOrganizationRequest
 
     public string OrganizationDescription { get; init; } = string.Empty;
 
-    public int maxUsers { get; init; }
+    public int MaxUsers { get; init; }
 
     public string OrganizerUserName { get; init; } = string.Empty;
 

@@ -25,7 +25,7 @@ public class MembershipRepository(TeapotDbContext context) : IMembershipReposito
 
     public Task<bool> IsMemberByEmailAsync(Guid organizationId, string normalizedEmail, CancellationToken cancellationToken = default) =>
         context.Memberships
-            .AnyAsync(m => m.OrganizationId == organizationId && m.User.Email.ToLowerInvariant() == normalizedEmail, cancellationToken);
+            .AnyAsync(m => m.OrganizationId == organizationId && m.User.Email == normalizedEmail, cancellationToken);
 
     public Task<Membership?> FindPersonalAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.Memberships
@@ -85,4 +85,8 @@ public class MembershipRepository(TeapotDbContext context) : IMembershipReposito
         context.Memberships.Remove(membership);
         await context.SaveChangesAsync(cancellationToken);
     }
+
+    public Task<int> CountOrganizersAsync(Guid organizationId, CancellationToken cancellationToken = default) =>
+        context.Memberships
+            .CountAsync(m => m.OrganizationId == organizationId && m.Role == ERole.Organizer, cancellationToken);
 }

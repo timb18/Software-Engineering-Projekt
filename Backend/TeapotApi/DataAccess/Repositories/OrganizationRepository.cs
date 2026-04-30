@@ -15,7 +15,7 @@ public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepo
         await context.Organizations
             .Include(o => o.Memberships).ThenInclude(m => m.User)
             .Include(o => o.Invitations)
-            .Where(o => o.Memberships.Any(m => m.User.Email.ToLowerInvariant() == normalizedEmail))
+            .Where(o => o.Memberships.Any(m => m.User.Email == normalizedEmail))
             .OrderBy(o => o.Name)
             .ToListAsync(cancellationToken);
 
@@ -68,10 +68,6 @@ public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepo
                     .Where(t => t.WorkProfileId == workProfileId)
                     .ToListAsync(cancellationToken);
                 if (userTasks.Count > 0) context.UserTasks.RemoveRange(userTasks);
-
-                await context.Database.ExecuteSqlAsync(
-                    $"DELETE FROM work_profile_time_intervals WHERE work_profile_id = {workProfileId}",
-                    cancellationToken);
 
                 context.WorkProfiles.Remove(membership.WorkProfile);
             }

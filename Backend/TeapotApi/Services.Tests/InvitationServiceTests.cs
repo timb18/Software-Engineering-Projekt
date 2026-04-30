@@ -1,7 +1,8 @@
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
 
 namespace Services.Tests;
@@ -17,6 +18,7 @@ public class InvitationServiceTests
     {
         var options = new DbContextOptionsBuilder<TeapotDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
         _dbContext = new TeapotDbContext(options);
@@ -26,12 +28,14 @@ public class InvitationServiceTests
             new OrganizationRepository(_dbContext),
             new UserRepository(_dbContext),
             new MembershipRepository(_dbContext),
+            new WorkProfileRepository(_dbContext),
+            new UnitOfWork(_dbContext),
+            new NullEmailSender(),
             Options.Create(new EmailOptions
             {
                 ApiBaseUrl = "http://localhost:5186",
                 FrontendBaseUrl = "http://127.0.0.1:5173/"
-            }),
-            NullLogger<InvitationService>.Instance);
+            }));
     }
 
     [Test]
@@ -201,7 +205,7 @@ public class InvitationServiceTests
 
         Assert.That(accepted, Is.True);
         Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(2));
-        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(2), "A new WorkProfile must be created for the org membership");
         Assert.That(_dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id), Is.EqualTo(1));
     }
 
@@ -279,4 +283,10 @@ public class InvitationServiceTests
     {
         _dbContext.Dispose();
     }
+}
+
+public sealed class NullEmailSender : IEmailSender
+{
+    public Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
 }

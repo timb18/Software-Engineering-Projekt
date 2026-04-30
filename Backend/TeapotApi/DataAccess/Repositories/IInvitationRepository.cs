@@ -12,4 +12,5 @@ public interface IInvitationRepository
     Task AddAsync(Invitation invitation, CancellationToken cancellationToken = default);
     Task UpdateAsync(Invitation invitation, CancellationToken cancellationToken = default);
     Task UpdateRangeAsync(IEnumerable<Invitation> invitations, CancellationToken cancellationToken = default);
+    Task<int> MarkExpiredInvitationsAsync(CancellationToken cancellationToken = default);
 }

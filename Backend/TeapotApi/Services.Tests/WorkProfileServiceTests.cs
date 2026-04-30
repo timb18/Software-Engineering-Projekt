@@ -1,6 +1,7 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Services.Tests;
 
@@ -15,6 +16,7 @@ public class WorkProfileServiceTests
     {
         var options = new DbContextOptionsBuilder<TeapotDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
         _dbContext = new TeapotDbContext(options);

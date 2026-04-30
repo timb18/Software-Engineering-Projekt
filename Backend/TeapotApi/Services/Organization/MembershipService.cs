@@ -1,3 +1,4 @@
+using DataAccess.Models;
 using DataAccess.Repositories;
 
 namespace Services.Organizations;
@@ -11,6 +12,13 @@ public class MembershipService(IMembershipRepository membershipRepository) : IMe
 
         var membership = await membershipRepository.FindWithWorkProfileAsync(userId, organizationId, cancellationToken)
             ?? throw new KeyNotFoundException("Membership not found.");
+
+        if (membership.Role == ERole.Organizer)
+        {
+            var organizerCount = await membershipRepository.CountOrganizersAsync(organizationId, cancellationToken);
+            if (organizerCount <= 1)
+                throw new InvalidOperationException("Cannot leave: you are the only organizer of this organization. Transfer ownership first or delete the organization.");
+        }
 
         await membershipRepository.DeleteWithWorkProfileDataAsync(membership, cancellationToken);
     }

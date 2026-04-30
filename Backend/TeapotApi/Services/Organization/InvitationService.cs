@@ -1,6 +1,6 @@
 ﻿using System.Net;
-using System.Net.Mail;
 using System.Text;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.Extensions.Logging;
@@ -13,11 +13,12 @@ public class InvitationService(
     IOrganizationRepository organizationRepository,
     IUserRepository userRepository,
     IMembershipRepository membershipRepository,
-    IOptions<EmailOptions> emailOptions,
-    ILogger<InvitationService> logger) : IInvitationService
+    IWorkProfileRepository workProfileRepository,
+    IUnitOfWork unitOfWork,
+    IEmailSender emailSender,
+    IOptions<EmailOptions> emailOptions) : IInvitationService
 {
     private readonly EmailOptions _emailOptions = emailOptions.Value;
-
     public async Task<InvitationDto> SendInvitationAsync(
         string email,
         Guid organizationId,
@@ -25,7 +26,8 @@ public class InvitationService(
         Guid? createdByUserId = null,
         string? createdByEmail = null,
         string? firstName = null,
-        string? lastName = null)
+        string? lastName = null,
+        CancellationToken cancellationToken = default)
     {
         var normalizedEmail = NormalizeEmail(email);
         var normalizedCreatorEmail = string.IsNullOrWhiteSpace(createdByEmail) ? null : NormalizeEmail(createdByEmail);
@@ -33,19 +35,19 @@ public class InvitationService(
         if (string.IsNullOrWhiteSpace(normalizedEmail))
             throw new ArgumentException("Email is required.");
 
-        var organization = await organizationRepository.FindByIdAsync(organizationId)
+        var organization = await organizationRepository.FindByIdAsync(organizationId, cancellationToken)
             ?? throw new ArgumentException($"Organization with ID {organizationId} not found.");
 
-        var creator = await ResolveCreatorAsync(createdByUserId, normalizedCreatorEmail);
+        var creator = await ResolveCreatorAsync(createdByUserId, normalizedCreatorEmail, cancellationToken);
 
-        var creatorMembership = await membershipRepository.FindOrganizerAsync(organizationId, creator.Id);
+        var creatorMembership = await membershipRepository.FindOrganizerAsync(organizationId, creator.Id, cancellationToken);
         if (creatorMembership is null)
             throw new InvalidOperationException("Only organizers are allowed to invite members.");
 
-        if (await membershipRepository.IsMemberByEmailAsync(organizationId, normalizedEmail))
+        if (await membershipRepository.IsMemberByEmailAsync(organizationId, normalizedEmail, cancellationToken))
             throw new InvalidOperationException("User is already a member of this organization.");
 
-        var existingInvitation = await invitationRepository.FindOpenAsync(organizationId, normalizedEmail);
+        var existingInvitation = await invitationRepository.FindOpenAsync(organizationId, normalizedEmail, cancellationToken);
         if (existingInvitation is not null)
             throw new InvalidOperationException("An open invitation already exists for this email address.");
 
@@ -60,15 +62,15 @@ public class InvitationService(
             ExpiryDate = DateTime.UtcNow.AddDays(expiryDays)
         };
 
-        await invitationRepository.AddAsync(invitation);
-        await SendInvitationEmailAsync(invitation, organization);
+        await invitationRepository.AddAsync(invitation, cancellationToken);
+        await SendInvitationEmailAsync(invitation, organization, cancellationToken);
 
         return MapToDto(invitation);
     }
 
-    public async Task<bool> AcceptInvitationAsync(Guid invitationId, Guid userId)
+    public async Task<bool> AcceptInvitationAsync(Guid invitationId, Guid userId, CancellationToken cancellationToken = default)
     {
-        var invitation = await invitationRepository.FindByIdAsync(invitationId)
+        var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken)
             ?? throw new ArgumentException($"Invitation with ID {invitationId} not found.");
 
         if (invitation.Status != EInvitationStatus.Open)
@@ -77,19 +79,21 @@ public class InvitationService(
         if (invitation.ExpiryDate < DateTime.UtcNow)
         {
             invitation.Status = EInvitationStatus.Expired;
-            await invitationRepository.UpdateAsync(invitation);
+            await invitationRepository.UpdateAsync(invitation, cancellationToken);
             throw new InvalidOperationException("Invitation has expired.");
         }
 
-        var user = await userRepository.FindByIdAsync(userId)
+        var user = await userRepository.FindByIdAsync(userId, cancellationToken)
             ?? throw new InvalidOperationException("An account must be created or signed in first for this invitation.");
 
         if (!string.Equals(user.Email, invitation.Email, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The invitation can only be accepted with the invited email address.");
 
-        var existingMembership = await membershipRepository.FindAsync(userId, invitation.OrganizationId);
+        var existingMembership = await membershipRepository.FindAsync(userId, invitation.OrganizationId, cancellationToken);
         if (existingMembership is null)
         {
+            await using var tx = await unitOfWork.BeginTransactionAsync(cancellationToken);
+
             var membership = new Membership
             {
                 Id = Guid.NewGuid(),
@@ -98,130 +102,106 @@ public class InvitationService(
                 Role = ERole.User,
                 CreatedAt = DateTime.UtcNow
             };
-            await membershipRepository.AddAsync(membership);
-        }
+            await membershipRepository.AddAsync(membership, cancellationToken);
 
-        invitation.Status = EInvitationStatus.Accepted;
-        invitation.EditedAt = DateTime.UtcNow;
-        await invitationRepository.UpdateAsync(invitation);
+            var workProfile = new WorkProfile
+            {
+                MembershipId = membership.Id,
+                MaxDailyLoad = TimeSpan.FromHours(8),
+                CreatedAt = DateTime.UtcNow,
+            };
+            await workProfileRepository.AddAsync(workProfile, cancellationToken);
+
+            invitation.Status = EInvitationStatus.Accepted;
+            invitation.EditedAt = DateTime.UtcNow;
+            await invitationRepository.UpdateAsync(invitation, cancellationToken);
+
+            await tx.CommitAsync(cancellationToken);
+        }
+        else
+        {
+            invitation.Status = EInvitationStatus.Accepted;
+            invitation.EditedAt = DateTime.UtcNow;
+            await invitationRepository.UpdateAsync(invitation, cancellationToken);
+        }
 
         return true;
     }
 
-    public async Task<bool> AcceptInvitationByEmailAsync(Guid invitationId, string email)
+    public async Task<bool> AcceptInvitationByEmailAsync(Guid invitationId, string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = NormalizeEmail(email);
 
-        var invitation = await invitationRepository.FindByIdAsync(invitationId)
+        var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken)
             ?? throw new ArgumentException($"Invitation with ID {invitationId} not found.");
 
         if (!string.Equals(invitation.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("This invitation belongs to a different email address.");
 
-        var existingUser = await userRepository.FindByEmailAsync(normalizedEmail)
+        var existingUser = await userRepository.FindByEmailAsync(normalizedEmail, cancellationToken)
             ?? throw new InvalidOperationException("Please create an account or sign in with the invited email address first.");
 
-        return await AcceptInvitationAsync(invitationId, existingUser.Id);
+        return await AcceptInvitationAsync(invitationId, existingUser.Id, cancellationToken);
     }
 
-    public async Task<bool> RejectInvitationAsync(Guid invitationId)
+    public async Task<bool> RejectInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default)
     {
-        var invitation = await invitationRepository.FindByIdAsync(invitationId)
+        var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken)
             ?? throw new ArgumentException($"Invitation with ID {invitationId} not found.");
 
         invitation.Status = EInvitationStatus.Closed;
         invitation.EditedAt = DateTime.UtcNow;
-        await invitationRepository.UpdateAsync(invitation);
+        await invitationRepository.UpdateAsync(invitation, cancellationToken);
 
         return true;
     }
 
-    public async Task<InvitationDto?> GetInvitationAsync(Guid invitationId)
+    public async Task<InvitationDto?> GetInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default)
     {
-        var invitation = await invitationRepository.FindByIdAsync(invitationId);
+        var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken);
         return invitation is null ? null : MapToDto(invitation);
     }
 
-    public async Task<IEnumerable<InvitationDto>> GetPendingInvitationsForEmailAsync(string email)
+    public async Task<IEnumerable<InvitationDto>> GetPendingInvitationsForEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = NormalizeEmail(email);
-        var invitations = await invitationRepository.GetPendingForEmailAsync(normalizedEmail);
+        var invitations = await invitationRepository.GetPendingForEmailAsync(normalizedEmail, cancellationToken);
         return invitations.Select(MapToDto);
     }
 
-    public async Task<IEnumerable<InvitationDto>> GetInvitationsForOrganizationAsync(Guid organizationId)
+    public async Task<IEnumerable<InvitationDto>> GetInvitationsForOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default)
     {
-        var invitations = await invitationRepository.GetForOrganizationAsync(organizationId);
+        var invitations = await invitationRepository.GetForOrganizationAsync(organizationId, cancellationToken);
         return invitations.Select(MapToDto);
     }
 
-    public async Task<int> CleanupExpiredInvitationsAsync()
-    {
-        var expiredInvitations = (await invitationRepository.GetExpiredOpenAsync()).ToList();
+    public Task<int> CleanupExpiredInvitationsAsync(CancellationToken cancellationToken = default) =>
+        invitationRepository.MarkExpiredInvitationsAsync(cancellationToken);
 
-        foreach (var invitation in expiredInvitations)
-            invitation.Status = EInvitationStatus.Expired;
-
-        await invitationRepository.UpdateRangeAsync(expiredInvitations);
-        return expiredInvitations.Count;
-    }
-
-    private async Task<User> ResolveCreatorAsync(Guid? createdByUserId, string? normalizedCreatorEmail)
+    private async Task<User> ResolveCreatorAsync(Guid? createdByUserId, string? normalizedCreatorEmail, CancellationToken cancellationToken)
     {
         if (createdByUserId.HasValue)
         {
-            var creator = await userRepository.FindByIdAsync(createdByUserId.Value);
+            var creator = await userRepository.FindByIdAsync(createdByUserId.Value, cancellationToken);
             if (creator is not null) return creator;
         }
 
         if (!string.IsNullOrWhiteSpace(normalizedCreatorEmail))
         {
-            var creator = await userRepository.FindByEmailAsync(normalizedCreatorEmail);
+            var creator = await userRepository.FindByEmailAsync(normalizedCreatorEmail, cancellationToken);
             if (creator is not null) return creator;
         }
 
         throw new ArgumentException("Inviting user could not be found.");
     }
 
-    private async Task SendInvitationEmailAsync(Invitation invitation, Organization organization)
+    private async Task SendInvitationEmailAsync(Invitation invitation, Organization organization, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_emailOptions.SmtpHost) ||
-            string.IsNullOrWhiteSpace(_emailOptions.SmtpUsername) ||
-            string.IsNullOrWhiteSpace(_emailOptions.SmtpPassword) ||
-            string.IsNullOrWhiteSpace(_emailOptions.FromEmail))
-        {
-            logger.LogWarning("Email configuration incomplete. Invitation {InvitationId} created, but email not sent.", invitation.Id);
-            return;
-        }
-
-        using var smtpClient = new SmtpClient(_emailOptions.SmtpHost, _emailOptions.SmtpPort)
-        {
-            Credentials = new System.Net.NetworkCredential(_emailOptions.SmtpUsername, _emailOptions.SmtpPassword),
-            EnableSsl = true
-        };
-
         var acceptUrl = BuildAcceptLink(invitation);
         var rejectUrl = $"{TrimTrailingSlash(_emailOptions.ApiBaseUrl)}/api/Invitation/{invitation.Id}/reject-link";
-
-        var mailMessage = new MailMessage
-        {
-            From = new MailAddress(_emailOptions.FromEmail, "Teapot"),
-            Subject = $"You are invited to {organization.Name}!",
-            Body = GenerateInvitationEmailBody(organization, invitation, acceptUrl, rejectUrl),
-            IsBodyHtml = false
-        };
-
-        mailMessage.To.Add(invitation.Email);
-
-        try
-        {
-            await smtpClient.SendMailAsync(mailMessage);
-            logger.LogInformation("Invitation email sent to {Email}.", invitation.Email);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error sending invitation email to {Email}.", invitation.Email);
-        }
+        var body = GenerateInvitationEmailBody(organization, invitation, acceptUrl, rejectUrl);
+        var subject = $"You are invited to {organization.Name}!";
+        await emailSender.SendAsync(invitation.Email, subject, body, cancellationToken);
     }
 
     private static string GenerateInvitationEmailBody(Organization organization, Invitation invitation, string acceptUrl, string rejectUrl)

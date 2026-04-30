@@ -12,6 +12,9 @@ public static class DependencyInjectionExtension
     extension(IServiceCollection services)
     {
         public IServiceCollection AddTeapotServices() {
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+
             services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
             services.AddScoped<IOrganizationService, OrganizationService>();
             services.AddScoped<IInvitationService, InvitationService>();
