@@ -65,7 +65,12 @@ builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(conn
     .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
     .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
     .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
-    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>();
+    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>()
+    .AddScoped<IUserTaskRepository, UserTaskRepository>()
+    .AddScoped<ITaskBlockRepository, TaskBlockRepository>()
+    .AddScoped<IWorkProfileRepository, WorkProfileRepository>()
+    .AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
+
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 
@@ -74,6 +79,7 @@ builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IMembershipService, MembershipService>();
+builder.Services.AddScoped<IUserTaskService, UserTaskService>();
 
 // User
 builder.Services.AddScoped<IUserService, UserService>();
@@ -84,6 +90,10 @@ builder.Services.AddScoped<IUserTaskService, UserTaskService>();
 // Work Profile
 builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
 
+// Task Planning
+builder.Services.AddScoped<SchedulingAlgorithm>();
+builder.Services.AddScoped<IUserTaskPlanner, UserTaskPlanner>();
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -92,6 +102,21 @@ builder.Services.AddControllers()
     });
 
 var app = builder.Build();
+
+// Apply pending migrations automatically on startup
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<TeapotDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
+}
+catch (Exception ex)
+{
+    app.Services.GetRequiredService<ILogger<Program>>().LogError(ex, "An error occurred while applying database migrations.");
+    // Don't throw - allow app to start even if migrations fail
+}
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();

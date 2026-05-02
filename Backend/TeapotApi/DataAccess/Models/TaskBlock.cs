@@ -1,6 +1,6 @@
 ﻿namespace DataAccess.Models;
 
-public class TaskBlock
+public partial class TaskBlock
 {
     public Guid TaskId { get; set; }
 

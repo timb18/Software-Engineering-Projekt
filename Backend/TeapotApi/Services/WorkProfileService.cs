@@ -16,10 +16,10 @@ public class WorkProfileService(
     public async Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var profile = await repository.GetQueryable()
-            .Include(wp => wp.Days)
-                .ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days)
-                .ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles)
+                .ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles)
+                .ThenInclude(d => d.WorkBreaks)
             .Include(wp => wp.Membership)
                 .ThenInclude(m => m.Organization)
             .Where(wp => wp.Membership.UserId == userId)
@@ -31,8 +31,8 @@ public class WorkProfileService(
 
         if (profile is null) return null;
 
-        var existingDays = profile.Days.ToDictionary(d => d.Day);
-        profile.Days = ValidDays.Select(day =>
+        var existingDays = profile.WorkDayProfiles.ToDictionary(d => d.Day);
+        profile.WorkDayProfiles = ValidDays.Select(day =>
             existingDays.TryGetValue(day, out var existing)
                 ? existing
                 : new WorkDayProfile { Day = day, WorkProfileId = profile.Id }
@@ -44,8 +44,8 @@ public class WorkProfileService(
     public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, CancellationToken cancellationToken = default)
     {
         var existing = await repository.GetQueryable()
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks)
             .Include(wp => wp.Membership)
                 .ThenInclude(m => m.Organization)
             .Where(wp => wp.Membership.UserId == userId)
@@ -79,11 +79,11 @@ public class WorkProfileService(
             existing.PlannerViewStart = normalized.PlannerViewStart;
             existing.PlannerViewEnd = normalized.PlannerViewEnd;
             existing.EditedAt = DateTime.UtcNow;
-            existing.Days.Clear();
-            foreach (var day in normalized.Days)
+            existing.WorkDayProfiles.Clear();
+            foreach (var day in normalized.WorkDayProfiles)
             {
                 day.WorkProfileId = existing.Id;
-                existing.Days.Add(day);
+                existing.WorkDayProfiles.Add(day);
             }
             await repository.UpdateAsync(existing, cancellationToken);
             return existing;
@@ -100,8 +100,8 @@ public class WorkProfileService(
         }
 
         var existing = await repository.GetQueryable()
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks)
             .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
 
         await DeleteExistingProfileAsync(existing, cancellationToken);
@@ -117,8 +117,8 @@ public class WorkProfileService(
         var normalizedEmail = email.Trim().ToLowerInvariant();
 
         var existing = await repository.GetQueryable()
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks)
             .FirstOrDefaultAsync(wp => wp.Membership.User.Email.ToLower() == normalizedEmail, cancellationToken);
 
         await DeleteExistingProfileAsync(existing, cancellationToken);
@@ -189,7 +189,7 @@ public class WorkProfileService(
     /// </summary>
     private static WorkProfile NormalizeProfile(WorkProfile profile)
     {
-        var lookup = profile.Days
+        var lookup = profile.WorkDayProfiles
             .GroupBy(d => d.Day)
             .ToDictionary(g => g.Key, g => g.First());
 
@@ -198,12 +198,12 @@ public class WorkProfileService(
             if (!lookup.TryGetValue(day, out var existing))
                 return new WorkDayProfile { Day = day };
 
-            existing.Blocks = [.. existing.Blocks.OrderBy(b => b.StartTime)];
-            existing.Breaks = [.. existing.Breaks.OrderBy(b => b.StartTime)];
+            existing.WorkBlocks = [.. existing.WorkBlocks.OrderBy(b => b.StartTime)];
+            existing.WorkBreaks = [.. existing.WorkBreaks.OrderBy(b => b.StartTime)];
             return existing;
         }).ToList();
 
-        profile.Days = normalizedDays;
+        profile.WorkDayProfiles = normalizedDays;
         return profile;
     }
 }
