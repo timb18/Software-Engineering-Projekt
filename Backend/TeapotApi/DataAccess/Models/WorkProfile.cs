@@ -1,6 +1,6 @@
 ﻿namespace DataAccess.Models;
 
-public class WorkProfile
+public partial class WorkProfile
 {
     public Guid Id { get; set; }
 
@@ -8,11 +8,9 @@ public class WorkProfile
 
     public TimeSpan MaxDailyLoad { get; set; }
 
-    /// <summary>Planner view start time in HH:mm format, e.g. "06:00"</summary>
-    public string PlannerViewStart { get; set; } = "06:00";
+    public string PlannerViewStart { get; set; } = null!;
 
-    /// <summary>Planner view end time in HH:mm format, e.g. "22:00"</summary>
-    public string PlannerViewEnd { get; set; } = "22:00";
+    public string PlannerViewEnd { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 
@@ -22,5 +20,5 @@ public class WorkProfile
 
     public virtual ICollection<UserTask> UserTasks { get; set; } = new List<UserTask>();
 
-    public virtual ICollection<WorkDayProfile> Days { get; set; } = new List<WorkDayProfile>();
+    public virtual ICollection<WorkDayProfile> WorkDayProfiles { get; set; } = new List<WorkDayProfile>();
 }

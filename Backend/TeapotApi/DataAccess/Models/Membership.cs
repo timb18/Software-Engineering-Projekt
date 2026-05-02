@@ -1,14 +1,12 @@
 ﻿namespace DataAccess.Models;
 
-public class Membership
+public partial class Membership
 {
     public Guid Id { get; set; }
 
     public Guid UserId { get; set; }
 
     public Guid OrganizationId { get; set; }
-
-    public ERole Role { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -19,4 +17,6 @@ public class Membership
     public virtual User User { get; set; } = null!;
 
     public virtual WorkProfile? WorkProfile { get; set; }
+    
+    public ERole Role { get; set; }
 }

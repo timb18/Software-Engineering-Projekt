@@ -1,6 +1,9 @@
-﻿namespace DataAccess.Models;
+﻿using System;
+using System.Collections.Generic;
 
-public class TaskDependency
+namespace DataAccess.Models;
+
+public partial class TaskDependency
 {
     public Guid TaskId { get; set; }
 

@@ -6,6 +6,7 @@ using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,6 +58,22 @@ if (string.IsNullOrWhiteSpace(connectionString))
 var useInMemory = string.IsNullOrWhiteSpace(connectionString);
 if (useInMemory)
     Console.WriteLine("[DEV] No connection string found — using in-memory database.");
+
+builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString, o => o
+        .MapEnum<EInvitationStatus>("invitation_status")
+        .MapEnum<ERole>("role")
+        .MapEnum<ETaskPriority>("task_priority")
+        .MapEnum<ETaskIntensity>("task_intensity")))
+    .AddScoped<IGenericRepository<Invitation>, GenericRepository<Invitation>>()
+    .AddScoped<IGenericRepository<Membership>, GenericRepository<Membership>>()
+    .AddScoped<IGenericRepository<Organization>, GenericRepository<Organization>>()
+    .AddScoped<IGenericRepository<User>, GenericRepository<User>>()
+    .AddScoped<IGenericRepository<UserTask>, GenericRepository<UserTask>>()
+    .AddScoped<IGenericRepository<WorkProfile>, GenericRepository<WorkProfile>>()
+    .AddScoped<IUserTaskRepository, UserTaskRepository>()
+    .AddScoped<ITaskBlockRepository, TaskBlockRepository>()
+    .AddScoped<IWorkProfileRepository, WorkProfileRepository>()
+    .AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
 
 static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
 {
@@ -182,6 +199,26 @@ builder.Services.AddDbContext<TeapotDbContext>(options =>
     .AddScoped<IUserTaskRepository, UserTaskRepository>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+
+// Services
+builder.Services.AddScoped<IInvitationService, InvitationService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IMembershipService, MembershipService>();
+builder.Services.AddScoped<IUserTaskService, UserTaskService>();
+
+// User
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Tasks
+builder.Services.AddScoped<IUserTaskService, UserTaskService>();
+
+// Work Profile
+builder.Services.AddScoped<IWorkProfileService, WorkProfileService>();
+
+// Task Planning
+builder.Services.AddScoped<SchedulingAlgorithm>();
+builder.Services.AddScoped<IUserTaskPlanner, UserTaskPlanner>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

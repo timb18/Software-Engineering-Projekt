@@ -1,3 +1,4 @@
+using Api.Dtos;
 using DataAccess.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -5,8 +6,26 @@ namespace Api.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
-public class PlanningController : ControllerBase
+public class PlanningController(IUserTaskPlanner userTaskPlanner) : ControllerBase
 {
+    /// <summary>Plans all open tasks for a work profile using constraints and backtracking algorithm.</summary>
+    /// <param name="workProfileId">The ID of the work profile to plan tasks for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Planning result with assigned task blocks, conflicts, and warnings.</returns>
+    [HttpPost("/api/[controller]/plan-tasks")]
+    public async Task<ActionResult<PlanTasksResponseDto>> PlanTasks(Guid workProfileId, CancellationToken cancellationToken)
+    {
+        var (newBlocks, conflicts, warnings) = await userTaskPlanner.PlanTasks(workProfileId, cancellationToken);
+        
+        var response = new PlanTasksResponseDto
+        {
+            NewBlocks = newBlocks,
+            Conflicts = conflicts,
+            Warnings = warnings
+        };
+        
+        return Ok(response);
+    }
 }
 
 public record WorkProfileSaveRequest(

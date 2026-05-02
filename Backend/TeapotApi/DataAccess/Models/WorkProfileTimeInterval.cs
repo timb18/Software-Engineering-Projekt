@@ -1,6 +1,6 @@
 ﻿namespace DataAccess.Models;
 
-public class WorkProfileTimeInterval
+public partial class WorkProfileTimeInterval
 {
     public Guid WorkProfileId { get; set; }
 

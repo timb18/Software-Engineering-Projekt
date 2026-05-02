@@ -1,6 +1,6 @@
 ﻿namespace DataAccess.Models;
 
-public class Organization
+public partial class Organization
 {
     public Guid Id { get; set; }
 

@@ -1,6 +1,6 @@
 ﻿namespace DataAccess.Models;
 
-public class User
+public partial class User
 {
     public Guid Id { get; set; }
 
@@ -19,6 +19,14 @@ public class User
     public DateTime CreatedAt { get; set; }
 
     public DateTime? EditedAt { get; set; }
+
+    public string? AuthProviderSubject { get; set; }
+
+    public string? DisplayName { get; set; }
+
+    public string? ProfileImageUrl { get; set; }
+
+    public string? Timezone { get; set; }
 
     public virtual ICollection<Invitation> Invitations { get; set; } = new List<Invitation>();
 

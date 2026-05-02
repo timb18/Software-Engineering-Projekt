@@ -2,7 +2,7 @@
 
 namespace DataAccess.Models;
 
-public class UserTask
+public partial class UserTask
 {
     public Guid Id { get; set; }
 
@@ -11,9 +11,10 @@ public class UserTask
     public string? Description { get; set; }
 
     public bool IsFixed { get; set; }
-
+    [Column("priority")]
     public ETaskPriority Priority { get; set; }
-
+    
+    [Column("intensity")]
     public ETaskIntensity Intensity { get; set; }
 
     public TimeSpan TimeEstimate { get; set; }
@@ -26,10 +27,6 @@ public class UserTask
 
     public string Name { get; set; } = null!;
 
-    /// <summary>todo | in-progress | done</summary>
-    [Column("status")]
-    public string Status { get; set; } = "todo";
-
     public DateTime EarlyStart { get; set; }
 
     public DateTime EarlyFinish { get; set; }
@@ -37,14 +34,17 @@ public class UserTask
     public DateTime LateStart { get; set; }
 
     public DateTime LateFinish { get; set; }
+    [Column("status")]
+    public string Status { get; set; } = "todo"!;
 
-    public virtual WorkProfile? WorkProfile { get; set; }
+    public bool Allowsplitting { get; set; }
 
-    public bool AllowSplitting { get; set; } = true;
+    public int Minblockduration { get; set; }
 
-    public TimeSpan MinBlockDuration { get; set; } = TimeSpan.FromMinutes(15);
+    public int Maxblockduration { get; set; }
 
-    public TimeSpan MaxBlockDuration { get; set; } = TimeSpan.FromHours(4);
+    public int Maxsplits { get; set; }
 
-    public int MaxSplits { get; set; } = 5;
+    public virtual WorkProfile WorkProfile { get; set; } = null!;
 }
+

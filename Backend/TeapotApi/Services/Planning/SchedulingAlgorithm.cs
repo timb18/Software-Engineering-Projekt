@@ -1,3 +1,4 @@
+using System.Globalization;
 using DataAccess.Models;
 
 namespace Services;
@@ -25,6 +26,7 @@ namespace Services;
 /// </summary>
 public class SchedulingAlgorithm
 {
+    private CultureInfo _culture = CultureInfo.InvariantCulture;
     /// <summary>
     /// TaskWithRemaining wraps a UserTask with planning-specific metadata tracked during scheduling.
     /// This allows us to track which tasks have been partially scheduled without modifying the original task.
@@ -245,14 +247,14 @@ public class SchedulingAlgorithm
         for (DateTime day = start.Date; day <= end.Date; day = day.AddDays(1))
         {
             // Get the day of week (Mon, Tue, Wed, etc.) to look up the day profile
-            var dayOfWeek = day.ToString("ddd");
+            var dayOfWeek = day.ToString("ddd", _culture);
 
             // Retrieve the work profile for this day of week
-            var dayProfile = profile.Days.FirstOrDefault(d => d.Day == dayOfWeek);
+            var dayProfile = profile.WorkDayProfiles.FirstOrDefault(d => string.Equals(d.Day, dayOfWeek, StringComparison.OrdinalIgnoreCase));
             if (dayProfile == null) continue; // No work defined for this day; skip it
 
             // For each work block in this day (e.g., a user might have morning 09:00-12:00 and afternoon 14:00-17:00)
-            foreach (var block in dayProfile.Blocks)
+            foreach (var block in dayProfile.WorkBlocks)
             {
                 // Parse start and end times and combine with the date to get absolute DateTime values
                 var blockStart = day + TimeSpan.Parse(block.StartTime);
@@ -262,7 +264,7 @@ public class SchedulingAlgorithm
                 var occupied = new List<(DateTime Start, DateTime End)>();
 
                 // Add all breaks for this day to the occupied list
-                foreach (var brk in dayProfile.Breaks)
+                foreach (var brk in dayProfile.WorkBreaks)
                 {
                     var breakStart = day + TimeSpan.Parse(brk.StartTime);
                     var breakEnd = day + TimeSpan.Parse(brk.EndTime);
@@ -477,8 +479,8 @@ public class SchedulingAlgorithm
     {
         // Get the remaining amount of work to schedule
         var remaining = context.State.RemainingDurations[task.Task.Id];
-        var maxBlock = task.Task.MaxBlockDuration;
-        var minBlock = task.Task.MinBlockDuration;
+        var maxBlock = TimeSpan.FromSeconds(task.Task.Minblockduration);
+        var minBlock = TimeSpan.FromSeconds(task.Task.Maxblockduration);
 
         // ==== INTENSIVE TASK WITH AUTO-BREAKS ====
         // For intensive tasks, users typically need breaks: work ~50min, break ~10min.
@@ -493,9 +495,8 @@ public class SchedulingAlgorithm
             // For now, just use maxBlock but consider reducing it to encourage breaks
         }
 
-        // ==== CALCULATE DURATION ====
-        // Start with the minimum of remaining work and the max block size
-        var duration = TimeSpan.FromMinutes(Math.Min(remaining.TotalMinutes, maxBlock.TotalMinutes));
+        // ...existing code...
+        var duration = TimeSpan.FromSeconds(Math.Min(remaining.TotalSeconds, maxBlock.TotalSeconds));
 
         // ==== ENFORCE MINIMUM BLOCK SIZE ====
         // If the calculated duration is below minBlock but there's enough remaining work,
@@ -509,7 +510,7 @@ public class SchedulingAlgorithm
         // If AllowSplitting is false, the entire remaining work must be scheduled in a single block.
         // In this case, the block duration must equal the remaining duration.
         // (The slot-finding logic will ensure a large enough slot is available.)
-        if (!task.Task.AllowSplitting)
+        if (!task.Task.Allowsplitting)
         {
             duration = remaining;
         }
@@ -558,7 +559,7 @@ public class SchedulingAlgorithm
 
             // ==== CONSTRAINT 4: SPLITTING ====
             // For non-splittable tasks, the slot must fit the entire remaining duration (not just one block)
-            if (!task.Task.AllowSplitting)
+            if (!task.Task.Allowsplitting)
             {
                 var remaining = context.State.RemainingDurations[taskId];
                 if ((slot.End - slot.Start) < remaining) continue;
@@ -651,7 +652,7 @@ public class SchedulingAlgorithm
         // ==== TRACK SPLITS ====
         // If the task is splittable and there's still work left, increment the split counter
         // This is used to enforce MaxSplits constraints (currently not fully enforced; see TODO)
-        if (task.Task.AllowSplitting && context.State.RemainingDurations[taskId] > TimeSpan.Zero)
+        if (task.Task.Allowsplitting && context.State.RemainingDurations[taskId] > TimeSpan.Zero)
         {
             task.SplitsUsed++;
         }
