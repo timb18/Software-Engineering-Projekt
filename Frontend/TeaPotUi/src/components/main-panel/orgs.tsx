@@ -59,8 +59,8 @@ const Orgs: FC = () => {
     setOrgs(nextOrgs);
     setInvites(nextUser.invites ?? []);
 
-    if (nextOrgs.length > 0 && !nextOrgs.some((o) => o.id === selectedOrgId)) {
-      setSelectedOrgId(nextOrgs[0].id);
+    if (nextOrgs.length > 0 && !nextOrgs.some((o) => o.id === activeOrganizationId)) {
+      void setActiveOrganization(nextOrgs[0].id);
     }
   };
 
