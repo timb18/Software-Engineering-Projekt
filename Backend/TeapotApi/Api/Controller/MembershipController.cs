@@ -38,9 +38,14 @@ public class MembershipController(IMembershipService membershipService) : Contro
 
     [HttpDelete("remove")]
     public async Task<IActionResult> RemoveUserFromOrganizationAsync(
-        [FromBody] RemoveMembershipRequest request,
+        [FromBody] RemoveUserRequest request,
         CancellationToken cancellationToken)
     {
+        if (!Guid.TryParse(request.InitiatorUserId, out var initiatorUserId))
+        {
+            return BadRequest("InitiatorUserId must be a valid GUID.");
+        }
+
         if (!Guid.TryParse(request.UserId, out var userId))
         {
             return BadRequest("UserId must be a valid GUID.");
@@ -53,8 +58,12 @@ public class MembershipController(IMembershipService membershipService) : Contro
 
         try
         {
-            await membershipService.RemoveUserFromOrganizationAsync(userId, organizationId, cancellationToken);
+            await membershipService.RemoveUserFromOrganizationAsync(initiatorUserId, userId, organizationId, cancellationToken);
             return NoContent();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
         }
         catch (KeyNotFoundException)
         {
@@ -69,6 +78,13 @@ public class MembershipController(IMembershipService membershipService) : Contro
 
 public class RemoveMembershipRequest
 {
+    public string UserId { get; set; } = string.Empty;
+    public string OrganizationId { get; set; } = string.Empty;
+}
+
+public class RemoveUserRequest
+{
+    public string InitiatorUserId { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
     public string OrganizationId { get; set; } = string.Empty;
 }

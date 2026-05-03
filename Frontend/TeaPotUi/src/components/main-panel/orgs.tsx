@@ -173,6 +173,7 @@ const Orgs: FC = () => {
 
     try {
       await removeUserFromOrganization({
+        initiatorUserId: user.id,
         userId: memberToKick.id,
         organizationId: org.id,
       });
