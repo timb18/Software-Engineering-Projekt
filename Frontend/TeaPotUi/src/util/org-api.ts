@@ -2,6 +2,12 @@ import type { Org, Invitation, User } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
+type RemoveMembershipRequest = {
+  initiatorUserId: string;
+  userId: string;
+  organizationId: string;
+};
+
 type OrganizationApiResponse = {
   id: string;
   name: string;
@@ -83,4 +89,23 @@ export async function fetchOrganizationsByUserEmail(email: string): Promise<Org[
   });
 
   return [...deduped.values()];
+}
+
+export async function removeUserFromOrganization(
+  request: RemoveMembershipRequest,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/Membership/remove`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(
+      message || "Mitglied konnte nicht aus der Organisation entfernt werden.",
+    );
+  }
 }
