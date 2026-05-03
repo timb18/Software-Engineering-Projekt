@@ -92,6 +92,16 @@ public class WorkProfileService(
         return normalized;
     }
 
+    public async Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default)
+    {
+        return await repository.GetQueryable()
+            .Include(wp => wp.Days)
+                .ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days)
+                .ThenInclude(d => d.Breaks)
+            .FirstOrDefaultAsync(wp => wp.Id == workProfileId, cancellationToken);
+    }
+
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)

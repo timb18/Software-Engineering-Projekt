@@ -8,16 +8,20 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  scheduleTasksApi,
+  type ScheduledBlock,
 } from "../util/task-api";
 
 type UserStore = {
   user: User;
   workProfileId: string | null;
+  scheduledBlocks: ScheduledBlock[];
 };
 
 const userStore = createStore<UserStore>(() => ({
   user: defaultUser,
   workProfileId: null,
+  scheduledBlocks: [],
 }));
 
 const useUserStore = () => {
@@ -112,7 +116,16 @@ const useUserStore = () => {
     }));
   };
 
-  return { ...state, setUser, addTask, saveTask, removeTask, initForUser };
+  /** Calls the backend scheduling algorithm and stores the resulting blocks. */
+  const runScheduler = async (): Promise<{ conflicts: string[]; warnings: string[] }> => {
+    const { workProfileId } = userStore.getState();
+    if (!workProfileId) throw new Error("No work profile available.");
+    const result = await scheduleTasksApi(workProfileId);
+    userStore.setState({ scheduledBlocks: result.blocks });
+    return { conflicts: result.conflicts, warnings: result.warnings };
+  };
+
+  return { ...state, setUser, addTask, saveTask, removeTask, initForUser, runScheduler };
 };
 
 export default useUserStore;

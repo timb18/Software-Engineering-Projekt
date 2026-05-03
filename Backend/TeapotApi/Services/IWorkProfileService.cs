@@ -15,4 +15,7 @@ public interface IWorkProfileService
 
     /// <summary>Deletes the work profile and dependent planning data for the given user email.</summary>
     Task DeleteByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the work profile for the given profile ID, including days, blocks, and breaks. Returns null if not found.</summary>
+    Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default);
 }
