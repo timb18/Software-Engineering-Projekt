@@ -92,3 +92,43 @@ function msToInterval(ms: number): string {
   const seconds = totalSeconds % 60;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
+
+export type ScheduledBlock = {
+  taskId: string;
+  taskName: string;
+  start: string; // ISO datetime
+  end: string;   // ISO datetime
+};
+
+export type ScheduleResult = {
+  blocks: ScheduledBlock[];
+  conflicts: string[];
+  warnings: string[];
+};
+
+/** Calls the backend scheduling algorithm for the given work profile. */
+export async function scheduleTasksApi(workProfileId: string): Promise<ScheduleResult> {
+  const res = await fetch(
+    `${API_BASE}/api/Planning/plan-tasks?workProfileId=${encodeURIComponent(workProfileId)}`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`scheduleTasksApi failed: ${text}`);
+  }
+  const data = await res.json() as {
+    NewBlocks: { TaskId: string; StartDate: string; EndDate: string; Task?: { Name?: string } }[];
+    Conflicts: string[];
+    Warnings: string[];
+  };
+  return {
+    blocks: data.NewBlocks.map((b) => ({
+      taskId: b.TaskId,
+      taskName: b.Task?.Name ?? "Unknown",
+      start: b.StartDate,
+      end: b.EndDate,
+    })),
+    conflicts: data.Conflicts,
+    warnings: data.Warnings,
+  };
+}

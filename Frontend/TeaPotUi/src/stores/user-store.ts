@@ -3,6 +3,15 @@ import type { User, Task } from "../util/types";
 import { useStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { defaultUser } from "../util/default-data";
+import {
+  ensureUser,
+  fetchTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  scheduleTasksApi,
+  type ScheduledBlock,
+} from "../util/task-api";
 import { getLegacyWorkSettings } from "../util/work-profile";
 import { fetchTasks, createTask, updateTask, deleteTask } from "../util/task-api";
 import { fetchWorkProfile } from "../util/work-profile-api";
@@ -13,11 +22,13 @@ type UserStore = {
   user: User;
   workProfileId: string | null;
   activeOrganizationId: string | null;
+  scheduledBlocks: ScheduledBlock[];
 };
 
 const initialState: UserStore = {
   user: defaultUser,
   workProfileId: null,
+  scheduledBlocks: [],
   activeOrganizationId: null,
 };
 
@@ -271,7 +282,16 @@ const useUserStore = () => {
     }));
   };
 
-  return { ...state, setUser, setActiveOrganization, addTask, saveTask, removeTask };
+  /** Calls the backend scheduling algorithm and stores the resulting blocks. */
+  const runScheduler = async (): Promise<{ conflicts: string[]; warnings: string[] }> => {
+    const { workProfileId } = userStore.getState();
+    if (!workProfileId) throw new Error("No work profile available.");
+    const result = await scheduleTasksApi(workProfileId);
+    userStore.setState({ scheduledBlocks: result.blocks });
+    return { conflicts: result.conflicts, warnings: result.warnings };
+  };
+
+  return { ...state, setUser, setActiveOrganization, addTask, saveTask, removeTask, initForUser, runScheduler };
 };
 
 export default useUserStore;

@@ -20,7 +20,9 @@ const getEndSlot = (date: Date) => {
 };
 
 const Tasks: FC = () => {
-  const { user, activeOrganizationId, setActiveOrganization, addTask, saveTask, removeTask, setUser } = useUserStore();
+  const { user, setUser, addTask, saveTask, removeTask, runScheduler, scheduledBlocks, activeOrganizationId, setActiveOrganization } = useUserStore();
+  const [scheduleStatus, setScheduleStatus] = useState<string | undefined>();
+  const [scheduleError, setScheduleError] = useState<string | undefined>();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -71,6 +73,25 @@ const Tasks: FC = () => {
     return byStatus && byOrg;
   });
 
+  const handleSchedule = () => {
+    setScheduleError(undefined);
+    setScheduleStatus("Scheduling…");
+    runScheduler()
+      .then(({ conflicts, warnings }) => {
+        if (conflicts.length > 0) {
+          setScheduleError(conflicts.join(" "));
+        } else if (warnings.length > 0) {
+          setScheduleStatus(`Scheduled (${warnings.length} warning${warnings.length > 1 ? "s" : ""})`);
+        } else {
+          setScheduleStatus("Scheduled!");
+        }
+      })
+      .catch((err: unknown) => {
+        setScheduleError(String(err));
+        setScheduleStatus(undefined);
+      });
+  };
+
   const weekStart = getWeekStart();
   const weekEnd = weekStart.add(7, "day");
   const weekDays = Array.from({ length: 7 }).map((_, i) => weekStart.add(i, "day"));
@@ -81,6 +102,16 @@ const Tasks: FC = () => {
     const end = dayjs(task.endDate);
     return start.isBefore(weekEnd) && end.isAfter(weekStart);
   });
+
+  const scheduledBlocksThisWeek = (scheduledBlocks ?? []).filter((b) => {
+    const start = dayjs(b.start);
+    const end = dayjs(b.end);
+    return start.isBefore(weekEnd) && end.isAfter(weekStart);
+  });
+
+  const scheduledBlocksToday = (scheduledBlocks ?? []).filter((b) =>
+    dayjs(b.start).isSame(today, "day"),
+  );
 
   const tasksToday = filteredTasks.filter((task) =>
     dayjs(task.startDate).isSame(today, "day"),
@@ -255,7 +286,18 @@ const Tasks: FC = () => {
             {weekStart.format("DD MMM")} - {weekEnd.subtract(1, "day").format("DD MMM YYYY")}
           </span>
         </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-4">
+          <button
+            onClick={handleSchedule}
+            className="rounded-full border border-violet-500/60 bg-violet-500/20 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/30"
+          >
+            {scheduleStatus ?? "Auto-Schedule"}
+          </button>
+          {scheduleError && (
+            <span className="text-xs text-rose-400">{scheduleError}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-sm">
           <button
             onClick={() => setView("day")}
             className={`rounded-full px-4 py-2 font-semibold transition ${
@@ -408,6 +450,28 @@ const Tasks: FC = () => {
                       </div>
                     );
                   })}
+
+                  {scheduledBlocksThisWeek.map((block, i) => {
+                    const start = dayjs(block.start);
+                    const dayIndex = start.startOf("day").diff(weekStart.startOf("day"), "day");
+                    if (dayIndex < 0 || dayIndex > 6) return null;
+                    const startSlot = getStartSlot(new Date(block.start));
+                    const endSlot = getEndSlot(new Date(block.end));
+                    return (
+                      <div
+                        key={`sched-week-${i}`}
+                        style={{
+                          gridColumn: dayIndex + 2,
+                          gridRow: `${startSlot + 2} / ${endSlot + 2}`,
+                        }}
+                        className="pointer-events-none m-0.5 flex flex-col gap-0.5 rounded-2xl border border-violet-400/40 bg-violet-500/20 px-3 py-2 text-violet-100 shadow-md backdrop-blur"
+                        title={`Scheduled: ${block.taskName}\n${start.format("HH:mm")} - ${dayjs(block.end).format("HH:mm")}`}
+                      >
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">Scheduled</div>
+                        <div className="truncate text-sm font-medium">{block.taskName}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -474,6 +538,25 @@ const Tasks: FC = () => {
                             </span>
                           )}
                         </div>
+                      </div>
+                    );
+                  })}
+
+                  {scheduledBlocksToday.map((block, i) => {
+                    const startSlot = getStartSlot(new Date(block.start));
+                    const endSlot = getEndSlot(new Date(block.end));
+                    return (
+                      <div
+                        key={`sched-day-${i}`}
+                        style={{
+                          gridColumn: 2,
+                          gridRow: `${startSlot + 2} / ${endSlot + 2}`,
+                        }}
+                        className="pointer-events-none m-0.5 flex flex-col gap-0.5 rounded-2xl border border-violet-400/40 bg-violet-500/20 px-3 py-2 text-violet-100 shadow-md backdrop-blur"
+                        title={`Scheduled: ${block.taskName}\n${dayjs(block.start).format("HH:mm")} - ${dayjs(block.end).format("HH:mm")}`}
+                      >
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">Scheduled</div>
+                        <div className="truncate text-sm font-medium">{block.taskName}</div>
                       </div>
                     );
                   })}
