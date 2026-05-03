@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Services;
 
 namespace Api.Controller;
@@ -8,10 +9,12 @@ namespace Api.Controller;
 public class InvitationController : ControllerBase
 {
     private readonly IInvitationService _invitationService;
+    private readonly EmailOptions _emailOptions;
 
-    public InvitationController(IInvitationService invitationService)
+    public InvitationController(IInvitationService invitationService, IOptions<EmailOptions> emailOptions)
     {
         _invitationService = invitationService;
+        _emailOptions = emailOptions.Value;
     }
 
     /// <summary>
@@ -71,7 +74,7 @@ public class InvitationController : ControllerBase
     [HttpGet("{invitationId}/accept-link")]
     public IActionResult AcceptInvitationLinkAsync([FromRoute] Guid invitationId, [FromQuery] string email)
     {
-        return Redirect(BuildFrontendRedirect("pending", invitationId, email));
+        return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "pending", invitationId, email));
     }
 
     /// <summary>
@@ -97,11 +100,11 @@ public class InvitationController : ControllerBase
         try
         {
             await _invitationService.RejectInvitationAsync(invitationId);
-            return Redirect(BuildFrontendRedirect("rejected"));
+            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "rejected"));
         }
         catch (Exception ex)
         {
-            return Redirect(BuildFrontendRedirect("error", message : ex.Message));
+            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "error", message : ex.Message));
         }
     }
 
@@ -139,9 +142,11 @@ public class InvitationController : ControllerBase
         }
     }
 
-    private static string BuildFrontendRedirect(string status, Guid? invitationId = null, string? email = null, string? message = null)
+    private static string BuildFrontendRedirect(string configuredBaseUrl, string status, Guid? invitationId = null, string? email = null, string? message = null)
     {
-        var baseUrl = Environment.GetEnvironmentVariable("FRONTEND_BASE_URL") ?? "http://127.0.0.1:5173/";
+        var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
+            ? "http://127.0.0.1:5173/"
+            : configuredBaseUrl;
         var separator = baseUrl.Contains('?') ? "&" : "?";
         var url = $"{baseUrl}{separator}inviteStatus={Uri.EscapeDataString(status)}";
 

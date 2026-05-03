@@ -1,4 +1,4 @@
-import { useEffect, type FC } from "react";
+import { useCallback, useEffect, type FC } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuth0 } from "@auth0/auth0-react";
 import useUserStore from "../stores/user-store";
@@ -11,16 +11,18 @@ const Login: FC = () => {
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
 
-  const toLoginAsync = async () => {
+  const toLoginAsync = useCallback(async () => {
     if (!user) {
       return;
     }
     await initForUser(user.sub!, user.email!).catch(console.error);
     if (invitationId) {
-      await acceptInvite(invitationId);
+      await acceptInvite(invitationId, { email: user.email! }).catch(
+        console.error,
+      );
     }
     navigate("/");
-  };
+  }, [initForUser, invitationId, navigate, user]);
 
   useEffect(() => {
     if (!isAuthenticated) {
