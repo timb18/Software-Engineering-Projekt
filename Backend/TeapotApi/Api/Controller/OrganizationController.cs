@@ -1,3 +1,5 @@
+using Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controller;
@@ -9,6 +11,7 @@ public class OrganizationController(
     IOrganizationService organizationService) : ControllerBase
 {
     [HttpPost]
+    [Authorize(AuthenticationSchemes = AdminAuthRequirement.PolicyName)]
     [ProducesResponseType(typeof(CreateOrganizationResult), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

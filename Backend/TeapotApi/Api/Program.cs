@@ -1,8 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Api;
+using Api.Authorization;
+using Auth0.AspNetCore.Authentication.Api;
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
@@ -48,6 +52,24 @@ if (string.IsNullOrWhiteSpace(connectionString))
         connectionString = TryBuildConnectionStringFromDatabaseUrl(databaseUrl);
     }
 }
+
+// Auth
+builder.Services.AddAuth0ApiAuthentication(options =>
+{
+    options.Domain = builder.Configuration["Auth0:Domain"];
+    options.JwtBearerOptions = new JwtBearerOptions
+    {
+        Audience = builder.Configuration["Auth0:Audience"]
+    };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminAuthRequirement.PolicyName,
+        policy => policy.Requirements.Add(new AdminAuthRequirement()));
+}).AddSingleton<IAuthorizationHandler, AdminAuthHandler>();
+
+builder.Services.AddAuthorization();
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
@@ -208,6 +230,10 @@ app.UseCors();
 // HTTPS redirect is handled by the hosting platform's load balancer; only enable locally.
 if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
