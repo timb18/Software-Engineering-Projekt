@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Invitation, Org, User } from "../../util/types";
 import acceptInvite from "../../util/accept-invite";
-import { fetchOrganizationsByUserEmail } from "../../util/org-api";
+import {
+  fetchOrganizationsByUserEmail,
+  removeUserFromOrganization,
+} from "../../util/org-api";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
@@ -26,6 +29,7 @@ const Orgs: FC = () => {
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
+  const [isKickingMemberKey, setIsKickingMemberKey] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -155,18 +159,46 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrgss });
   };
 
-  const kickUser = (org: Org, email: string) => {
-    const updatedOrg: Org = {
-      ...org,
-      users: org.users.filter((u) => u.email !== email),
-      adminEmails: (org.adminEmails ?? []).filter((e) => e !== email),
-    };
-    let nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    if (email === user.email) {
-      nextOrgs = nextOrgs.filter((t) => t.id !== org.id);
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+  const kickUser = async (org: Org, email: string) => {
+    const memberToKick = org.users.find((u) => u.email === email);
+
+    if (!memberToKick) {
+      setLeaveError("Mitglied wurde in der Organisation nicht gefunden.");
+      return;
     }
-    persist({ ...user, orgs: nextOrgs });
+
+    const memberKey = `${org.id}:${email}`;
+    setLeaveError(null);
+    setIsKickingMemberKey(memberKey);
+
+    try {
+      await removeUserFromOrganization({
+        userId: memberToKick.id,
+        organizationId: org.id,
+      });
+
+      const updatedOrg: Org = {
+        ...org,
+        users: org.users.filter((u) => u.email !== email),
+        adminEmails: (org.adminEmails ?? []).filter((e) => e !== email),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setLeaveError(
+          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+        );
+      } else {
+        setLeaveError(
+          error instanceof Error
+            ? error.message
+            : "Mitglied konnte nicht entfernt werden.",
+        );
+      }
+    } finally {
+      setIsKickingMemberKey(null);
+    }
   };
 
   const sendInvite = async (org: Org) => {
@@ -506,11 +538,14 @@ const Orgs: FC = () => {
                             </button>
                             <button
                               onClick={() =>
-                                kickUser(selectedOrg, member.email)
+                                void kickUser(selectedOrg, member.email)
                               }
+                              disabled={isKickingMemberKey === `${selectedOrg.id}:${member.email}`}
                               className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                             >
-                              Kick
+                              {isKickingMemberKey === `${selectedOrg.id}:${member.email}`
+                                ? "Kicke..."
+                                : "Kick"}
                             </button>
                           </>
                         )}
