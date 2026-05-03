@@ -58,15 +58,15 @@ var useInMemory = string.IsNullOrWhiteSpace(connectionString);
 if (useInMemory)
     Console.WriteLine("[DEV] No connection string found — using in-memory database.");
 
-builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString, o => o
-        .MapEnum<EInvitationStatus>("invitation_status")
-        .MapEnum<ERole>("role")
-        .MapEnum<ETaskPriority>("task_priority")
-        .MapEnum<ETaskIntensity>("task_intensity")))
-    .AddScoped<IUserTaskRepository, UserTaskRepository>()
-    .AddScoped<ITaskBlockRepository, TaskBlockRepository>()
-    .AddScoped<IWorkProfileRepository, WorkProfileRepository>()
-    .AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
+// builder.Services.AddDbContext<TeapotDbContext>(options => options.UseNpgsql(connectionString, o => o
+//         .MapEnum<EInvitationStatus>("invitation_status")
+//         .MapEnum<ERole>("role")
+//         .MapEnum<ETaskPriority>("task_priority")
+//         .MapEnum<ETaskIntensity>("task_intensity")))
+//     .AddScoped<IUserTaskRepository, UserTaskRepository>()
+//     .AddScoped<ITaskBlockRepository, TaskBlockRepository>()
+// .AddScoped<IWorkProfileRepository, WorkProfileRepository>()
+//     .AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
 
 static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
 {
@@ -189,7 +189,9 @@ builder.Services.AddDbContext<TeapotDbContext>(options =>
     .AddScoped<IMembershipRepository, MembershipRepository>()
     .AddScoped<IInvitationRepository, InvitationRepository>()
     .AddScoped<IWorkProfileRepository, WorkProfileRepository>()
-    .AddScoped<IUserTaskRepository, UserTaskRepository>();
+    .AddScoped<IUserTaskRepository, UserTaskRepository>()
+    .AddScoped<ITaskDependencyRepository, TaskDependencyRepository>()
+    .AddScoped<ITaskBlockRepository, TaskBlockRepository>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 

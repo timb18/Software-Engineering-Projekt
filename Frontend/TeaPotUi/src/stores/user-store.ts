@@ -4,11 +4,6 @@ import { useStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { defaultUser } from "../util/default-data";
 import {
-  ensureUser,
-  fetchTasks,
-  createTask,
-  updateTask,
-  deleteTask,
   scheduleTasksApi,
   type ScheduledBlock,
 } from "../util/task-api";
