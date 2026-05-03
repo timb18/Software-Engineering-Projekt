@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { useMemo, useState, type FC } from "react";
+import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Task } from "../../util/types";
 
@@ -20,7 +20,7 @@ const getEndSlot = (date: Date) => {
 };
 
 const Tasks: FC = () => {
-  const { user, setUser, addTask, saveTask, removeTask } = useUserStore();
+  const { user, activeOrganizationId, addTask, saveTask, removeTask } = useUserStore();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -47,7 +47,11 @@ const Tasks: FC = () => {
   const [error, setError] = useState<string | undefined>();
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "done">("all");
-  const [filterOrgId, setFilterOrgId] = useState<string | "all">("all");
+  const [filterOrgId, setFilterOrgId] = useState<string | "all">(activeOrganizationId ?? "all");
+
+  useEffect(() => {
+    setFilterOrgId(activeOrganizationId ?? "all");
+  }, [activeOrganizationId]);
 
   if (!user) {
     return <></>;
@@ -117,6 +121,7 @@ const Tasks: FC = () => {
     );
 
     const selectedOrg =
+      orgOptions.find((org) => org.id === activeOrganizationId) ||
       (filterOrgId !== "all" && orgOptions.find((org) => org.id === filterOrgId)) ||
       orgOptions[0];
 

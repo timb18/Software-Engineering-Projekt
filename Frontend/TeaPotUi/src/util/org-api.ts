@@ -5,6 +5,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 type OrganizationApiResponse = {
   id: string;
   name: string;
+  workProfileId?: string | null;
   users: Array<{
     id: string;
     email: string;
@@ -54,6 +55,7 @@ const mapMember = (member: OrganizationApiResponse["users"][number]): User => ({
 const mapOrganization = (org: OrganizationApiResponse): Org => ({
   id: org.id,
   name: org.name,
+  workProfileId: org.workProfileId ?? null,
   users: org.users.map(mapMember),
   adminEmails: org.users
     .filter((member) => member.role === "organizer")
