@@ -62,4 +62,6 @@ public sealed record InvitationDto
     public DateTime CreatedAt { get; init; }
     public DateTime? ExpiryDate { get; init; }
     public string InvitationLink { get; init; } = string.Empty;
+    public bool? EmailSent { get; init; }
+    public string? EmailError { get; init; }
 }

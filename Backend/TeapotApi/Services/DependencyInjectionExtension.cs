@@ -13,7 +13,9 @@ public static class DependencyInjectionExtension
     {
         public IServiceCollection AddTeapotServices() {
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<IEmailSender, SmtpEmailSender>();
+            services.AddHttpClient<ResendEmailSender>();
+            services.AddScoped<SmtpEmailSender>();
+            services.AddScoped<IEmailSender, ConfiguredEmailSender>();
 
             services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
             services.AddScoped<IOrganizationService, OrganizationService>();
