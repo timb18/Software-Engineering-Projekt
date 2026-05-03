@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Invitation, Org, User } from "../../util/types";
 import acceptInvite from "../../util/accept-invite";
-import { fetchOrganizationsByUserEmail } from "../../util/org-api";
+import {
+  fetchOrganizationsByUserEmail,
+  removeUserFromOrganization,
+} from "../../util/org-api";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
@@ -28,13 +31,10 @@ const mapInvitationStatus = (status: string): Invitation["status"] =>
     : (status.toLowerCase() as Invitation["status"]);
 
 const Orgs: FC = () => {
-  const { user, setUser } = useUserStore();
+  const { user, setUser, activeOrganizationId, setActiveOrganization } = useUserStore();
 
   const [orgs, setOrgs] = useState<Org[]>(user?.orgs ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
-    orgs[0]?.id ?? null,
-  );
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -45,6 +45,7 @@ const Orgs: FC = () => {
   );
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
+  const [isKickingMemberKey, setIsKickingMemberKey] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -245,8 +246,8 @@ const Orgs: FC = () => {
 
       const nextOrgs = orgs.filter((t) => t.id !== orgId);
       persist({ ...user, orgs: nextOrgs });
-      if (selectedOrgId === orgId) {
-        setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      if (activeOrganizationId === orgId) {
+        void setActiveOrganization(nextOrgs[0]?.id ?? null);
       }
     } catch (error) {
       if (error instanceof TypeError) {
@@ -277,18 +278,47 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrgss });
   };
 
-  const kickUser = (org: Org, email: string) => {
-    const updatedOrg: Org = {
-      ...org,
-      users: org.users.filter((u) => u.email !== email),
-      adminEmails: (org.adminEmails ?? []).filter((e) => e !== email),
-    };
-    let nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    if (email === user.email) {
-      nextOrgs = nextOrgs.filter((t) => t.id !== org.id);
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+  const kickUser = async (org: Org, email: string) => {
+    const memberToKick = org.users.find((u) => u.email === email);
+
+    if (!memberToKick) {
+      setLeaveError("Mitglied wurde in der Organisation nicht gefunden.");
+      return;
     }
-    persist({ ...user, orgs: nextOrgs });
+
+    const memberKey = `${org.id}:${email}`;
+    setLeaveError(null);
+    setIsKickingMemberKey(memberKey);
+
+    try {
+      await removeUserFromOrganization({
+        initiatorUserId: user.id,
+        userId: memberToKick.id,
+        organizationId: org.id,
+      });
+
+      const updatedOrg: Org = {
+        ...org,
+        users: org.users.filter((u) => u.email !== email),
+        adminEmails: (org.adminEmails ?? []).filter((e) => e !== email),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setLeaveError(
+          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+        );
+      } else {
+        setLeaveError(
+          error instanceof Error
+            ? error.message
+            : "Mitglied konnte nicht entfernt werden.",
+        );
+      }
+    } finally {
+      setIsKickingMemberKey(null);
+    }
   };
 
   const sendInvite = async (org: Org) => {
@@ -464,7 +494,7 @@ const Orgs: FC = () => {
       const nextOrgs = orgs.filter((t) => t.id !== org.id);
       const nextInvites = (user.invites ?? []).filter((i) => i.orgId !== org.id);
       persist({ ...user, orgs: nextOrgs, invites: nextInvites });
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      void setActiveOrganization(nextOrgs[0]?.id ?? null);
       setDeleteConfirm("");
       setDeleteSuccess("Organisation wurde endgültig gelöscht.");
     } catch (error) {
@@ -479,8 +509,8 @@ const Orgs: FC = () => {
   };
 
   const selectedOrg = useMemo(
-    () => orgs.find((t) => t.id === selectedOrgId) ?? null,
-    [orgs, selectedOrgId],
+    () => orgs.find((t) => t.id === activeOrganizationId) ?? orgs[0] ?? null,
+    [activeOrganizationId, orgs],
   );
   const isSelectedAdmin = selectedOrg
     ? selectedOrg.adminEmails?.includes(user.email)
@@ -517,7 +547,7 @@ const Orgs: FC = () => {
             {orgs.map((org) => (
               <div
                 key={org.id}
-                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
+                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${activeOrganizationId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
@@ -535,7 +565,7 @@ const Orgs: FC = () => {
                 </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
-                    onClick={() => setSelectedOrgId(org.id)}
+                    onClick={() => void setActiveOrganization(org.id)}
                     className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                       currentRole(org) === "Admin"
                         ? "border-emerald-300/60 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
@@ -667,11 +697,14 @@ const Orgs: FC = () => {
                             </button>
                             <button
                               onClick={() =>
-                                kickUser(selectedOrg, member.email)
+                                void kickUser(selectedOrg, member.email)
                               }
+                              disabled={isKickingMemberKey === `${selectedOrg.id}:${member.email}`}
                               className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                             >
-                              Kick
+                              {isKickingMemberKey === `${selectedOrg.id}:${member.email}`
+                                ? "Kicke..."
+                                : "Kick"}
                             </button>
                           </>
                         )}

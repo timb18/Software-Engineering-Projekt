@@ -14,6 +14,7 @@ public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepo
     public async Task<IEnumerable<Organization>> GetForUserAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
         await context.Organizations
             .Include(o => o.Memberships).ThenInclude(m => m.User)
+            .Include(o => o.Memberships).ThenInclude(m => m.WorkProfile)
             .Include(o => o.Invitations)
             .Where(o => o.Memberships.Any(m => m.User.Email == normalizedEmail))
             .OrderBy(o => o.Name)

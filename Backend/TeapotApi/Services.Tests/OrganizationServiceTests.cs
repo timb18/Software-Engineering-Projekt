@@ -136,6 +136,54 @@ public class OrganizationServiceTests
     }
 
     [Test]
+    public async Task GetOrganizationsForUserAsync_Includes_CurrentUsers_WorkProfileId()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@example.com",
+            Username = "member",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Team Org",
+            Description = "Test",
+            MaxUsers = 5,
+            CreatedAt = DateTime.UtcNow
+        };
+        var membership = new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            OrganizationId = organization.Id,
+            Role = ERole.User,
+            CreatedAt = DateTime.UtcNow,
+            User = user,
+            Organization = organization
+        };
+        var workProfile = new WorkProfile
+        {
+            Id = Guid.NewGuid(),
+            MembershipId = membership.Id,
+            Membership = membership,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(user);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.Add(membership);
+        _dbContext.WorkProfiles.Add(workProfile);
+        await _dbContext.SaveChangesAsync();
+
+        var result = (await _service.GetOrganizationsForUserAsync(user.Email)).ToList();
+
+        Assert.That(result, Has.Count.EqualTo(1));
+        Assert.That(result[0].WorkProfileId, Is.EqualTo(workProfile.Id));
+    }
+
+    [Test]
     public void DeleteOrganizationAsync_Throws_When_Organization_Has_Additional_Organizers()
     {
         var organizer = new User { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };

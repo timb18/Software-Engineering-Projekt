@@ -17,6 +17,9 @@ public class OrganizationService(
             Name = o.Name,
             Description = o.Description,
             MaxUsers = o.MaxUsers,
+            WorkProfileId = o.Memberships
+                .FirstOrDefault(m => string.Equals(m.User.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+                ?.WorkProfile?.Id,
             Users = o.Memberships
                 .OrderBy(m => m.User.Username)
                 .Select(m => new OrganizationUserDto
