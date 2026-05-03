@@ -1,3 +1,5 @@
+using Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controller;
@@ -9,6 +11,7 @@ public class OrganizationController(
     IOrganizationService organizationService) : ControllerBase
 {
     [HttpPost]
+    [Authorize(AuthenticationSchemes = "Auth0", Policy = AdminAuthRequirement.PolicyName)]
     [ProducesResponseType(typeof(CreateOrganizationResult), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -18,7 +21,7 @@ public class OrganizationController(
     {
         try
         {
-            CreateOrganizationResult result = await organizationAdminService.CreateOrganizationAsync(
+            var result = await organizationAdminService.CreateOrganizationAsync(
                 request,
                 cancellationToken);
 
