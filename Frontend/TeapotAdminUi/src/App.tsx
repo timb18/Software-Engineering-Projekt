@@ -102,14 +102,6 @@ function App() {
                     })}
                   />
                 </div>
-                <div className="flex w-full flex-col rounded-2xl border p-2">
-                  <div className="flex-col rounded-2xl">Organizer username</div>
-                  <input
-                    className="rounded-xl border px-2"
-                    type="text"
-                    {...register("organizerUserName", { required: false })}
-                  />
-                </div>
                 <button
                   className="w-fit cursor-pointer rounded-4xl border px-5 py-2 text-lg font-bold"
                   type="submit"
