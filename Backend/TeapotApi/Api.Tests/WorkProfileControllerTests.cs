@@ -66,8 +66,8 @@ public class WorkProfileControllerTests
             Assert.That(service.LastSavedProfile!.PlannerViewStart, Is.EqualTo("07:00"));
             Assert.That(service.LastSavedProfile.PlannerViewEnd, Is.EqualTo("21:00"));
             Assert.That(service.LastSavedProfile.MaxDailyLoad, Is.EqualTo(TimeSpan.FromHours(8)));
-            Assert.That(service.LastSavedProfile.Days.Single().Blocks.Single().CompanyName, Is.EqualTo("Org 1"));
-            Assert.That(service.LastSavedProfile.Days.Single().Breaks.Single().StartTime, Is.EqualTo("12:00"));
+            Assert.That(service.LastSavedProfile.WorkDayProfiles.Single().WorkBlocks.Single().CompanyName, Is.EqualTo("Org 1"));
+            Assert.That(service.LastSavedProfile.WorkDayProfiles.Single().WorkBreaks.Single().StartTime, Is.EqualTo("12:00"));
         });
     }
 
@@ -102,6 +102,11 @@ public class WorkProfileControllerTests
             }
 
             return Task.CompletedTask;
+        }
+
+        public Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }

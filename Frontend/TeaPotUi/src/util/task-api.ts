@@ -1,5 +1,22 @@
 import type { Task } from "./types";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
+export type EnsureUserResponse = {
+  userId: string;
+  workProfileId: string;
+};
+
+/** After Auth0 login: find-or-create the backend user record, returns IDs for subsequent calls. */
+export async function ensureUser(email: string): Promise<EnsureUserResponse> {
+  const res = await fetch(`${API_BASE}/api/auth/ensure`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error(`ensureUser failed: ${res.status} ${res.statusText}`);
+  return res.json() as Promise<EnsureUserResponse>;
+}
 
 /** Maps a backend UserTask object to the frontend Task type. */
 const fromApi = (raw: Record<string, unknown>): Task => ({
@@ -112,23 +129,26 @@ export async function scheduleTasksApi(workProfileId: string): Promise<ScheduleR
     `${API_BASE}/api/Planning/plan-tasks?workProfileId=${encodeURIComponent(workProfileId)}`,
     { method: "POST" },
   );
+
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`scheduleTasksApi failed: ${text}`);
   }
+
   const data = await res.json() as {
-    NewBlocks: { TaskId: string; StartDate: string; EndDate: string; Task?: { Name?: string } }[];
-    Conflicts: string[];
-    Warnings: string[];
+    NewBlocks?: { TaskId: string; StartDate: string; EndDate: string; Task?: { Name?: string } }[] | null;
+    Conflicts?: string[];
+    Warnings?: string[];
   };
+
   return {
-    blocks: data.NewBlocks.map((b) => ({
+    blocks: (data.NewBlocks ?? []).map((b) => ({
       taskId: b.TaskId,
       taskName: b.Task?.Name ?? "Unknown",
       start: b.StartDate,
       end: b.EndDate,
     })),
-    conflicts: data.Conflicts,
-    warnings: data.Warnings,
+    conflicts: data.Conflicts ?? [],
+    warnings: data.Warnings ?? [],
   };
 }

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DataAccess.Repositories;
 
-public class TaskDependencyRepository(TeapotDbContext context): GenericRepository<TaskDependency>(context), ITaskDependencyRepository
+public class TaskDependencyRepository(TeapotDbContext context): ITaskDependencyRepository
 {
     private readonly DbSet<TaskDependency> _dbSet = context.Set<TaskDependency>();
     public async Task<IEnumerable<TaskDependency>> GetTaskDependeciesForUserTasks(List<UserTask> userTasks, CancellationToken cancellationToken = default)

@@ -9,8 +9,8 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
 
     public Task<WorkProfile?> GetPersonalAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks)
             .Include(wp => wp.Membership).ThenInclude(m => m.Organization)
             .Where(wp => wp.Membership.UserId == userId)
             .OrderByDescending(wp =>
@@ -22,8 +22,8 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
     public Task<WorkProfile?> GetPersonalNoTrackingAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
             .AsNoTracking()
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks)
             .Include(wp => wp.Membership).ThenInclude(m => m.Organization)
             .Where(wp => wp.Membership.UserId == userId)
             .OrderByDescending(wp =>
@@ -38,14 +38,14 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
 
     public Task<WorkProfile?> GetForDeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks)
             .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
 
     public Task<WorkProfile?> GetForDeleteByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
-            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
-            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks)
             .FirstOrDefaultAsync(wp => wp.Membership.User.Email == normalizedEmail, cancellationToken);
 
     public async Task AddAsync(WorkProfile profile, CancellationToken cancellationToken = default)
@@ -116,5 +116,13 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
         await context.SaveChangesAsync(cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
+    }
+
+    public async Task<WorkProfile?> GetWorkProfileWithWorkDayProfileByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default)
+    {
+        var result = await context.WorkProfiles.Where(wp => wp.Id == workProfileId)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBlocks)
+            .Include(wp => wp.WorkDayProfiles).ThenInclude(d => d.WorkBreaks).FirstOrDefaultAsync(cancellationToken);
+        return result;
     }
 }

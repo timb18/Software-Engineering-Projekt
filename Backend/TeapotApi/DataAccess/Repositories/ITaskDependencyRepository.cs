@@ -2,7 +2,7 @@
 
 namespace DataAccess.Repositories;
 
-public interface ITaskDependencyRepository: IGenericRepository<TaskDependency>
+public interface ITaskDependencyRepository
 {
     Task<IEnumerable<TaskDependency>> GetTaskDependeciesForUserTasks(List<UserTask> userTasks, CancellationToken cancellationToken);
 }

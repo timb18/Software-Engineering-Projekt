@@ -14,8 +14,8 @@ public class WorkProfileService(
         var profile = await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
         if (profile is null) return null;
 
-        var existingDays = profile.Days.ToDictionary(d => d.Day);
-        profile.Days = ValidDays.Select(day =>
+        var existingDays = profile.WorkDayProfiles.ToDictionary(d => d.Day);
+        profile.WorkDayProfiles = ValidDays.Select(day =>
             existingDays.TryGetValue(day, out var existing)
                 ? existing
                 : new WorkDayProfile { Day = day, WorkProfileId = profile.Id }
@@ -46,19 +46,19 @@ public class WorkProfileService(
         existing.PlannerViewEnd = normalized.PlannerViewEnd;
         existing.EditedAt = DateTime.UtcNow;
 
-        var oldDays = existing.Days.ToList();
+        var oldDays = existing.WorkDayProfiles.ToList();
         // Prepare FKs on new days without touching the tracked navigation property.
         // This avoids EF change-tracker conflicts from navigation-collection reassignment.
-        var newDays = normalized.Days.Select(day =>
+        var newDays = normalized.WorkDayProfiles.Select(day =>
         {
             if (day.Id == Guid.Empty) day.Id = Guid.NewGuid();
             day.WorkProfileId = existing.Id;
-            foreach (var block in day.Blocks)
+            foreach (var block in day.WorkBlocks)
             {
                 if (block.Id == Guid.Empty) block.Id = Guid.NewGuid();
                 block.WorkDayProfileId = day.Id;
             }
-            foreach (var workBreak in day.Breaks)
+            foreach (var workBreak in day.WorkBreaks)
             {
                 if (workBreak.Id == Guid.Empty) workBreak.Id = Guid.NewGuid();
                 workBreak.WorkDayProfileId = day.Id;
@@ -97,9 +97,14 @@ public class WorkProfileService(
         await workProfileRepository.DeleteAsync(profile, cancellationToken);
     }
 
+    public Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
     private static WorkProfile NormalizeProfile(WorkProfile profile)
     {
-        var lookup = profile.Days
+        var lookup = profile.WorkDayProfiles
             .GroupBy(d => d.Day)
             .ToDictionary(g => g.Key, g => g.First());
 
@@ -108,12 +113,12 @@ public class WorkProfileService(
             if (!lookup.TryGetValue(day, out var existing))
                 return new WorkDayProfile { Day = day };
 
-            existing.Blocks = [.. existing.Blocks.OrderBy(b => b.StartTime)];
-            existing.Breaks = [.. existing.Breaks.OrderBy(b => b.StartTime)];
+            existing.WorkBlocks = [.. existing.WorkBlocks.OrderBy(b => b.StartTime)];
+            existing.WorkBreaks = [.. existing.WorkBreaks.OrderBy(b => b.StartTime)];
             return existing;
         }).ToList();
 
-        profile.Days = normalizedDays;
+        profile.WorkDayProfiles = normalizedDays;
         return profile;
     }
 
@@ -122,14 +127,14 @@ public class WorkProfileService(
         if (profile.Id == Guid.Empty)
             profile.Id = Guid.NewGuid();
 
-        foreach (var day in profile.Days)
+        foreach (var day in profile.WorkDayProfiles)
         {
             if (day.Id == Guid.Empty)
                 day.Id = Guid.NewGuid();
 
             day.WorkProfileId = profile.Id;
 
-            foreach (var block in day.Blocks)
+            foreach (var block in day.WorkBlocks)
             {
                 if (block.Id == Guid.Empty)
                     block.Id = Guid.NewGuid();
@@ -137,7 +142,7 @@ public class WorkProfileService(
                 block.WorkDayProfileId = day.Id;
             }
 
-            foreach (var workBreak in day.Breaks)
+            foreach (var workBreak in day.WorkBreaks)
             {
                 if (workBreak.Id == Guid.Empty)
                     workBreak.Id = Guid.NewGuid();

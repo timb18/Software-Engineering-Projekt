@@ -298,12 +298,12 @@ public class WorkProfileServiceTests
 
         var profile = new WorkProfile
         {
-            Days =
+            WorkDayProfiles = 
             [
                 new WorkDayProfile
                 {
                     Day = "Mon",
-                    Blocks =
+                    WorkBlocks = 
                     [
                         new WorkBlock
                         {
@@ -313,7 +313,7 @@ public class WorkProfileServiceTests
                             EndTime = "17:00"
                         }
                     ],
-                    Breaks = []
+                    WorkBreaks = []
                 }
             ]
         };
@@ -321,7 +321,7 @@ public class WorkProfileServiceTests
         await _service.SaveAsync(user.Id, profile);
         var saved = await _service.GetAsync(user.Id);
 
-        var mondayBlock = saved!.Days.Single(day => day.Day == "Mon").Blocks.Single();
+        var mondayBlock = saved!.WorkDayProfiles.Single(day => day.Day == "Mon").WorkBlocks.Single();
         Assert.Multiple(() =>
         {
             Assert.That(mondayBlock.CompanyId, Is.EqualTo(teamOrganization.Id.ToString()));
@@ -370,12 +370,12 @@ public class WorkProfileServiceTests
             PlannerViewStart = "06:00",
             PlannerViewEnd = "22:00",
             MaxDailyLoad = TimeSpan.FromHours(8),
-            Days =
+            WorkDayProfiles = 
             [
                 new WorkDayProfile
                 {
                     Day = "Mon",
-                    Blocks =
+                    WorkBlocks =
                     [
                         new WorkBlock
                         {
@@ -385,7 +385,7 @@ public class WorkProfileServiceTests
                             EndTime = "12:00"
                         }
                     ],
-                    Breaks = []
+                    WorkBreaks = []
                 }
             ]
         });
@@ -395,12 +395,12 @@ public class WorkProfileServiceTests
             PlannerViewStart = "07:00",
             PlannerViewEnd = "21:00",
             MaxDailyLoad = TimeSpan.FromHours(6),
-            Days =
+            WorkDayProfiles = 
             [
                 new WorkDayProfile
                 {
                     Day = "Tue",
-                    Blocks =
+                    WorkBlocks =
                     [
                         new WorkBlock
                         {
@@ -410,7 +410,7 @@ public class WorkProfileServiceTests
                             EndTime = "17:00"
                         }
                     ],
-                    Breaks =
+                    WorkBreaks = 
                     [
                         new WorkBreak
                         {
@@ -427,9 +427,9 @@ public class WorkProfileServiceTests
             Assert.That(updated.PlannerViewStart, Is.EqualTo("07:00"));
             Assert.That(updated.PlannerViewEnd, Is.EqualTo("21:00"));
             Assert.That(updated.MaxDailyLoad, Is.EqualTo(TimeSpan.FromHours(6)));
-            Assert.That(updated.Days.Single(day => day.Day == "Mon").Blocks, Is.Empty);
-            Assert.That(updated.Days.Single(day => day.Day == "Tue").Blocks.Select(block => block.StartTime), Is.EqualTo(["13:00"]));
-            Assert.That(updated.Days.Single(day => day.Day == "Tue").Breaks.Select(workBreak => workBreak.StartTime), Is.EqualTo(["15:00"]));
+            Assert.That(updated.WorkDayProfiles.Single(day => day.Day == "Mon").WorkBlocks, Is.Empty);
+            Assert.That(updated.WorkDayProfiles.Single(day => day.Day == "Tue").WorkBlocks.Select(block => block.StartTime), Is.EqualTo(["13:00"]));
+            Assert.That(updated.WorkDayProfiles.Single(day => day.Day == "Tue").WorkBreaks.Select(workBreak => workBreak.StartTime), Is.EqualTo(["15:00"]));
         });
     }
 

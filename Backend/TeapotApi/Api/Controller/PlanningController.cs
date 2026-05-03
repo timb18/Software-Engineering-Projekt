@@ -144,10 +144,10 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
             MaxDailyLoad = maxDailyLoad,
             PlannerViewStart = string.IsNullOrWhiteSpace(request.PlannerViewStart) ? "06:00" : request.PlannerViewStart,
             PlannerViewEnd = string.IsNullOrWhiteSpace(request.PlannerViewEnd) ? "22:00" : request.PlannerViewEnd,
-            Days = (request.Days ?? []).Select(day => new WorkDayProfile
+            WorkDayProfiles = (request.Days ?? []).Select(day => new WorkDayProfile
             {
                 Day = day.Day,
-                Blocks = (day.Blocks ?? []).Select(block => new WorkBlock
+                WorkBlocks = (day.Blocks ?? []).Select(block => new WorkBlock
                 {
                     Id = block.Id ?? Guid.Empty,
                     CompanyId = block.CompanyId ?? string.Empty,
@@ -155,7 +155,7 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
                     StartTime = string.IsNullOrWhiteSpace(block.StartTime) ? "09:00" : block.StartTime,
                     EndTime = string.IsNullOrWhiteSpace(block.EndTime) ? "17:00" : block.EndTime,
                 }).ToList(),
-                Breaks = (day.Breaks ?? []).Select(workBreak => new WorkBreak
+                WorkBreaks = (day.Breaks ?? []).Select(workBreak => new WorkBreak
                 {
                     Id = workBreak.Id ?? Guid.Empty,
                     StartTime = string.IsNullOrWhiteSpace(workBreak.StartTime) ? "12:00" : workBreak.StartTime,

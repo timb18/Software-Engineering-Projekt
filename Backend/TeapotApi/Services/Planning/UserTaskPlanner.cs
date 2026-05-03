@@ -27,7 +27,7 @@ public class UserTaskPlanner : IUserTaskPlanner
 
     public async Task<(List<TaskBlock> NewBlocks, List<string> Conflicts, List<string> Warnings)> PlanTasks(Guid workProfileId, CancellationToken cancellationToken = default)
     {
-        var userTasks = await _userTaskRepository.GetTasksForWorkProfileIdAsync(workProfileId, cancellationToken);
+        var userTasks = await _userTaskRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
         var taskDependencies = await _taskDependencyRepository.GetTaskDependeciesForUserTasks(userTasks.ToList(), cancellationToken);
         var workProfile = await _workProfileRepository.GetWorkProfileWithWorkDayProfileByIdAsync(workProfileId, cancellationToken);
         var fixedTaskBlocks = new  List<TaskBlock>();

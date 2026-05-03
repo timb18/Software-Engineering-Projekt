@@ -12,4 +12,5 @@ public interface IWorkProfileRepository
     Task AddAsync(WorkProfile profile, CancellationToken cancellationToken = default);
     Task ReplaceDaysAsync(IList<WorkDayProfile> oldDays, IList<WorkDayProfile> newDays, CancellationToken cancellationToken = default);
     Task DeleteAsync(WorkProfile profile, CancellationToken cancellationToken = default);
+    Task<WorkProfile?> GetWorkProfileWithWorkDayProfileByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default);
 }
