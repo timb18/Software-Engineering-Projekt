@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import Sidebar from "./components/sidebar";
 import { useEffect, useRef } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
@@ -8,12 +8,13 @@ function App() {
   const { isAuthenticated, user: authUser } = useAuth0();
   const navigate = useNavigate();
   const initialized = useRef(false);
+  const location = useLocation();
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login");
+      navigate(`/login${location.search}`);
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, location.search, navigate]);
 
   useEffect(() => {
     if (isAuthenticated && authUser?.sub && authUser?.email && !initialized.current) {
