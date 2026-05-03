@@ -39,4 +39,12 @@ public class UserTask
     public DateTime LateFinish { get; set; }
 
     public virtual WorkProfile? WorkProfile { get; set; }
+
+    public bool AllowSplitting { get; set; } = true;
+
+    public TimeSpan MinBlockDuration { get; set; } = TimeSpan.FromMinutes(15);
+
+    public TimeSpan MaxBlockDuration { get; set; } = TimeSpan.FromHours(4);
+
+    public int MaxSplits { get; set; } = 5;
 }
