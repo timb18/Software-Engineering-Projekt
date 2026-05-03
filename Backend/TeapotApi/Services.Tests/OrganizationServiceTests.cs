@@ -1,6 +1,7 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Services.Tests;
 
@@ -19,7 +20,8 @@ public class OrganizationServiceTests
 
         _dbContext = new TeapotDbContext(options);
         _service = new OrganizationService(
-            new OrganizationRepository(_dbContext));
+            new OrganizationRepository(_dbContext),
+            Options.Create(new EmailOptions { ApiBaseUrl = "https://api.example.test" }));
     }
 
     [TearDown]
@@ -181,6 +183,61 @@ public class OrganizationServiceTests
 
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result[0].WorkProfileId, Is.EqualTo(workProfile.Id));
+    }
+
+    [Test]
+    public async Task GetOrganizationsForUserAsync_Includes_Invitation_Link_For_Open_Invites()
+    {
+        var organizer = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@example.com",
+            Username = "organizer",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Team Org",
+            Description = "Test",
+            MaxUsers = 5,
+            CreatedAt = DateTime.UtcNow
+        };
+        var invitation = new Invitation
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organization.Id,
+            CreatedBy = organizer.Id,
+            Email = "invitee@example.com",
+            Status = EInvitationStatus.Open,
+            CreatedAt = DateTime.UtcNow,
+            ExpiryDate = DateTime.UtcNow.AddDays(7)
+        };
+
+        _dbContext.Users.Add(organizer);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.Add(new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = organizer.Id,
+            OrganizationId = organization.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow,
+            User = organizer,
+            Organization = organization
+        });
+        _dbContext.Invitations.Add(invitation);
+        await _dbContext.SaveChangesAsync();
+
+        var result = (await _service.GetOrganizationsForUserAsync(organizer.Email)).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Invites, Has.Count.EqualTo(1));
+            Assert.That(result.Invites[0].InvitationLink, Does.StartWith("https://api.example.test/api/Invitation/"));
+            Assert.That(result.Invites[0].InvitationLink, Does.Contain(invitation.Id.ToString()));
+            Assert.That(result.Invites[0].InvitationLink, Does.Contain("email=invitee%40example.com"));
+        });
     }
 
     [Test]

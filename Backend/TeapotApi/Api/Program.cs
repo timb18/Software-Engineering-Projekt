@@ -223,6 +223,7 @@ builder.Services.AddDbContext<TeapotDbContext>(options =>
     .AddScoped<IUserTaskRepository, UserTaskRepository>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection(ResendOptions.SectionName));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

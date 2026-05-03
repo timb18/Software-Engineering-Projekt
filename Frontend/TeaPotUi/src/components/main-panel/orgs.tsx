@@ -39,6 +39,8 @@ const Orgs: FC = () => {
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [withdrawingInviteId, setWithdrawingInviteId] = useState<string | null>(
     null,
@@ -64,6 +66,33 @@ const Orgs: FC = () => {
     }
   };
 
+  const fetchOrganizationInvites = async (org: Org): Promise<Invitation[]> => {
+    const response = await fetch(apiUrl(`/api/Invitation/organization/${org.id}`));
+
+    if (!response.ok) {
+      return org.invites ?? [];
+    }
+
+    const payload = (await response.json()) as {
+      success: boolean;
+      data?: InvitationResponse[];
+    };
+
+    return (payload.data ?? [])
+      .filter((invite) => mapInvitationStatus(invite.status) === "pending")
+      .map((invite) => ({
+        id: invite.id,
+        organizationId: invite.organizationId,
+        orgId: invite.organizationId,
+        orgName: org.name,
+        email: invite.email,
+        firstName: invite.firstName,
+        lastName: invite.lastName,
+        status: mapInvitationStatus(invite.status),
+        invitationUrl: invite.invitationLink,
+      }));
+  };
+
   useEffect(() => {
     const loadOrganizations = async () => {
       if (!user.email || user.email === "example@default.com") {
@@ -71,7 +100,13 @@ const Orgs: FC = () => {
       }
 
       try {
-        const nextOrgs = await fetchOrganizationsByUserEmail(user.email);
+        const organizations = await fetchOrganizationsByUserEmail(user.email);
+        const nextOrgs = await Promise.all(
+          organizations.map(async (org) => ({
+            ...org,
+            invites: await fetchOrganizationInvites(org),
+          })),
+        );
         const pendingResponse = await fetch(
           apiUrl(
             `/api/Invitation/pending?email=${encodeURIComponent(user.email)}`,
@@ -120,30 +155,18 @@ const Orgs: FC = () => {
   const currentRole = (org: Org): "Admin" | "Member" =>
     org.adminEmails?.includes(user.email) ? "Admin" : "Member";
 
-  const syncOrganizationInvites = async (org: Org) => {
-    const response = await fetch(apiUrl(`/api/Invitation/organization/${org.id}`));
-
-    if (!response.ok) {
-      return;
+  const copyInvitationLink = async (link: string, inviteId: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedInviteId(inviteId);
+      window.setTimeout(() => setCopiedInviteId(null), 1800);
+    } catch {
+      setInviteError("Link konnte nicht automatisch kopiert werden. Markiere ihn und kopiere ihn manuell.");
     }
+  };
 
-    const payload = (await response.json()) as {
-      success: boolean;
-      data?: InvitationResponse[];
-    };
-    const nextInvites: Invitation[] = (payload.data ?? [])
-      .filter((invite) => mapInvitationStatus(invite.status) === "pending")
-      .map((invite) => ({
-        id: invite.id,
-        organizationId: invite.organizationId,
-        orgId: invite.organizationId,
-        orgName: org.name,
-        email: invite.email,
-        firstName: invite.firstName,
-        lastName: invite.lastName,
-        status: mapInvitationStatus(invite.status),
-        invitationUrl: invite.invitationLink,
-      }));
+  const syncOrganizationInvites = async (org: Org) => {
+    const nextInvites = await fetchOrganizationInvites(org);
 
     const updatedOrg: Org = {
       ...org,
@@ -328,6 +351,7 @@ const Orgs: FC = () => {
 
     setInviteError(null);
     setInviteSuccess(null);
+    setLastInviteLink(null);
     setIsSendingInvite(true);
 
     try {
@@ -376,6 +400,8 @@ const Orgs: FC = () => {
           id?: string;
           organizationId?: string;
           invitationLink?: string;
+          emailSent?: boolean | null;
+          emailError?: string | null;
         };
       };
       const invite: Invitation = {
@@ -396,11 +422,17 @@ const Orgs: FC = () => {
       const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
       persist({ ...user, orgs: nextOrgs });
       setNewInviteEmail("");
+      setLastInviteLink(payload.data?.invitationLink ?? null);
       setInviteSuccess(
-        payload.data?.invitationLink
-          ? "Einladungslink wurde erstellt und unten gespeichert."
+        payload.data?.emailSent
+          ? "Einladung wurde erstellt und per E-Mail versendet."
+          : payload.data?.invitationLink
+            ? "Einladungslink wurde erstellt, aber die E-Mail konnte nicht bestätigt werden. Kopiere den Link und versende ihn manuell."
           : "Einladung wurde erstellt und per E-Mail versendet.",
       );
+      if (payload.data?.emailError) {
+        setInviteError(`E-Mail-Versand fehlgeschlagen: ${payload.data.emailError}`);
+      }
     } catch (error) {
       if (error instanceof TypeError) {
         setInviteError(
@@ -515,6 +547,37 @@ const Orgs: FC = () => {
   const isSelectedAdmin = selectedOrg
     ? selectedOrg.adminEmails?.includes(user.email)
     : false;
+
+  useEffect(() => {
+    if (activeTab !== "invites" || !selectedOrg || !isSelectedAdmin) {
+      return;
+    }
+
+    void syncOrganizationInvites(selectedOrg);
+    // Keep the invite list honest when recipients accept/decline in another tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedOrg?.id, isSelectedAdmin]);
+
+  useEffect(() => {
+    if (!selectedOrg || !isSelectedAdmin) {
+      return;
+    }
+
+    const syncOnFocus = () => {
+      if (document.visibilityState === "visible" && activeTab === "invites") {
+        void syncOrganizationInvites(selectedOrg);
+      }
+    };
+
+    document.addEventListener("visibilitychange", syncOnFocus);
+    window.addEventListener("focus", syncOnFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", syncOnFocus);
+      window.removeEventListener("focus", syncOnFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedOrg?.id, isSelectedAdmin]);
 
   return (
     <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6">
@@ -735,14 +798,22 @@ const Orgs: FC = () => {
                         <div className="break-all font-semibold text-slate-50">{inv.email}</div>
                         <div className="text-xs text-slate-400">Status: {inv.status}</div>
                         {inv.invitationUrl && (
-                          <a
-                            href={inv.invitationUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 block text-xs text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
-                          >
-                            Invitation-Link öffnen
-                          </a>
+                          <div className="mt-2 flex min-w-0 flex-col gap-2">
+                            <a
+                              href={inv.invitationUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="break-all text-xs text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
+                            >
+                              {inv.invitationUrl}
+                            </a>
+                            <button
+                              onClick={() => copyInvitationLink(inv.invitationUrl!, inv.id ?? inv.email)}
+                              className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
+                            >
+                              {copiedInviteId === (inv.id ?? inv.email) ? "Kopiert" : "Link kopieren"}
+                            </button>
+                          </div>
                         )}
                       </div>
                       {isSelectedAdmin && inv.status === "pending" && (
@@ -782,8 +853,26 @@ const Orgs: FC = () => {
                     </button>
                   </div>
                   {inviteSuccess && (
-                    <div className="text-xs text-emerald-300">
-                      {inviteSuccess}
+                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 p-3 text-xs text-emerald-100">
+                      <div>{inviteSuccess}</div>
+                      {lastInviteLink && (
+                        <div className="mt-2 flex min-w-0 flex-col gap-2">
+                          <a
+                            href={lastInviteLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="break-all text-emerald-200 underline decoration-emerald-400/40 underline-offset-2"
+                          >
+                            {lastInviteLink}
+                          </a>
+                          <button
+                            onClick={() => copyInvitationLink(lastInviteLink, "latest")}
+                            className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
+                          >
+                            {copiedInviteId === "latest" ? "Kopiert" : "Link kopieren"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                   {inviteError && (
