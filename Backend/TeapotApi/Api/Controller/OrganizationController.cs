@@ -12,7 +12,7 @@ public class OrganizationController(
     IOrganizationService organizationService) : ControllerBase
 {
     [HttpPost]
-    [Authorize(AuthenticationSchemes = AdminAuthRequirement.PolicyName)]
+    [Authorize(AuthenticationSchemes = "Auth0", Policy = AdminAuthRequirement.PolicyName)]
     [ProducesResponseType(typeof(CreateOrganizationResult), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -22,7 +22,7 @@ public class OrganizationController(
     {
         try
         {
-            CreateOrganizationResult result = await organizationAdminService.CreateOrganizationAsync(
+            var result = await organizationAdminService.CreateOrganizationAsync(
                 request,
                 cancellationToken);
 

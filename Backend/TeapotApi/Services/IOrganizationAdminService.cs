@@ -15,8 +15,6 @@ public record CreateOrganizationRequest
 
     public int maxUsers { get; init; }
 
-    public string OrganizerUserName { get; init; } = string.Empty;
-
     public string OrganizerEmail { get; init; } = string.Empty;
 }
 

@@ -4,9 +4,10 @@ namespace Api.Authorization;
 
 public class AdminAuthHandler : AuthorizationHandler<AdminAuthRequirement>
 {
-    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AdminAuthRequirement requirement)
+    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context,
+        AdminAuthRequirement requirement)
     {
-        if(context.User.Identity is not { IsAuthenticated: true })
+        if (context.User.Identity is not { IsAuthenticated: true })
         {
             context.Fail();
             return;
@@ -14,9 +15,6 @@ public class AdminAuthHandler : AuthorizationHandler<AdminAuthRequirement>
 
         var userPermissions = context.User.FindAll("permissions").Select(permission => permission.Value);
 
-        if (userPermissions.Contains(AdminAuthRequirement.RequiredPermission))
-        {
-            context.Succeed(requirement);
-        }
+        if (userPermissions.Contains(AdminAuthRequirement.RequiredPermission)) context.Succeed(requirement);
     }
 }

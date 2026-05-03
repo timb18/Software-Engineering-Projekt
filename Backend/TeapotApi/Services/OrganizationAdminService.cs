@@ -40,9 +40,8 @@ public class OrganizationAdminService : IOrganizationAdminService
             .GetFirstOrDefaultAsync(x => x.Email == request.OrganizerEmail, cancellationToken);
         if (existingUser is null)
         {
-            await _userRepo.AddAsync(new User()
+            await _userRepo.AddAsync(new User
             {
-                Username = request.OrganizerUserName,
                 Email = request.OrganizerEmail,
             }, cancellationToken);
         }
@@ -87,11 +86,6 @@ public class OrganizationAdminService : IOrganizationAdminService
         if (request.maxUsers < 0)
         {
             throw new ArgumentException("InvitationQuota must be >= 0.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.OrganizerUserName))
-        {
-            throw new ArgumentException("OrganizerUserName is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.OrganizerEmail))
