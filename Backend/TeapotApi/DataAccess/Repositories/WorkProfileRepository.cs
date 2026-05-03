@@ -36,6 +36,19 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
         context.WorkProfiles
             .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
 
+    public Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default) =>
+        context.WorkProfiles
+            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.Membership)
+            .FirstOrDefaultAsync(wp => wp.Id == workProfileId, cancellationToken);
+
+    public async Task<IReadOnlyList<WorkProfileTimeInterval>> GetTimeIntervalsAsync(
+        Guid workProfileId, CancellationToken cancellationToken = default) =>
+        await context.WorkProfileTimeIntervals
+            .Where(i => i.WorkProfileId == workProfileId)
+            .ToListAsync(cancellationToken);
+
     public Task<WorkProfile?> GetForDeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)

@@ -23,6 +23,11 @@ public static class DependencyInjectionExtension
             services.AddScoped<IUserTaskService, UserTaskService>();
             services.AddScoped<IWorkProfileService, WorkProfileService>();
 
+            // Planning
+            services.AddScoped<DependencyAnalyzer>();
+            services.AddScoped<SchedulingAlgorithm>();
+            services.AddScoped<IUserTaskPlanner, UserTaskPlanner>();
+
             return services;
         }
     }

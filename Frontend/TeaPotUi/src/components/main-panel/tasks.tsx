@@ -1,13 +1,24 @@
 import dayjs from "dayjs";
-import { useMemo, useState, type FC } from "react";
+import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
+import { fetchBlocks, fetchTasks, type TaskBlock } from "../../util/task-api";
 import type { Task } from "../../util/types";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const startHour = 7;
 const endHour = 19;
 const intervalsPerDay = (endHour - startHour) * 4; // 15-minute slots
 
-const getWeekStart = () => dayjs().startOf("week").add(1, "day");
+// Returns the Monday of the current week regardless of locale's week-start setting.
+// dayjs startOf("week") is locale-dependent (Sunday in some locales), so we compute
+// Monday explicitly to guarantee ISO week behaviour.
+const getWeekStart = () => {
+  const today = dayjs();
+  const dayOfWeek = today.day(); // 0 = Sunday, 1 = Monday, …, 6 = Saturday
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  return today.add(daysToMonday, "day").startOf("day");
+};
 
 const getStartSlot = (date: Date) => {
   const minutes = dayjs(date).diff(dayjs(date).startOf("day").add(startHour, "hour"), "minute");
@@ -20,12 +31,13 @@ const getEndSlot = (date: Date) => {
 };
 
 const Tasks: FC = () => {
-  const { user, setUser, addTask, saveTask, removeTask } = useUserStore();
+  const { user, setUser, addTask, saveTask, removeTask, workProfileId } = useUserStore();
   const [form, setForm] = useState({
     name: "",
     description: "",
     durationMinutes: 60,
     priority: "medium" as Task["priority"],
+    intensity: "normal" as Task["intensity"],
     status: "todo" as Task["status"],
     deadline: "",
     dependencies: [] as string[],
@@ -48,10 +60,48 @@ const Tasks: FC = () => {
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "done">("all");
   const [filterOrgId, setFilterOrgId] = useState<string | "all">("all");
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleMsg, setScheduleMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [blocks, setBlocks] = useState<TaskBlock[]>([]);
+
+  useEffect(() => {
+    if (!workProfileId) return;
+    fetchBlocks(workProfileId).then(setBlocks).catch(() => setBlocks([]));
+  }, [workProfileId]);
 
   if (!user) {
     return <></>;
   }
+
+  const triggerSchedule = async () => {
+    if (!workProfileId) {
+      setScheduleMsg({ ok: false, text: "No work profile found." });
+      return;
+    }
+    setScheduling(true);
+    setScheduleMsg(null);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/planning/${encodeURIComponent(workProfileId)}/schedule`,
+        { method: "POST" },
+      );
+      const json = (await res.json()) as { success: boolean; errorMessage?: string; backtrackingCount?: number };
+      if (json.success) {
+        setScheduleMsg({ ok: true, text: `Plan created (${json.backtrackingCount ?? 0} backtracks).` });
+        // Reload tasks and blocks so the calendar reflects the new schedule
+        const updated = await fetchTasks(workProfileId);
+        setUser({ ...user, tasks: updated });
+        const updatedBlocks = await fetchBlocks(workProfileId);
+        setBlocks(updatedBlocks);
+      } else {
+        setScheduleMsg({ ok: false, text: json.errorMessage ?? "Scheduling failed." });
+      }
+    } catch {
+      setScheduleMsg({ ok: false, text: "Network error while scheduling." });
+    } finally {
+      setScheduling(false);
+    }
+  };
 
   const filteredTasks = (user.tasks ?? []).filter((t) => {
     const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
@@ -59,27 +109,31 @@ const Tasks: FC = () => {
     return byStatus && byOrg;
   });
 
+  const filteredBlocks = blocks.filter((b) =>
+    filterStatus === "all" || (b.taskStatus ?? "todo") === filterStatus,
+  );
+
   const weekStart = getWeekStart();
   const weekEnd = weekStart.add(7, "day");
   const weekDays = Array.from({ length: 7 }).map((_, i) => weekStart.add(i, "day"));
   const today = dayjs();
 
-  const tasksThisWeek = filteredTasks.filter((task) => {
-    const start = dayjs(task.startDate);
-    const end = dayjs(task.endDate);
+  const blocksThisWeek = filteredBlocks.filter((b) => {
+    const start = dayjs(b.startDate);
+    const end = dayjs(b.endDate);
     return start.isBefore(weekEnd) && end.isAfter(weekStart);
   });
 
-  const tasksToday = filteredTasks.filter((task) =>
-    dayjs(task.startDate).isSame(today, "day"),
+  const blocksToday = filteredBlocks.filter((b) =>
+    dayjs(b.startDate).isSame(today, "day"),
   );
 
   const monthStart = today.startOf("month");
   const monthEnd = monthStart.endOf("month");
   const monthDays = Array.from({ length: monthEnd.date() }).map((_, i) => monthStart.add(i, "day"));
-  const tasksThisMonth = filteredTasks.filter((task) => {
-    const start = dayjs(task.startDate);
-    const end = dayjs(task.endDate);
+  const blocksThisMonth = filteredBlocks.filter((b) => {
+    const start = dayjs(b.startDate);
+    const end = dayjs(b.endDate);
     return start.isBefore(monthEnd) && end.isAfter(monthStart);
   });
 
@@ -133,6 +187,7 @@ const Tasks: FC = () => {
       deadline: endDate,
       isFixed: form.isFixed,
       priority: form.priority,
+      intensity: form.intensity,
       status: form.status ?? "todo",
       org: selectedOrg.id,
       recurrence: "none",
@@ -157,6 +212,7 @@ const Tasks: FC = () => {
           description: "",
           durationMinutes: 60,
           priority: "medium",
+          intensity: "normal",
           status: "todo",
           deadline: "",
           dependencies: [],
@@ -232,7 +288,21 @@ const Tasks: FC = () => {
             {weekStart.format("DD MMM")} - {weekEnd.subtract(1, "day").format("DD MMM YYYY")}
           </span>
         </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-4 text-sm">
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={() => { void triggerSchedule(); }}
+              disabled={scheduling}
+              className="rounded-full border border-emerald-500/60 bg-emerald-500/15 px-5 py-2 font-semibold text-emerald-100 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {scheduling ? "Scheduling…" : "Auto-Schedule"}
+            </button>
+            {scheduleMsg && (
+              <span className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}>
+                {scheduleMsg.text}
+              </span>
+            )}
+          </div>
           <button
             onClick={() => setView("day")}
             className={`rounded-full px-4 py-2 font-semibold transition ${
@@ -296,9 +366,9 @@ const Tasks: FC = () => {
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
               <span>
-                {view === "day" && `${tasksToday.length} today`}
-                {view === "week" && `${tasksThisWeek.length} this week`}
-                {view === "month" && `${tasksThisMonth.length} this month`}
+                {view === "day" && `${blocksToday.length} block(s) today`}
+                {view === "week" && `${blocksThisWeek.length} block(s) this week`}
+                {view === "month" && `${blocksThisMonth.length} block(s) this month`}
               </span>
             </div>
             <span className="text-xs text-slate-500">15 min slots, {startHour}:00-{endHour}:00</span>
@@ -351,32 +421,31 @@ const Tasks: FC = () => {
                   className="pointer-events-none absolute inset-0 grid grid-cols-[5rem_repeat(7,minmax(0,1fr))] px-2 pb-6"
                   style={{ gridTemplateRows: `2.5rem repeat(${intervalsPerDay}, minmax(0,1fr))` }}
                 >
-                  {tasksThisWeek.map((task) => {
-                    const start = dayjs(task.startDate);
+                  {blocksThisWeek.map((block) => {
+                    const start = dayjs(block.startDate);
                     const dayIndex = start.startOf("day").diff(weekStart.startOf("day"), "day");
 
                     if (dayIndex < 0 || dayIndex > 6) {
                       return null;
                     }
 
-                    const startSlot = getStartSlot(task.startDate);
-                    const endSlot = getEndSlot(task.endDate);
+                    const startSlot = getStartSlot(block.startDate);
+                    const endSlot = getEndSlot(block.endDate);
 
                     return (
                       <div
-                        key={`${task.name}-${task.startDate.toString()}`}
+                        key={`${block.taskId}-${block.startDate.toString()}`}
                         style={{
                           gridColumn: dayIndex + 2,
                           gridRow: `${startSlot + 2} / ${endSlot + 2}`,
                         }}
                         className="pointer-events-auto m-0.5 flex cursor-pointer flex-col gap-1 rounded-2xl border border-emerald-200/30 bg-emerald-400/25 px-3 py-2 text-emerald-50 shadow-lg backdrop-blur transition hover:border-emerald-200/70 hover:bg-emerald-400/35"
-                        onClick={() => openEdit(task)}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-base font-semibold leading-tight text-emerald-50 truncate" title={task.name}>
-                            {task.name}
+                          <div className="text-base font-semibold leading-tight text-emerald-50 truncate" title={block.taskName}>
+                            {block.taskName}
                           </div>
-                          {task.isFixed && (
+                          {block.isFixed && (
                             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
                               Fixed
                             </span>
@@ -427,25 +496,24 @@ const Tasks: FC = () => {
                   className="pointer-events-none absolute inset-0 grid grid-cols-[5rem_1fr] px-2 pb-6"
                   style={{ gridTemplateRows: `2.5rem repeat(${intervalsPerDay}, minmax(0,1fr))` }}
                 >
-                  {tasksToday.map((task) => {
-                    const startSlot = getStartSlot(task.startDate);
-                    const endSlot = getEndSlot(task.endDate);
+                  {blocksToday.map((block) => {
+                    const startSlot = getStartSlot(block.startDate);
+                    const endSlot = getEndSlot(block.endDate);
 
                     return (
                       <div
-                        key={`${task.name}-${task.startDate.toString()}`}
+                        key={`${block.taskId}-${block.startDate.toString()}`}
                         style={{
                           gridColumn: 2,
                           gridRow: `${startSlot + 2} / ${endSlot + 2}`,
                         }}
                         className="pointer-events-auto m-0.5 flex cursor-pointer flex-col gap-1 rounded-2xl border border-emerald-200/30 bg-emerald-400/25 px-3 py-2 text-emerald-50 shadow-lg backdrop-blur transition hover:border-emerald-200/70 hover:bg-emerald-400/35"
-                        onClick={() => openEdit(task)}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-base font-semibold leading-tight text-emerald-50 truncate" title={task.name}>
-                            {task.name}
+                          <div className="text-base font-semibold leading-tight text-emerald-50 truncate" title={block.taskName}>
+                            {block.taskName}
                           </div>
-                          {task.isFixed && (
+                          {block.isFixed && (
                             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
                               Fixed
                             </span>
@@ -476,7 +544,14 @@ const Tasks: FC = () => {
                     <div key={`lead-${i}`} className="h-20 rounded-xl border border-slate-900/40 bg-slate-900/40" />
                   ))}
                   {monthDays.map((day) => {
-                    const dayTasks = tasksThisMonth.filter((t) => dayjs(t.startDate).isSame(day, "day"));
+                    const dayBlocks = blocksThisMonth.filter((b) => dayjs(b.startDate).isSame(day, "day"));
+                    // deduplicate by taskName for month display
+                    const seenNames = new Set<string>();
+                    const uniqueDayBlocks = dayBlocks.filter((b) => {
+                      if (seenNames.has(b.taskName)) return false;
+                      seenNames.add(b.taskName);
+                      return true;
+                    });
                     return (
                       <div
                         key={day.toString()}
@@ -487,14 +562,13 @@ const Tasks: FC = () => {
                           {day.isSame(today, "day") && <span className="text-emerald-300">Today</span>}
                         </div>
                         <div className="flex flex-col gap-1 overflow-y-auto text-[11px] text-slate-200">
-                          {dayTasks.length === 0 && <span className="text-slate-500">No tasks</span>}
-                          {dayTasks.map((t) => (
+                          {uniqueDayBlocks.length === 0 && <span className="text-slate-500">No tasks</span>}
+                          {uniqueDayBlocks.map((b) => (
                             <span
-                              key={`${t.name}-${t.startDate.toString()}`}
+                              key={`${b.taskId}-${b.startDate.toString()}`}
                               className="truncate rounded-lg bg-emerald-400/15 px-2 py-1 text-emerald-100 transition hover:bg-emerald-400/25"
-                              onClick={() => openEdit(t)}
                             >
-                              {t.name}
+                              {b.taskName}
                             </span>
                           ))}
                         </div>
@@ -516,38 +590,48 @@ const Tasks: FC = () => {
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1 text-sm text-slate-200">
-            {tasksThisWeek.length === 0 && (
+            {blocksThisWeek.length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 p-4 text-slate-400">
                 No tasks planned this week.
               </div>
             )}
 
-            {tasksThisWeek.map((task) => (
+            {blocksThisWeek
+              .slice()
+              .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+              .map((block) => (
               <div
-                key={`${task.name}-list-${task.startDate.toString()}`}
-                className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm transition hover:border-emerald-300/50 hover:bg-slate-900/70 cursor-pointer"
-                onClick={() => openEdit(task)}
+                key={`${block.taskId}-${block.startDate.toString()}`}
+                className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm transition hover:border-emerald-300/50 hover:bg-slate-900/70"
               >
                 <div className="text-[11px] uppercase tracking-[0.12em] text-emerald-200">
-                  {dayjs(task.startDate).format("ddd, DD MMM")}
+                  {dayjs(block.startDate).format("ddd, DD MMM")}
                 </div>
                 <div className="flex items-center justify-between gap-2 text-base font-semibold text-slate-50">
-                  <span className="truncate">{task.name}</span>
+                  <span className="truncate">{block.taskName}</span>
                   <div className="flex items-center gap-2">
-                    {task.isFixed && (
+                    {block.isFixed && (
                       <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] uppercase tracking-wide text-emerald-50">
                         Fixed
                       </span>
                     )}
                     <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] uppercase tracking-wide text-slate-300">
-                      {(task.status ?? "todo").replace("-", " ")}
+                      {(block.taskStatus ?? "todo").replace("-", " ")}
                     </span>
+                    <button
+                      onClick={() => {
+                        const task = filteredTasks.find((t) => t.id === block.taskId);
+                        if (task) openEdit(task);
+                      }}
+                      className="rounded-full border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-300 transition hover:border-emerald-300/60 hover:text-emerald-100"
+                    >
+                      Edit
+                    </button>
                   </div>
                 </div>
                 <div className="text-xs text-slate-300">
-                  {dayjs(task.startDate).format("HH:mm")} - {dayjs(task.endDate).format("HH:mm")}
+                  {dayjs(block.startDate).format("HH:mm")} - {dayjs(block.endDate).format("HH:mm")}
                 </div>
-                {task.description && <div className="mt-1 text-sm text-slate-400">{task.description}</div>}
               </div>
             ))}
           </div>
@@ -621,6 +705,18 @@ const Tasks: FC = () => {
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Intensity</label>
+                  <select
+                    value={form.intensity}
+                    onChange={(e) => setForm({ ...form, intensity: e.target.value as Task["intensity"] })}
+                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  >
+                    <option value="light">Light</option>
+                    <option value="normal">Normal</option>
+                    <option value="intensive">Intensive</option>
                   </select>
                 </div>
               </div>
