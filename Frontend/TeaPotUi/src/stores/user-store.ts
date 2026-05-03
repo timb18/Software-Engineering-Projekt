@@ -21,6 +21,9 @@ const initialState: UserStore = {
   activeOrganizationId: null,
 };
 
+const assignTasksToOrganization = (tasks: Task[], organizationId: string | null | undefined) =>
+  organizationId ? tasks.map((task) => ({ ...task, org: organizationId })) : tasks;
+
 const memoryStorage = {
   getItem: () => null,
   setItem: () => {},
@@ -76,10 +79,13 @@ export const initForUser = async (
       orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
     const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId;
 
-    let tasks = initialTasks;
+    let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
     if (activeWorkProfileId !== workProfileId) {
       try {
-        tasks = await fetchTasks(activeWorkProfileId);
+        tasks = assignTasksToOrganization(
+          await fetchTasks(activeWorkProfileId),
+          activeOrganization?.id,
+        );
       } catch (error) {
         console.error("fetchTasks failed for active organization during initForUser", error);
         tasks = [];
@@ -197,7 +203,10 @@ const useUserStore = () => {
       return;
     }
 
-    const tasks = await fetchTasks(selectedOrganization.workProfileId);
+    const tasks = assignTasksToOrganization(
+      await fetchTasks(selectedOrganization.workProfileId),
+      selectedOrganization.id,
+    );
     userStore.setState({
       activeOrganizationId: organizationId,
       workProfileId: selectedOrganization.workProfileId,
@@ -207,13 +216,17 @@ const useUserStore = () => {
 
   /** Persists a new task to the backend and adds it to the store. */
   const addTask = async (task: Task): Promise<Task> => {
-    const { workProfileId } = userStore.getState();
+    const { workProfileId, activeOrganizationId } = userStore.getState();
     if (workProfileId) {
       const saved = await createTask(workProfileId, task);
+      const taskForActiveOrganization = {
+        ...saved,
+        org: task.org || activeOrganizationId || saved.org,
+      };
       userStore.setState((s) => ({
-        user: { ...s.user, tasks: [...(s.user.tasks ?? []), saved] },
+        user: { ...s.user, tasks: [...(s.user.tasks ?? []), taskForActiveOrganization] },
       }));
-      return saved;
+      return taskForActiveOrganization;
     }
     // No backend connection – still update local state
     userStore.setState((s) => ({
@@ -237,7 +250,7 @@ const useUserStore = () => {
 
     if (workProfileId && task.id) {
       const saved = await updateTask(workProfileId, task.id, task);
-      updateLocal(saved);
+      updateLocal({ ...saved, org: task.org });
     } else if (task.id) {
       // Offline fallback: keep local state in sync
       updateLocal(task);
