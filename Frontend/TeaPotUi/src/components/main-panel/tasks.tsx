@@ -20,7 +20,7 @@ const getEndSlot = (date: Date) => {
 };
 
 const Tasks: FC = () => {
-  const { user, activeOrganizationId, addTask, saveTask, removeTask } = useUserStore();
+  const { user, activeOrganizationId, addTask, saveTask, removeTask, setUser } = useUserStore();
   const [form, setForm] = useState({
     name: "",
     description: "",
