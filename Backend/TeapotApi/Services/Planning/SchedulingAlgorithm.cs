@@ -22,6 +22,16 @@ public class SchedulingAlgorithm
     public int MaxBacktrackingSteps { get; init; } = 100_000;
 
     /// <summary>
+    /// Maximum number of free slots to attempt for a single task placement before giving up.
+    /// A value of 1 means greedy (original behaviour): only the earliest valid slot is tried.
+    /// Higher values allow the algorithm to skip a slot that causes a downstream conflict and
+    /// try a later one — at the cost of O(MaxSlotAttempts) more work per backtracking step.
+    /// Default of 5 handles the common case (e.g. deadline-constrained task blocked by an
+    /// intensive-budget clash) without triggering combinatorial blowup.
+    /// </summary>
+    public int MaxSlotAttempts { get; init; } = 5;
+
+    /// <summary>
     /// Tries to schedule all tasks into the state's free slots.
     /// Returns true on success (state.PlannedBlocks is populated), false on failure.
     /// </summary>
@@ -120,10 +130,10 @@ public class SchedulingAlgorithm
     }
 
     /// <summary>
-    /// Finds the first valid free slot for <paramref name="candidateMinutes"/> of the given task and commits it.
-    /// Greedy slot selection: only the earliest valid slot is tried — no slot-level backtracking.
-    /// Slot-level combinatorial explosion is the main cause of exponential blowup on long horizons;
-    /// task-level backtracking (in RunRecursive) is sufficient for correctness.
+    /// Finds a valid free slot for <paramref name="candidateMinutes"/> of the given task and commits it.
+    /// Tries up to <see cref="MaxSlotAttempts"/> valid slots before giving up (bounded slot-level
+    /// backtracking). Trying more than one slot avoids false negatives caused by the earliest slot
+    /// creating a downstream conflict that a slightly later slot would not.
     /// <para>
     /// Intensive-minutes budget is a <b>soft constraint</b>: the algorithm first tries to respect the
     /// daily intensive-work cap (research: Ericsson et al. 1993 deliberate-practice limit ~4 h/day;
@@ -145,6 +155,8 @@ public class SchedulingAlgorithm
         SchedulingState state, UserTask task, int candidateMinutes,
         bool enforceIntensiveBudget = false)
     {
+        var attemptsLeft = MaxSlotAttempts;
+
         for (var i = 0; i < state.FreeSlots.Count; i++)
         {
             var slot = state.FreeSlots[i];
@@ -179,7 +191,7 @@ public class SchedulingAlgorithm
             if (task.Deadline.HasValue && blockEnd > task.Deadline.Value.Date.AddDays(1))
                 continue;
 
-            // --- Commit first valid slot ---
+            // --- Commit this slot ---
             var savedRemaining = state.RemainingMinutes[task.Id];
             var savedBudgetTotal = budget.RemainingTotalMinutes;
             var savedBudgetIntensive = budget.RemainingIntensiveMinutes;
@@ -223,8 +235,10 @@ public class SchedulingAlgorithm
             if (result == RecursionResult.Success)
                 return RecursionResult.Success;
 
-            // Recursive call failed: undo this placement and let task-level backtracking handle it.
-            // Do NOT try other slots for this task — slot-level backtracking causes exponential blowup.
+            // Recursive call failed: undo this placement.
+            // Try the next valid slot (bounded by MaxSlotAttempts) before giving up.
+            // This avoids false negatives where the earliest slot causes a downstream conflict
+            // that a slightly later slot would not — without full slot-level exponential blowup.
             state.BacktrackingCounter++;
             state.PlannedBlocks.Remove(block);
             state.RemainingMinutes[task.Id] = savedRemaining;
@@ -238,7 +252,8 @@ public class SchedulingAlgorithm
                 state.FreeSlots.RemoveAt(i);
             state.FreeSlots.Insert(i, slot);
 
-            return null; // signal: tried and failed, caller may retry with relaxed intensive budget
+            if (--attemptsLeft == 0)
+                return null; // slot budget exhausted for this pass
         }
 
         return null; // no slot found under current constraints
