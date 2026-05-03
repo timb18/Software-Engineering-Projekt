@@ -14,6 +14,22 @@ const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
 const guidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+type InvitationResponse = {
+  id: string;
+  organizationId: string;
+  organizationName?: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  status: string;
+  invitationLink?: string;
+};
+
+const mapInvitationStatus = (status: string): Invitation["status"] =>
+  status.toLowerCase() === "open"
+    ? "pending"
+    : (status.toLowerCase() as Invitation["status"]);
+
 const Orgs: FC = () => {
   const { user, setUser, activeOrganizationId, setActiveOrganization } = useUserStore();
 
@@ -24,6 +40,9 @@ const Orgs: FC = () => {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [withdrawingInviteId, setWithdrawingInviteId] = useState<string | null>(
+    null,
+  );
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
   const [isKickingMemberKey, setIsKickingMemberKey] = useState<string | null>(null);
@@ -33,6 +52,18 @@ const Orgs: FC = () => {
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [isDeletingOrg, setIsDeletingOrg] = useState(false);
 
+  const persist = (nextUser: User) => {
+    const nextOrgs = nextUser.orgs ?? [];
+
+    setUser(nextUser);
+    setOrgs(nextOrgs);
+    setInvites(nextUser.invites ?? []);
+
+    if (nextOrgs.length > 0 && !nextOrgs.some((o) => o.id === selectedOrgId)) {
+      setSelectedOrgId(nextOrgs[0].id);
+    }
+  };
+
   useEffect(() => {
     const loadOrganizations = async () => {
       if (!user.email || user.email === "example@default.com") {
@@ -41,32 +72,101 @@ const Orgs: FC = () => {
 
       try {
         const nextOrgs = await fetchOrganizationsByUserEmail(user.email);
-        persist({ ...user, orgs: nextOrgs });
+        const pendingResponse = await fetch(
+          apiUrl(
+            `/api/Invitation/pending?email=${encodeURIComponent(user.email)}`,
+          ),
+        );
+        const pendingPayload = pendingResponse.ok
+          ? ((await pendingResponse.json()) as {
+              success: boolean;
+              data?: InvitationResponse[];
+            })
+          : null;
+        const pendingInvites: Invitation[] = (pendingPayload?.data ?? []).map(
+          (invite) => {
+            const matchingOrg = nextOrgs.find(
+              (org) => org.id === invite.organizationId,
+            );
+
+            return {
+              id: invite.id,
+              organizationId: invite.organizationId,
+              orgId: invite.organizationId,
+              orgName:
+                invite.organizationName ??
+                matchingOrg?.name ??
+                "Organization invitation",
+              email: invite.email,
+              firstName: invite.firstName,
+              lastName: invite.lastName,
+              status: mapInvitationStatus(invite.status),
+              invitationUrl: invite.invitationLink,
+            };
+          },
+        );
+
+        persist({ ...user, orgs: nextOrgs, invites: pendingInvites });
       } catch (error) {
         console.error(error);
       }
     };
 
     void loadOrganizations();
+    // Organizations and pending invites should be loaded once for each account.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.email]);
-
-  const persist = (nextUser: User) => {
-    setUser(nextUser);
-    setOrgs(nextUser.orgs ?? []);
-    setInvites(nextUser.invites ?? []);
-  };
 
   const currentRole = (org: Org): "Admin" | "Member" =>
     org.adminEmails?.includes(user.email) ? "Admin" : "Member";
+
+  const syncOrganizationInvites = async (org: Org) => {
+    const response = await fetch(apiUrl(`/api/Invitation/organization/${org.id}`));
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = (await response.json()) as {
+      success: boolean;
+      data?: InvitationResponse[];
+    };
+    const nextInvites: Invitation[] = (payload.data ?? [])
+      .filter((invite) => mapInvitationStatus(invite.status) === "pending")
+      .map((invite) => ({
+        id: invite.id,
+        organizationId: invite.organizationId,
+        orgId: invite.organizationId,
+        orgName: org.name,
+        email: invite.email,
+        firstName: invite.firstName,
+        lastName: invite.lastName,
+        status: mapInvitationStatus(invite.status),
+        invitationUrl: invite.invitationLink,
+      }));
+
+    const updatedOrg: Org = {
+      ...org,
+      invites: nextInvites,
+    };
+    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+
+    persist({ ...user, orgs: nextOrgs });
+  };
 
   const onAcceptInvite = async (invite: Invitation) => {
     if (!invite.id) {
       alert("The selected Invite has no ID");
       return;
     }
-    const inviteAccepted = await acceptInvite(invite.id);
-    if (inviteAccepted) {
-      alert("there was an issue with accepting the invite");
+    try {
+      await acceptInvite(invite.id, { email: user.email });
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "There was an issue with accepting the invite.",
+      );
       return;
     }
 
@@ -86,9 +186,37 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrg, invites: remainingInvites });
   };
 
-  const declineInvite = (invite: Invitation) => {
-    const remainingInvites = invites.filter((i) => i !== invite);
-    persist({ ...user, invites: remainingInvites });
+  const declineInvite = async (invite: Invitation) => {
+    if (!invite.id) {
+      const remainingInvites = invites.filter((i) => i !== invite);
+      persist({ ...user, invites: remainingInvites });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        apiUrl(`/api/Invitation/${invite.id}/reject`),
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message ?? "Einladung konnte nicht abgelehnt werden.",
+        );
+      }
+
+      const remainingInvites = invites.filter((i) => i.id !== invite.id);
+      persist({ ...user, invites: remainingInvites });
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Einladung konnte nicht abgelehnt werden.",
+      );
+    }
   };
 
   const leaveOrg = async (orgId: string) => {
@@ -229,10 +357,17 @@ const Orgs: FC = () => {
               .filter((value): value is string => typeof value === "string")
               .join(" ")
           : null;
-        const message =
+        let message =
           payload?.message ??
           validationErrors ??
           "Einladung konnte nicht erstellt werden.";
+
+        if (message.includes("An open invitation already exists")) {
+          await syncOrganizationInvites(org);
+          message =
+            "Für diese E-Mail gibt es bereits eine offene Einladung. Ich habe die Liste unter 'Eingeladen' aktualisiert.";
+        }
+
         throw new Error(message);
       }
 
@@ -283,13 +418,45 @@ const Orgs: FC = () => {
     }
   };
 
-  const withdrawInvite = (org: Org, email: string) => {
-    const updatedOrg: Org = {
-      ...org,
-      invites: (org.invites ?? []).filter((i) => i.email !== email),
-    };
-    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    persist({ ...user, orgs: nextOrgs });
+  const withdrawInvite = async (org: Org, invite: Invitation) => {
+    if (!invite.id) {
+      setInviteError("Diese Einladung hat keine Backend-ID.");
+      return;
+    }
+
+    setInviteError(null);
+    setWithdrawingInviteId(invite.id);
+
+    try {
+      const response = await fetch(
+        apiUrl(`/api/Invitation/${invite.id}/reject`),
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message ?? "Einladung konnte nicht zurueckgezogen werden.",
+        );
+      }
+
+      const updatedOrg: Org = {
+        ...org,
+        invites: (org.invites ?? []).filter((i) => i.id !== invite.id),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+    } catch (error) {
+      setInviteError(
+        error instanceof Error
+          ? error.message
+          : "Einladung konnte nicht zurueckgezogen werden.",
+      );
+    } finally {
+      setWithdrawingInviteId(null);
+    }
   };
 
   const renameOrg = (org: Org) => {
@@ -580,10 +747,13 @@ const Orgs: FC = () => {
                       </div>
                       {isSelectedAdmin && inv.status === "pending" && (
                         <button
-                          onClick={() => withdrawInvite(selectedOrg, inv.email)}
+                          onClick={() => withdrawInvite(selectedOrg, inv)}
+                          disabled={withdrawingInviteId === inv.id}
                           className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                         >
-                          Zurückziehen
+                          {withdrawingInviteId === inv.id
+                            ? "Ziehe zurueck..."
+                            : "Zurückziehen"}
                         </button>
                       )}
                     </div>
