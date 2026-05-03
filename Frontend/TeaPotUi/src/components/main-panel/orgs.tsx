@@ -12,13 +12,10 @@ const guidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const Orgs: FC = () => {
-  const { user, setUser } = useUserStore();
+  const { user, setUser, activeOrganizationId, setActiveOrganization } = useUserStore();
 
   const [orgs, setOrgs] = useState<Org[]>(user?.orgs ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
-    orgs[0]?.id ?? null,
-  );
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -31,12 +28,6 @@ const Orgs: FC = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [isDeletingOrg, setIsDeletingOrg] = useState(false);
-
-  useEffect(() => {
-    if (orgs.length > 0 && !selectedOrgId) {
-      setSelectedOrgId(orgs[0].id);
-    }
-  }, [orgs, selectedOrgId]);
 
   useEffect(() => {
     const loadOrganizations = async () => {
@@ -123,8 +114,8 @@ const Orgs: FC = () => {
 
       const nextOrgs = orgs.filter((t) => t.id !== orgId);
       persist({ ...user, orgs: nextOrgs });
-      if (selectedOrgId === orgId) {
-        setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      if (activeOrganizationId === orgId) {
+        void setActiveOrganization(nextOrgs[0]?.id ?? null);
       }
     } catch (error) {
       if (error instanceof TypeError) {
@@ -164,7 +155,7 @@ const Orgs: FC = () => {
     let nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
     if (email === user.email) {
       nextOrgs = nextOrgs.filter((t) => t.id !== org.id);
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      void setActiveOrganization(nextOrgs[0]?.id ?? null);
     }
     persist({ ...user, orgs: nextOrgs });
   };
@@ -303,7 +294,7 @@ const Orgs: FC = () => {
       const nextOrgs = orgs.filter((t) => t.id !== org.id);
       const nextInvites = (user.invites ?? []).filter((i) => i.orgId !== org.id);
       persist({ ...user, orgs: nextOrgs, invites: nextInvites });
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      void setActiveOrganization(nextOrgs[0]?.id ?? null);
       setDeleteConfirm("");
       setDeleteSuccess("Organisation wurde endgültig gelöscht.");
     } catch (error) {
@@ -318,8 +309,8 @@ const Orgs: FC = () => {
   };
 
   const selectedOrg = useMemo(
-    () => orgs.find((t) => t.id === selectedOrgId) ?? null,
-    [orgs, selectedOrgId],
+    () => orgs.find((t) => t.id === activeOrganizationId) ?? orgs[0] ?? null,
+    [activeOrganizationId, orgs],
   );
   const isSelectedAdmin = selectedOrg
     ? selectedOrg.adminEmails?.includes(user.email)
@@ -356,7 +347,7 @@ const Orgs: FC = () => {
             {orgs.map((org) => (
               <div
                 key={org.id}
-                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
+                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${activeOrganizationId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
@@ -374,7 +365,7 @@ const Orgs: FC = () => {
                 </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
-                    onClick={() => setSelectedOrgId(org.id)}
+                    onClick={() => void setActiveOrganization(org.id)}
                     className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                       currentRole(org) === "Admin"
                         ? "border-emerald-300/60 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"

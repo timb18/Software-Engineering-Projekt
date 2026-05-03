@@ -56,6 +56,7 @@ export type Org = {
   id: string;
   name: string;
   auth0OrganizationId?: string;
+  workProfileId?: string | null;
   users: User[];
   adminEmails?: string[];
   invites?: Invitation[];
