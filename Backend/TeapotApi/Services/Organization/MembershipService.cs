@@ -6,6 +6,11 @@ namespace Services.Organizations;
 public class MembershipService(IMembershipRepository membershipRepository) : IMembershipService
 {
     public async Task LeaveOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+        => await RemoveMembershipAsync(userId, organizationId, cancellationToken);
+
+    public async Task RemoveUserFromOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+        => await RemoveMembershipAsync(userId, organizationId, cancellationToken);
+    public async Task RemoveMembershipAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
             throw new ArgumentException("UserId is required.", nameof(userId));

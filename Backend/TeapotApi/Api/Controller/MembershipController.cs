@@ -8,12 +8,52 @@ public class MembershipController(IMembershipService membershipService) : Contro
 {
     [HttpDelete("leave")]
     public async Task<IActionResult> LeaveOrganizationAsync(
-        [FromBody] LeaveOrganizationRequest request,
+        [FromBody] RemoveMembershipRequest request,
         CancellationToken cancellationToken)
     {
+        if (!Guid.TryParse(request.UserId, out var userId))
+        {
+            return BadRequest("UserId must be a valid GUID.");
+        }
+
+        if (!Guid.TryParse(request.OrganizationId, out var organizationId))
+        {
+            return BadRequest("OrganizationId must be a valid GUID.");
+        }
+
         try
         {
-            await membershipService.LeaveOrganizationAsync(request.UserId, request.OrganizationId, cancellationToken);
+            await membershipService.LeaveOrganizationAsync(userId, organizationId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpDelete("remove")]
+    public async Task<IActionResult> RemoveUserFromOrganizationAsync(
+        [FromBody] RemoveMembershipRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(request.UserId, out var userId))
+        {
+            return BadRequest("UserId must be a valid GUID.");
+        }
+
+        if (!Guid.TryParse(request.OrganizationId, out var organizationId))
+        {
+            return BadRequest("OrganizationId must be a valid GUID.");
+        }
+
+        try
+        {
+            await membershipService.RemoveUserFromOrganizationAsync(userId, organizationId, cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -27,8 +67,8 @@ public class MembershipController(IMembershipService membershipService) : Contro
     }
 }
 
-public class LeaveOrganizationRequest
+public class RemoveMembershipRequest
 {
-    public Guid UserId { get; set; }
-    public Guid OrganizationId { get; set; }
+    public string UserId { get; set; } = string.Empty;
+    public string OrganizationId { get; set; } = string.Empty;
 }
