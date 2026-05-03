@@ -30,7 +30,6 @@ public class OrganizationAdminService(
         {
             organizer = new User
             {
-                Username = request.OrganizerUserName,
                 Email = normalizedEmail,
             };
             await userRepository.AddAsync(organizer, cancellationToken);
@@ -69,9 +68,6 @@ public class OrganizationAdminService(
 
         if (request.MaxUsers < 0)
             throw new ArgumentException("MaxUsers must be >= 0.");
-
-        if (string.IsNullOrWhiteSpace(request.OrganizerUserName))
-            throw new ArgumentException("OrganizerUserName is required.");
 
         if (string.IsNullOrWhiteSpace(request.OrganizerEmail))
             throw new ArgumentException("OrganizerEmail is required.");
