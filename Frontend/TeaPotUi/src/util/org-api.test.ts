@@ -19,6 +19,7 @@ describe("fetchOrganizationsByUserEmail", () => {
       {
         id: "org-1",
         name: "Northwind Labs",
+        workProfileId: "work-profile-1",
         users: [
           {
             id: "user-1",
@@ -45,6 +46,7 @@ describe("fetchOrganizationsByUserEmail", () => {
       {
         id: "org-1",
         name: "Northwind Labs",
+        workProfileId: "work-profile-1",
         users: [
           {
             id: "user-1",

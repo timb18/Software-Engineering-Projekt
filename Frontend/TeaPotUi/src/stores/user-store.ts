@@ -1,7 +1,7 @@
 import { createStore } from "zustand";
 import type { User, Task } from "../util/types";
 import { useStore } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { defaultUser } from "../util/default-data";
 import { getLegacyWorkSettings } from "../util/work-profile";
 import { fetchTasks, createTask, updateTask, deleteTask } from "../util/task-api";
@@ -12,16 +12,34 @@ import { fetchOrganizationsByUserEmail } from "../util/org-api";
 type UserStore = {
   user: User;
   workProfileId: string | null;
+  activeOrganizationId: string | null;
 };
 
 const initialState: UserStore = {
   user: defaultUser,
   workProfileId: null,
+  activeOrganizationId: null,
+};
+
+const assignTasksToOrganization = (tasks: Task[], organizationId: string | null | undefined) =>
+  organizationId ? tasks.map((task) => ({ ...task, org: organizationId })) : tasks;
+
+const memoryStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
 };
 
 const userStore = createStore<UserStore>()(
   persist(() => initialState, {
     name: "teapot-user-store",
+    storage: createJSONStorage(() => {
+      const browserStorage = typeof window !== "undefined" ? window.localStorage : null;
+
+      return browserStorage && typeof browserStorage.setItem === "function" && typeof browserStorage.getItem === "function"
+        ? browserStorage
+        : memoryStorage;
+    }),
   }),
 );
 
@@ -48,7 +66,7 @@ export const initForUser = async (
       fetchOrganizationsByUserEmail(email),
     ]);
 
-    const tasks = tasksResult.status === "fulfilled" ? tasksResult.value : [];
+    const initialTasks = tasksResult.status === "fulfilled" ? tasksResult.value : [];
     const workProfile = workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
     const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
     const orgs =
@@ -57,6 +75,22 @@ export const initForUser = async (
         : previousState.user.email === email
           ? previousState.user.orgs
           : [];
+    const activeOrganization =
+      orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
+    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId;
+
+    let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
+    if (activeWorkProfileId !== workProfileId) {
+      try {
+        tasks = assignTasksToOrganization(
+          await fetchTasks(activeWorkProfileId),
+          activeOrganization?.id,
+        );
+      } catch (error) {
+        console.error("fetchTasks failed for active organization during initForUser", error);
+        tasks = [];
+      }
+    }
 
     if (tasksResult.status === "rejected") {
       console.error("fetchTasks failed during initForUser", tasksResult.reason);
@@ -86,7 +120,8 @@ export const initForUser = async (
         breakRules: legacyWorkSettings?.breakRules,
         orgs,
       },
-      workProfileId,
+      workProfileId: activeWorkProfileId,
+      activeOrganizationId: activeOrganization?.id ?? null,
     });
   } catch (err) {
     console.error("initForUser failed, falling back to empty task list", err);
@@ -110,6 +145,7 @@ export const initForUser = async (
         tasks: [],
       },
       workProfileId: null,
+      activeOrganizationId: null,
     });
   }
 };
@@ -118,18 +154,79 @@ const useUserStore = () => {
   const state = useStore(userStore);
 
   const setUser = (newUser: User = defaultUser) => {
-    userStore.setState({ user: newUser });
+    const currentState = userStore.getState();
+    const activeOrganization = newUser.orgs.find(
+      (org) => org.id === currentState.activeOrganizationId,
+    );
+
+    userStore.setState({
+      user: newUser,
+      activeOrganizationId:
+        newUser.id === defaultUser.id || newUser.orgs.length === 0
+          ? null
+          : activeOrganization?.id ?? newUser.orgs[0]?.id ?? null,
+      workProfileId:
+        newUser.id === defaultUser.id || newUser.orgs.length === 0
+          ? null
+          : activeOrganization?.workProfileId ?? newUser.orgs[0]?.workProfileId ?? currentState.workProfileId,
+    });
+  };
+
+  const setActiveOrganization = async (organizationId: string | null) => {
+    const state = userStore.getState();
+
+    if (state.activeOrganizationId === organizationId) {
+      return;
+    }
+
+    if (!organizationId) {
+      userStore.setState({
+        activeOrganizationId: null,
+        workProfileId: null,
+        user: { ...state.user, tasks: [] },
+      });
+      return;
+    }
+
+    const selectedOrganization = state.user.orgs.find((org) => org.id === organizationId);
+    if (!selectedOrganization) {
+      return;
+    }
+
+    if (!selectedOrganization.workProfileId) {
+      userStore.setState({ activeOrganizationId: organizationId });
+      return;
+    }
+
+    if (state.workProfileId === selectedOrganization.workProfileId) {
+      userStore.setState({ activeOrganizationId: organizationId });
+      return;
+    }
+
+    const tasks = assignTasksToOrganization(
+      await fetchTasks(selectedOrganization.workProfileId),
+      selectedOrganization.id,
+    );
+    userStore.setState({
+      activeOrganizationId: organizationId,
+      workProfileId: selectedOrganization.workProfileId,
+      user: { ...state.user, tasks },
+    });
   };
 
   /** Persists a new task to the backend and adds it to the store. */
   const addTask = async (task: Task): Promise<Task> => {
-    const { workProfileId } = userStore.getState();
+    const { workProfileId, activeOrganizationId } = userStore.getState();
     if (workProfileId) {
       const saved = await createTask(workProfileId, task);
+      const taskForActiveOrganization = {
+        ...saved,
+        org: task.org || activeOrganizationId || saved.org,
+      };
       userStore.setState((s) => ({
-        user: { ...s.user, tasks: [...(s.user.tasks ?? []), saved] },
+        user: { ...s.user, tasks: [...(s.user.tasks ?? []), taskForActiveOrganization] },
       }));
-      return saved;
+      return taskForActiveOrganization;
     }
     // No backend connection – still update local state
     userStore.setState((s) => ({
@@ -153,7 +250,7 @@ const useUserStore = () => {
 
     if (workProfileId && task.id) {
       const saved = await updateTask(workProfileId, task.id, task);
-      updateLocal(saved);
+      updateLocal({ ...saved, org: task.org });
     } else if (task.id) {
       // Offline fallback: keep local state in sync
       updateLocal(task);
@@ -174,7 +271,7 @@ const useUserStore = () => {
     }));
   };
 
-  return { ...state, setUser, addTask, saveTask, removeTask };
+  return { ...state, setUser, setActiveOrganization, addTask, saveTask, removeTask };
 };
 
 export default useUserStore;

@@ -1,11 +1,16 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace Services.Organizations;
 
 public class OrganizationService(
-    IOrganizationRepository organizationRepository) : IOrganizationService
+    IOrganizationRepository organizationRepository,
+    IOptions<EmailOptions> emailOptions) : IOrganizationService
 {
+    private readonly EmailOptions _emailOptions = emailOptions.Value;
+
     public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -17,6 +22,9 @@ public class OrganizationService(
             Name = o.Name,
             Description = o.Description,
             MaxUsers = o.MaxUsers,
+            WorkProfileId = o.Memberships
+                .FirstOrDefault(m => string.Equals(m.User.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+                ?.WorkProfile?.Id,
             Users = o.Memberships
                 .OrderBy(m => m.User.Username)
                 .Select(m => new OrganizationUserDto
@@ -40,11 +48,16 @@ public class OrganizationService(
                     Status = i.Status.ToString().ToLowerInvariant(),
                     CreatedAt = i.CreatedAt,
                     ExpiryDate = i.ExpiryDate,
-                    InvitationLink = string.Empty
+                    InvitationLink = BuildAcceptLink(i)
                 })
                 .ToList()
         });
     }
+
+    private string BuildAcceptLink(Invitation invitation) =>
+        $"{TrimTrailingSlash(_emailOptions.ApiBaseUrl)}/api/Invitation/{invitation.Id}/accept-link?email={WebUtility.UrlEncode(invitation.Email)}";
+
+    private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 
     public async Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default)
     {

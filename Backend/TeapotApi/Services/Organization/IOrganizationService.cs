@@ -17,6 +17,7 @@ public sealed record OrganizationDetailsDto
     public string Name { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public int MaxUsers { get; init; }
+    public Guid? WorkProfileId { get; init; }
     public List<OrganizationUserDto> Users { get; init; } = [];
     public List<InvitationDto> Invites { get; init; } = [];
 }

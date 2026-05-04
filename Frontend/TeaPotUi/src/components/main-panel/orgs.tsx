@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import type { Invitation, Org, User } from "../../util/types";
 import acceptInvite from "../../util/accept-invite";
-import { fetchOrganizationsByUserEmail } from "../../util/org-api";
+import {
+  fetchOrganizationsByUserEmail,
+  removeUserFromOrganization,
+} from "../../util/org-api";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
@@ -11,32 +14,84 @@ const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
 const guidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+type InvitationResponse = {
+  id: string;
+  organizationId: string;
+  organizationName?: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  status: string;
+  invitationLink?: string;
+};
+
+const mapInvitationStatus = (status: string): Invitation["status"] =>
+  status.toLowerCase() === "open"
+    ? "pending"
+    : (status.toLowerCase() as Invitation["status"]);
+
 const Orgs: FC = () => {
-  const { user, setUser } = useUserStore();
+  const { user, setUser, activeOrganizationId, setActiveOrganization } = useUserStore();
 
   const [orgs, setOrgs] = useState<Org[]>(user?.orgs ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
-    orgs[0]?.id ?? null,
-  );
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [newInviteEmail, setNewInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [withdrawingInviteId, setWithdrawingInviteId] = useState<string | null>(
+    null,
+  );
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
+  const [isKickingMemberKey, setIsKickingMemberKey] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [isDeletingOrg, setIsDeletingOrg] = useState(false);
 
-  useEffect(() => {
-    if (orgs.length > 0 && !selectedOrgId) {
-      setSelectedOrgId(orgs[0].id);
+  const persist = (nextUser: User) => {
+    const nextOrgs = nextUser.orgs ?? [];
+
+    setUser(nextUser);
+    setOrgs(nextOrgs);
+    setInvites(nextUser.invites ?? []);
+
+    if (nextOrgs.length > 0 && !nextOrgs.some((o) => o.id === activeOrganizationId)) {
+      void setActiveOrganization(nextOrgs[0].id);
     }
-  }, [orgs, selectedOrgId]);
+  };
+
+  const fetchOrganizationInvites = async (org: Org): Promise<Invitation[]> => {
+    const response = await fetch(apiUrl(`/api/Invitation/organization/${org.id}`));
+
+    if (!response.ok) {
+      return org.invites ?? [];
+    }
+
+    const payload = (await response.json()) as {
+      success: boolean;
+      data?: InvitationResponse[];
+    };
+
+    return (payload.data ?? [])
+      .filter((invite) => mapInvitationStatus(invite.status) === "pending")
+      .map((invite) => ({
+        id: invite.id,
+        organizationId: invite.organizationId,
+        orgId: invite.organizationId,
+        orgName: org.name,
+        email: invite.email,
+        firstName: invite.firstName,
+        lastName: invite.lastName,
+        status: mapInvitationStatus(invite.status),
+        invitationUrl: invite.invitationLink,
+      }));
+  };
 
   useEffect(() => {
     const loadOrganizations = async () => {
@@ -45,33 +100,96 @@ const Orgs: FC = () => {
       }
 
       try {
-        const nextOrgs = await fetchOrganizationsByUserEmail(user.email);
-        persist({ ...user, orgs: nextOrgs });
+        const organizations = await fetchOrganizationsByUserEmail(user.email);
+        const nextOrgs = await Promise.all(
+          organizations.map(async (org) => ({
+            ...org,
+            invites: await fetchOrganizationInvites(org),
+          })),
+        );
+        const pendingResponse = await fetch(
+          apiUrl(
+            `/api/Invitation/pending?email=${encodeURIComponent(user.email)}`,
+          ),
+        );
+        const pendingPayload = pendingResponse.ok
+          ? ((await pendingResponse.json()) as {
+              success: boolean;
+              data?: InvitationResponse[];
+            })
+          : null;
+        const pendingInvites: Invitation[] = (pendingPayload?.data ?? []).map(
+          (invite) => {
+            const matchingOrg = nextOrgs.find(
+              (org) => org.id === invite.organizationId,
+            );
+
+            return {
+              id: invite.id,
+              organizationId: invite.organizationId,
+              orgId: invite.organizationId,
+              orgName:
+                invite.organizationName ??
+                matchingOrg?.name ??
+                "Organization invitation",
+              email: invite.email,
+              firstName: invite.firstName,
+              lastName: invite.lastName,
+              status: mapInvitationStatus(invite.status),
+              invitationUrl: invite.invitationLink,
+            };
+          },
+        );
+
+        persist({ ...user, orgs: nextOrgs, invites: pendingInvites });
       } catch (error) {
         console.error(error);
       }
     };
 
     void loadOrganizations();
+    // Organizations and pending invites should be loaded once for each account.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.email]);
-
-  const persist = (nextUser: User) => {
-    setUser(nextUser);
-    setOrgs(nextUser.orgs ?? []);
-    setInvites(nextUser.invites ?? []);
-  };
 
   const currentRole = (org: Org): "Admin" | "Member" =>
     org.adminEmails?.includes(user.email) ? "Admin" : "Member";
+
+  const copyInvitationLink = async (link: string, inviteId: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedInviteId(inviteId);
+      window.setTimeout(() => setCopiedInviteId(null), 1800);
+    } catch {
+      setInviteError("Link konnte nicht automatisch kopiert werden. Markiere ihn und kopiere ihn manuell.");
+    }
+  };
+
+  const syncOrganizationInvites = async (org: Org) => {
+    const nextInvites = await fetchOrganizationInvites(org);
+
+    const updatedOrg: Org = {
+      ...org,
+      invites: nextInvites,
+    };
+    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+
+    persist({ ...user, orgs: nextOrgs });
+  };
 
   const onAcceptInvite = async (invite: Invitation) => {
     if (!invite.id) {
       alert("The selected Invite has no ID");
       return;
     }
-    const inviteAccepted = await acceptInvite(invite.id);
-    if (inviteAccepted) {
-      alert("there was an issue with accepting the invite");
+    try {
+      await acceptInvite(invite.id, { email: user.email });
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "There was an issue with accepting the invite.",
+      );
       return;
     }
 
@@ -91,9 +209,37 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrg, invites: remainingInvites });
   };
 
-  const declineInvite = (invite: Invitation) => {
-    const remainingInvites = invites.filter((i) => i !== invite);
-    persist({ ...user, invites: remainingInvites });
+  const declineInvite = async (invite: Invitation) => {
+    if (!invite.id) {
+      const remainingInvites = invites.filter((i) => i !== invite);
+      persist({ ...user, invites: remainingInvites });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        apiUrl(`/api/Invitation/${invite.id}/reject`),
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message ?? "Einladung konnte nicht abgelehnt werden.",
+        );
+      }
+
+      const remainingInvites = invites.filter((i) => i.id !== invite.id);
+      persist({ ...user, invites: remainingInvites });
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Einladung konnte nicht abgelehnt werden.",
+      );
+    }
   };
 
   const leaveOrg = async (orgId: string) => {
@@ -123,8 +269,8 @@ const Orgs: FC = () => {
 
       const nextOrgs = orgs.filter((t) => t.id !== orgId);
       persist({ ...user, orgs: nextOrgs });
-      if (selectedOrgId === orgId) {
-        setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      if (activeOrganizationId === orgId) {
+        void setActiveOrganization(nextOrgs[0]?.id ?? null);
       }
     } catch (error) {
       if (error instanceof TypeError) {
@@ -155,18 +301,47 @@ const Orgs: FC = () => {
     persist({ ...user, orgs: nextOrgss });
   };
 
-  const kickUser = (org: Org, email: string) => {
-    const updatedOrg: Org = {
-      ...org,
-      users: org.users.filter((u) => u.email !== email),
-      adminEmails: (org.adminEmails ?? []).filter((e) => e !== email),
-    };
-    let nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    if (email === user.email) {
-      nextOrgs = nextOrgs.filter((t) => t.id !== org.id);
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+  const kickUser = async (org: Org, email: string) => {
+    const memberToKick = org.users.find((u) => u.email === email);
+
+    if (!memberToKick) {
+      setLeaveError("Mitglied wurde in der Organisation nicht gefunden.");
+      return;
     }
-    persist({ ...user, orgs: nextOrgs });
+
+    const memberKey = `${org.id}:${email}`;
+    setLeaveError(null);
+    setIsKickingMemberKey(memberKey);
+
+    try {
+      await removeUserFromOrganization({
+        initiatorUserId: user.id,
+        userId: memberToKick.id,
+        organizationId: org.id,
+      });
+
+      const updatedOrg: Org = {
+        ...org,
+        users: org.users.filter((u) => u.email !== email),
+        adminEmails: (org.adminEmails ?? []).filter((e) => e !== email),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setLeaveError(
+          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+        );
+      } else {
+        setLeaveError(
+          error instanceof Error
+            ? error.message
+            : "Mitglied konnte nicht entfernt werden.",
+        );
+      }
+    } finally {
+      setIsKickingMemberKey(null);
+    }
   };
 
   const sendInvite = async (org: Org) => {
@@ -176,6 +351,7 @@ const Orgs: FC = () => {
 
     setInviteError(null);
     setInviteSuccess(null);
+    setLastInviteLink(null);
     setIsSendingInvite(true);
 
     try {
@@ -205,10 +381,17 @@ const Orgs: FC = () => {
               .filter((value): value is string => typeof value === "string")
               .join(" ")
           : null;
-        const message =
+        let message =
           payload?.message ??
           validationErrors ??
           "Einladung konnte nicht erstellt werden.";
+
+        if (message.includes("An open invitation already exists")) {
+          await syncOrganizationInvites(org);
+          message =
+            "Für diese E-Mail gibt es bereits eine offene Einladung. Ich habe die Liste unter 'Eingeladen' aktualisiert.";
+        }
+
         throw new Error(message);
       }
 
@@ -217,6 +400,8 @@ const Orgs: FC = () => {
           id?: string;
           organizationId?: string;
           invitationLink?: string;
+          emailSent?: boolean | null;
+          emailError?: string | null;
         };
       };
       const invite: Invitation = {
@@ -237,11 +422,17 @@ const Orgs: FC = () => {
       const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
       persist({ ...user, orgs: nextOrgs });
       setNewInviteEmail("");
+      setLastInviteLink(payload.data?.invitationLink ?? null);
       setInviteSuccess(
-        payload.data?.invitationLink
-          ? "Einladungslink wurde erstellt und unten gespeichert."
+        payload.data?.emailSent
+          ? "Einladung wurde erstellt und per E-Mail versendet."
+          : payload.data?.invitationLink
+            ? "Einladungslink wurde erstellt, aber die E-Mail konnte nicht bestätigt werden. Kopiere den Link und versende ihn manuell."
           : "Einladung wurde erstellt und per E-Mail versendet.",
       );
+      if (payload.data?.emailError) {
+        setInviteError(`E-Mail-Versand fehlgeschlagen: ${payload.data.emailError}`);
+      }
     } catch (error) {
       if (error instanceof TypeError) {
         setInviteError(
@@ -259,13 +450,45 @@ const Orgs: FC = () => {
     }
   };
 
-  const withdrawInvite = (org: Org, email: string) => {
-    const updatedOrg: Org = {
-      ...org,
-      invites: (org.invites ?? []).filter((i) => i.email !== email),
-    };
-    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    persist({ ...user, orgs: nextOrgs });
+  const withdrawInvite = async (org: Org, invite: Invitation) => {
+    if (!invite.id) {
+      setInviteError("Diese Einladung hat keine Backend-ID.");
+      return;
+    }
+
+    setInviteError(null);
+    setWithdrawingInviteId(invite.id);
+
+    try {
+      const response = await fetch(
+        apiUrl(`/api/Invitation/${invite.id}/reject`),
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message ?? "Einladung konnte nicht zurueckgezogen werden.",
+        );
+      }
+
+      const updatedOrg: Org = {
+        ...org,
+        invites: (org.invites ?? []).filter((i) => i.id !== invite.id),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+    } catch (error) {
+      setInviteError(
+        error instanceof Error
+          ? error.message
+          : "Einladung konnte nicht zurueckgezogen werden.",
+      );
+    } finally {
+      setWithdrawingInviteId(null);
+    }
   };
 
   const renameOrg = (org: Org) => {
@@ -303,7 +526,7 @@ const Orgs: FC = () => {
       const nextOrgs = orgs.filter((t) => t.id !== org.id);
       const nextInvites = (user.invites ?? []).filter((i) => i.orgId !== org.id);
       persist({ ...user, orgs: nextOrgs, invites: nextInvites });
-      setSelectedOrgId(nextOrgs[0]?.id ?? null);
+      void setActiveOrganization(nextOrgs[0]?.id ?? null);
       setDeleteConfirm("");
       setDeleteSuccess("Organisation wurde endgültig gelöscht.");
     } catch (error) {
@@ -318,12 +541,43 @@ const Orgs: FC = () => {
   };
 
   const selectedOrg = useMemo(
-    () => orgs.find((t) => t.id === selectedOrgId) ?? null,
-    [orgs, selectedOrgId],
+    () => orgs.find((t) => t.id === activeOrganizationId) ?? orgs[0] ?? null,
+    [activeOrganizationId, orgs],
   );
   const isSelectedAdmin = selectedOrg
     ? selectedOrg.adminEmails?.includes(user.email)
     : false;
+
+  useEffect(() => {
+    if (activeTab !== "invites" || !selectedOrg || !isSelectedAdmin) {
+      return;
+    }
+
+    void syncOrganizationInvites(selectedOrg);
+    // Keep the invite list honest when recipients accept/decline in another tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedOrg?.id, isSelectedAdmin]);
+
+  useEffect(() => {
+    if (!selectedOrg || !isSelectedAdmin) {
+      return;
+    }
+
+    const syncOnFocus = () => {
+      if (document.visibilityState === "visible" && activeTab === "invites") {
+        void syncOrganizationInvites(selectedOrg);
+      }
+    };
+
+    document.addEventListener("visibilitychange", syncOnFocus);
+    window.addEventListener("focus", syncOnFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", syncOnFocus);
+      window.removeEventListener("focus", syncOnFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedOrg?.id, isSelectedAdmin]);
 
   return (
     <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6">
@@ -356,7 +610,7 @@ const Orgs: FC = () => {
             {orgs.map((org) => (
               <div
                 key={org.id}
-                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${selectedOrgId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
+                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${activeOrganizationId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
@@ -374,7 +628,7 @@ const Orgs: FC = () => {
                 </div>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
-                    onClick={() => setSelectedOrgId(org.id)}
+                    onClick={() => void setActiveOrganization(org.id)}
                     className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                       currentRole(org) === "Admin"
                         ? "border-emerald-300/60 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20"
@@ -506,11 +760,14 @@ const Orgs: FC = () => {
                             </button>
                             <button
                               onClick={() =>
-                                kickUser(selectedOrg, member.email)
+                                void kickUser(selectedOrg, member.email)
                               }
+                              disabled={isKickingMemberKey === `${selectedOrg.id}:${member.email}`}
                               className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                             >
-                              Kick
+                              {isKickingMemberKey === `${selectedOrg.id}:${member.email}`
+                                ? "Kicke..."
+                                : "Kick"}
                             </button>
                           </>
                         )}
@@ -541,22 +798,33 @@ const Orgs: FC = () => {
                         <div className="break-all font-semibold text-slate-50">{inv.email}</div>
                         <div className="text-xs text-slate-400">Status: {inv.status}</div>
                         {inv.invitationUrl && (
-                          <a
-                            href={inv.invitationUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 block text-xs text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
-                          >
-                            Invitation-Link öffnen
-                          </a>
+                          <div className="mt-2 flex min-w-0 flex-col gap-2">
+                            <a
+                              href={inv.invitationUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="break-all text-xs text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
+                            >
+                              {inv.invitationUrl}
+                            </a>
+                            <button
+                              onClick={() => copyInvitationLink(inv.invitationUrl!, inv.id ?? inv.email)}
+                              className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
+                            >
+                              {copiedInviteId === (inv.id ?? inv.email) ? "Kopiert" : "Link kopieren"}
+                            </button>
+                          </div>
                         )}
                       </div>
                       {isSelectedAdmin && inv.status === "pending" && (
                         <button
-                          onClick={() => withdrawInvite(selectedOrg, inv.email)}
+                          onClick={() => withdrawInvite(selectedOrg, inv)}
+                          disabled={withdrawingInviteId === inv.id}
                           className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                         >
-                          Zurückziehen
+                          {withdrawingInviteId === inv.id
+                            ? "Ziehe zurueck..."
+                            : "Zurückziehen"}
                         </button>
                       )}
                     </div>
@@ -585,8 +853,26 @@ const Orgs: FC = () => {
                     </button>
                   </div>
                   {inviteSuccess && (
-                    <div className="text-xs text-emerald-300">
-                      {inviteSuccess}
+                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/10 p-3 text-xs text-emerald-100">
+                      <div>{inviteSuccess}</div>
+                      {lastInviteLink && (
+                        <div className="mt-2 flex min-w-0 flex-col gap-2">
+                          <a
+                            href={lastInviteLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="break-all text-emerald-200 underline decoration-emerald-400/40 underline-offset-2"
+                          >
+                            {lastInviteLink}
+                          </a>
+                          <button
+                            onClick={() => copyInvitationLink(lastInviteLink, "latest")}
+                            className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
+                          >
+                            {copiedInviteId === "latest" ? "Kopiert" : "Link kopieren"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                   {inviteError && (

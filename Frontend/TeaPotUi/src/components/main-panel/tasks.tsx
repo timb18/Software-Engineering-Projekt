@@ -31,7 +31,7 @@ const getEndSlot = (date: Date) => {
 };
 
 const Tasks: FC = () => {
-  const { user, setUser, addTask, saveTask, removeTask, workProfileId } = useUserStore();
+  const { user, setUser, activeOrganizationId, setActiveOrganization, addTask, saveTask, removeTask, workProfileId } = useUserStore();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -59,7 +59,7 @@ const Tasks: FC = () => {
   const [error, setError] = useState<string | undefined>();
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "done">("all");
-  const [filterOrgId, setFilterOrgId] = useState<string | "all">("all");
+  const [filterOrgId, setFilterOrgId] = useState<string | "all">(activeOrganizationId ?? "all");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMsg, setScheduleMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [blocks, setBlocks] = useState<TaskBlock[]>([]);
@@ -68,6 +68,10 @@ const Tasks: FC = () => {
     if (!workProfileId) return;
     fetchBlocks(workProfileId).then(setBlocks).catch(() => setBlocks([]));
   }, [workProfileId]);
+
+  useEffect(() => {
+    setFilterOrgId(activeOrganizationId ?? "all");
+  }, [activeOrganizationId]);
 
   if (!user) {
     return <></>;
@@ -103,9 +107,17 @@ const Tasks: FC = () => {
     }
   };
 
+  const orgOptions = useMemo(() => user.orgs ?? [], [user.orgs]);
+  const selectedFilterOrg = filterOrgId === "all"
+    ? undefined
+    : orgOptions.find((org) => org.id === filterOrgId);
+
   const filteredTasks = (user.tasks ?? []).filter((t) => {
     const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
-    const byOrg = filterOrgId === "all" || t.org === filterOrgId;
+    const byOrg =
+      filterOrgId === "all" ||
+      t.org === filterOrgId ||
+      (!!selectedFilterOrg?.workProfileId && t.org === selectedFilterOrg.workProfileId);
     return byStatus && byOrg;
   });
 
@@ -138,8 +150,18 @@ const Tasks: FC = () => {
   });
 
   const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
-  const orgOptions = useMemo(() => user.orgs ?? [], [user.orgs]);
 
+  const changeOrganizationContext = (organizationId: string | "all") => {
+    if (organizationId === "all") {
+      setFilterOrgId("all");
+      return;
+    }
+
+    setFilterOrgId(organizationId);
+    void setActiveOrganization(organizationId).catch((err: unknown) => {
+      setError(String(err));
+    });
+  };
   const submitTask = () => {
     setError(undefined);
     setStatus(undefined);
@@ -171,6 +193,7 @@ const Tasks: FC = () => {
     );
 
     const selectedOrg =
+      orgOptions.find((org) => org.id === activeOrganizationId) ||
       (filterOrgId !== "all" && orgOptions.find((org) => org.id === filterOrgId)) ||
       orgOptions[0];
 
@@ -347,7 +370,7 @@ const Tasks: FC = () => {
             </select>
             <select
               value={filterOrgId}
-              onChange={(e) => setFilterOrgId(e.target.value as typeof filterOrgId)}
+              onChange={(e) => changeOrganizationContext(e.target.value as typeof filterOrgId)}
               className="rounded-full border border-slate-800 bg-slate-900/70 px-3 py-1 outline-none"
             >
               <option value="all">All assignees</option>
@@ -738,7 +761,7 @@ const Tasks: FC = () => {
                   <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Assignee</label>
                   <select
                     value={filterOrgId}
-                    onChange={(e) => setFilterOrgId(e.target.value as typeof filterOrgId)}
+                    onChange={(e) => changeOrganizationContext(e.target.value as typeof filterOrgId)}
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
                   >
                     <option value="all">Anyone</option>

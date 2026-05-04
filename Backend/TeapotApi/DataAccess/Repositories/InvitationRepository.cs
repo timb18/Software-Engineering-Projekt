@@ -50,6 +50,12 @@ public class InvitationRepository(TeapotDbContext context) : IInvitationReposito
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task DeleteAsync(Invitation invitation, CancellationToken cancellationToken = default)
+    {
+        context.Invitations.Remove(invitation);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
     public Task<int> MarkExpiredInvitationsAsync(CancellationToken cancellationToken = default) =>
         context.Invitations
             .Where(i => i.ExpiryDate < DateTime.UtcNow && i.Status == EInvitationStatus.Open)

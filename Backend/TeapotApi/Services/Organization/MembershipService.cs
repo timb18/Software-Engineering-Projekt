@@ -6,6 +6,17 @@ namespace Services.Organizations;
 public class MembershipService(IMembershipRepository membershipRepository) : IMembershipService
 {
     public async Task LeaveOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+        => await RemoveMembershipAsync(userId, organizationId, cancellationToken);
+
+    public async Task RemoveUserFromOrganizationAsync(Guid initiatorUserId, Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        var initiatorMembership = await membershipRepository.FindOrganizerAsync(organizationId, initiatorUserId, cancellationToken)
+            ?? throw new UnauthorizedAccessException("Only organizers can remove members from the organization.");
+
+        await RemoveMembershipAsync(userId, organizationId, cancellationToken);
+    }
+
+    private async Task RemoveMembershipAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
             throw new ArgumentException("UserId is required.", nameof(userId));

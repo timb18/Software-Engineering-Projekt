@@ -63,9 +63,23 @@ public class InvitationService(
         };
 
         await invitationRepository.AddAsync(invitation, cancellationToken);
-        await SendInvitationEmailAsync(invitation, organization, expiryDays, cancellationToken);
+        string? emailError = null;
+        var emailSent = false;
+        try
+        {
+            await SendInvitationEmailAsync(invitation, organization, expiryDays, cancellationToken);
+            emailSent = true;
+        }
+        catch (Exception ex)
+        {
+            emailError = $"{ex.GetType().Name}: {ex.GetBaseException().Message}";
+        }
 
-        return MapToDto(invitation);
+        return MapToDto(invitation) with
+        {
+            EmailSent = emailSent,
+            EmailError = emailError
+        };
     }
 
     public async Task<bool> AcceptInvitationAsync(Guid invitationId, Guid userId, CancellationToken cancellationToken = default)
@@ -149,9 +163,7 @@ public class InvitationService(
         var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken)
             ?? throw new ArgumentException($"Invitation with ID {invitationId} not found.");
 
-        invitation.Status = EInvitationStatus.Closed;
-        invitation.EditedAt = DateTime.UtcNow;
-        await invitationRepository.UpdateAsync(invitation, cancellationToken);
+        await invitationRepository.DeleteAsync(invitation, cancellationToken);
 
         return true;
     }

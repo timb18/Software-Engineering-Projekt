@@ -1,14 +1,24 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Api;
+using Api.Authorization;
+using Auth0.AspNetCore.Authentication.Api;
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 // Add services to the container.
 builder.Services.AddTeapotServices();
@@ -34,6 +44,19 @@ builder.Services.AddEndpointsApiExplorer()
         o.SwaggerDoc("v1",
             new OpenApiInfo
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
+        o.AddSecurityDefinition("Auth0", new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.OAuth2,
+            Flows = new OpenApiOAuthFlows
+            {
+                AuthorizationCode = new OpenApiOAuthFlow
+                {
+                    AuthorizationUrl = new Uri($"https://{builder.Configuration["Auth0:Domain"]}/authorize"),
+                    TokenUrl = new Uri($"https://{builder.Configuration["Auth0:Audience"]}/oauth/token")
+                }
+            },
+            Scheme = "Auth0"
+        });
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
@@ -49,6 +72,24 @@ if (string.IsNullOrWhiteSpace(connectionString))
         connectionString = TryBuildConnectionStringFromDatabaseUrl(databaseUrl);
     }
 }
+
+// Auth
+builder.Services.AddAuth0ApiAuthentication(options =>
+{
+    options.Domain = builder.Configuration["Auth0:Domain"];
+    options.JwtBearerOptions = new JwtBearerOptions
+    {
+        Audience = builder.Configuration["Auth0:Audience"]
+    };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminAuthRequirement.PolicyName,
+        policy => policy.Requirements.Add(new AdminAuthRequirement()));
+}).AddSingleton<IAuthorizationHandler, AdminAuthHandler>();
+
+builder.Services.AddAuthorization();
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
@@ -186,6 +227,7 @@ builder.Services.AddDbContext<TeapotDbContext>(options =>
     .AddScoped<ITaskBlockRepository, TaskBlockRepository>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection(ResendOptions.SectionName));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -212,6 +254,10 @@ app.UseCors();
 // HTTPS redirect is handled by the hosting platform's load balancer; only enable locally.
 if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
