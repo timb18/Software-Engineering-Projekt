@@ -17,4 +17,18 @@ public class TaskDependencyRepository(TeapotDbContext context) : ITaskDependency
             .Where(d => taskIds.Contains(d.TaskId))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task ReplaceForTaskAsync(
+        Guid taskId, IEnumerable<Guid> dependsOnIds, CancellationToken cancellationToken = default)
+    {
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM task_dependencies WHERE task_id = {taskId}", cancellationToken);
+
+        foreach (var depId in dependsOnIds)
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT INTO task_dependencies (task_id, depends_on_task_id) VALUES ({taskId}, {depId})",
+                cancellationToken);
+        }
+    }
 }

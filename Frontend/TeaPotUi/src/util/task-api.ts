@@ -32,7 +32,14 @@ export async function fetchTasks(workProfileId: string): Promise<Task[]> {
   const res = await fetch(`${API_BASE}/api/task/${encodeURIComponent(workProfileId)}`);
   if (!res.ok) throw new Error(`fetchTasks failed: ${res.status}`);
   const raw = await res.json() as Record<string, unknown>[];
-  return raw.map(fromApi);
+  const tasks = raw.map(fromApi);
+  // Resolve dependency IDs returned from the server to full Task objects
+  const byId = new Map(tasks.map(t => [t.id!, t]));
+  raw.forEach((r, i) => {
+    const ids = (r.dependsOnTaskIds as string[] | undefined) ?? [];
+    tasks[i].dependencies = ids.map(id => byId.get(id)).filter((t): t is Task => t !== undefined);
+  });
+  return tasks;
 }
 
 /** Builds the request body shared by createTask and updateTask. */
@@ -59,6 +66,7 @@ function buildTaskBody(task: Task) {
     earlyFinish: deadline,
     lateStart: start,
     lateFinish: deadline,
+    dependsOnTaskIds: task.dependencies.map(d => d.id).filter((id): id is string => Boolean(id)),
   };
 }
 
