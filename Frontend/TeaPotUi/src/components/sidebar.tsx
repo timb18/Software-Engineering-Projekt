@@ -1,9 +1,9 @@
 import { useMemo, type FC } from "react";
 import { useNavigate } from "react-router";
-import useUserStore from "../stores/user-store";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const Sidebar: FC = () => {
-  const { user } = useUserStore();
+  const { user } = useAuth0();
   const navigate = useNavigate();
 
   const goToProfile = () => {

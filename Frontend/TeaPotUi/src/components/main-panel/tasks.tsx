@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
-import type { Task } from "../../util/types";
+import type { Org, Task } from "../../util/types";
 
 const startHour = 7;
 const endHour = 19;

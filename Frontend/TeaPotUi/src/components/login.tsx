@@ -30,6 +30,13 @@ const Login: FC = () => {
     toLoginAsync();
   }, [initForUser, isAuthenticated, navigate, toLoginAsync, user]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+    toLoginAsync();
+  }, [initForUser, isAuthenticated, navigate, toLoginAsync, user]);
+
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-50">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">

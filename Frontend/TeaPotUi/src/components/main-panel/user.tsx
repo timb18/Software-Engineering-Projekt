@@ -411,7 +411,7 @@ const User: FC = () => {
                         ...profileForm,
                         profileImageUrl: e.target.value,
                       })
-                    }
+                    } */
                   />
                 </div>
               </div>
@@ -435,10 +435,6 @@ const User: FC = () => {
                   </label>
                   <input
                     type="email"
-                    value={profileForm.email}
-                    onChange={(e) =>
-                      setProfileForm({ ...profileForm, email: e.target.value })
-                    }
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
                 </div>
