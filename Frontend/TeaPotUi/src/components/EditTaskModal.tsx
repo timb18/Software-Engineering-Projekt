@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import type { Task } from "../util/types";
 import useUserStore from "../stores/user-store";
+import { fetchTask, updateTask } from "../util/task-api";
 
 interface EditTaskModalProps {
   task: Task;
@@ -10,7 +11,7 @@ interface EditTaskModalProps {
 }
 
 const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
-  const { user, setUser } = useUserStore();
+  const { user, setUser, workProfileId } = useUserStore();
   const [form, setForm] = useState({
     name: task.name,
     description: task.description,
@@ -37,7 +38,32 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
 
   const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
 
-  const submit = () => {
+  // Load task data when modal opens
+  useEffect(() => {
+    if (!workProfileId || !task.id) return;
+    const load = async () => {
+      try {
+        const fresh = await fetchTask(workProfileId, task.id!);
+        setForm({
+          name: fresh.name,
+          description: fresh.description,
+          durationMinutes: dayjs(fresh.endDate).diff(dayjs(fresh.startDate), "minute"),
+          priority: (fresh.priority ?? "medium")! as Task["priority"],
+          status: (fresh.status ?? "todo")! as Task["status"],
+          deadline: fresh.deadline ? dayjs(fresh.deadline).format("YYYY-MM-DDTHH:mm") : "",
+          dependencies: fresh.dependencies.map((d) => d.name),
+          isFixed: fresh.isFixed ?? false,
+          startDate: dayjs(fresh.startDate).format("YYYY-MM-DDTHH:mm"),
+          endDate: dayjs(fresh.endDate).format("YYYY-MM-DDTHH:mm"),
+        });
+      } catch {
+        setError("Failed to load task.");
+      }
+    };
+    load();
+  }, [workProfileId, task.id]);
+
+  const submit = async () => {
     setError(undefined);
     if (!form.name.trim()) {
       setError("Title is required.");
@@ -69,9 +95,14 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       deadline: dayjs(form.deadline).toDate(),
       dependencies: dependencyOptions.filter((t) => form.dependencies.includes(t.name)),
     };
-    const updatedTasks = user.tasks?.map((t) => (t.name === task.name ? newTask : t)) ?? [];
-    setUser({ ...user, tasks: updatedTasks });
-    onClose();
+    try {
+      const updated = await updateTask(workProfileId!, task.id!, newTask);
+      const updatedTasks = user.tasks?.map((t) => (t.id === updated.id ? updated : t)) ?? [];
+      setUser({ ...user, tasks: updatedTasks });
+      onClose();
+    } catch (e) {
+      setError("Failed to save task.");
+    }
   };
 
   return createPortal(
