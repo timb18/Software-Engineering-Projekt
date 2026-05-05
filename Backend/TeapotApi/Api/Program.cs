@@ -25,6 +25,11 @@ builder.Services.AddTeapotServices();
 var jsonStringEnumConverter = new JsonStringEnumConverter(
     JsonNamingPolicy.CamelCase,
     false);
+var auth0Domain = builder.Configuration["Auth0:Domain"];
+var auth0Audience = builder.Configuration["Auth0:Audience"];
+var isAuth0Configured =
+    !string.IsNullOrWhiteSpace(auth0Domain) &&
+    !string.IsNullOrWhiteSpace(auth0Audience);
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer()
@@ -43,19 +48,22 @@ builder.Services.AddEndpointsApiExplorer()
         o.SwaggerDoc("v1",
             new OpenApiInfo
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
-        o.AddSecurityDefinition("Auth0", new OpenApiSecurityScheme
+        if (isAuth0Configured)
         {
-            Type = SecuritySchemeType.OAuth2,
-            Flows = new OpenApiOAuthFlows
+            o.AddSecurityDefinition("Auth0", new OpenApiSecurityScheme
             {
-                AuthorizationCode = new OpenApiOAuthFlow
+                Type = SecuritySchemeType.OAuth2,
+                Flows = new OpenApiOAuthFlows
                 {
-                    AuthorizationUrl = new Uri($"https://{builder.Configuration["Auth0:Domain"]}/authorize"),
-                    TokenUrl = new Uri($"https://{builder.Configuration["Auth0:Audience"]}/oauth/token")
-                }
-            },
-            Scheme = "Auth0"
-        });
+                    AuthorizationCode = new OpenApiOAuthFlow
+                    {
+                        AuthorizationUrl = new Uri($"https://{auth0Domain}/authorize"),
+                        TokenUrl = new Uri($"https://{auth0Domain}/oauth/token")
+                    }
+                },
+                Scheme = "Auth0"
+            });
+        }
     })
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
@@ -73,14 +81,22 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 // Auth
-builder.Services.AddAuth0ApiAuthentication(options =>
+if (isAuth0Configured)
 {
-    options.Domain = builder.Configuration["Auth0:Domain"];
-    options.JwtBearerOptions = new JwtBearerOptions
+    builder.Services.AddAuth0ApiAuthentication(options =>
     {
-        Audience = builder.Configuration["Auth0:Audience"]
-    };
-});
+        options.Domain = auth0Domain;
+        options.JwtBearerOptions = new JwtBearerOptions
+        {
+            Audience = auth0Audience
+        };
+    });
+}
+else
+{
+    Console.WriteLine("[DEV] Auth0 is not configured — authentication is disabled for local API startup.");
+    builder.Services.AddAuthentication();
+}
 
 builder.Services.AddAuthorization(options =>
 {

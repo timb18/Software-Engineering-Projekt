@@ -59,6 +59,40 @@ public class OrganizationService(
 
     private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 
+    public async Task RenameOrganizationAsync(RenameOrganizationCommand command, CancellationToken cancellationToken = default)
+    {
+        if (command.OrganizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.", nameof(command.OrganizationId));
+
+        if (command.InitiatorUserId == Guid.Empty)
+            throw new ArgumentException("InitiatorUserId is required.", nameof(command.InitiatorUserId));
+
+        var normalizedName = command.Name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedName))
+            throw new ArgumentException("Organization name is required.", nameof(command.Name));
+
+        var organization = await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId, cancellationToken)
+            ?? throw new KeyNotFoundException("Organization not found.");
+
+        var initiatorMembership = organization.Memberships
+            .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
+            ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
+
+        if (initiatorMembership.Role != ERole.Organizer)
+            throw new UnauthorizedAccessException("Only organizers can rename an organization.");
+
+        if (!string.Equals(organization.Name, normalizedName, StringComparison.Ordinal))
+        {
+            var existingOrganization = await organizationRepository.FindByNameAsync(normalizedName, cancellationToken);
+            if (existingOrganization is not null && existingOrganization.Id != organization.Id)
+                throw new InvalidOperationException("An organization with this name already exists.");
+        }
+
+        organization.Name = normalizedName;
+        organization.EditedAt = DateTime.UtcNow;
+        await organizationRepository.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default)
     {
         if (command.OrganizationId == Guid.Empty)

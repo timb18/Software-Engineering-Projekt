@@ -45,13 +45,58 @@ public class OrganizationController(
             var organizations = await organizationService.GetOrganizationsForUserAsync(email, cancellationToken);
             return Ok(organizations);
         }
-        catch (KeyNotFoundException)
+        catch (KeyNotFoundException ex)
         {
-            return NotFound();
+            return NotFound(ex.Message);
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPatch("{organizationId}")]
+    [HttpPost("{organizationId}/rename")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Rename(
+        string organizationId,
+        [FromBody] RenameOrganizationRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(organizationId, out var parsedOrganizationId))
+        {
+            return BadRequest("OrganizationId must be a valid GUID. Reload organizations from the backend before editing.");
+        }
+
+        try
+        {
+            await organizationService.RenameOrganizationAsync(
+                new RenameOrganizationCommand(
+                    parsedOrganizationId,
+                    request.InitiatorUserId,
+                    request.Name),
+                cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
         }
     }
 
@@ -84,9 +129,9 @@ public class OrganizationController(
         {
             return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
         }
-        catch (KeyNotFoundException)
+        catch (KeyNotFoundException ex)
         {
-            return NotFound();
+            return NotFound(ex.Message);
         }
         catch (InvalidOperationException ex)
         {
@@ -95,4 +140,5 @@ public class OrganizationController(
     }
 }
 
+public sealed record RenameOrganizationRequest(Guid InitiatorUserId, string Name);
 public sealed record DeleteOrganizationRequest(Guid InitiatorUserId, string ConfirmationText);

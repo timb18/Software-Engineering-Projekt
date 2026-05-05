@@ -32,6 +32,9 @@ public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepo
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        context.SaveChangesAsync(cancellationToken);
+
     public async Task DeleteWithCascadeAsync(Organization organization, CancellationToken cancellationToken = default)
     {
         foreach (var membership in organization.Memberships.ToList())
