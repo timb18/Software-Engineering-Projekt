@@ -25,6 +25,14 @@ export async function fetchTasks(workProfileId: string): Promise<Task[]> {
   return raw.map(fromApi);
 }
 
+/** Fetches a single task by id. */
+export async function fetchTask(workProfileId: string, taskId: string): Promise<Task> {
+  const res = await fetch(`${API_BASE}/api/task/${encodeURIComponent(workProfileId)}/${encodeURIComponent(taskId)}`);
+  if (!res.ok) throw new Error(`fetchTask failed: ${res.status}`);
+  const raw = await res.json() as Record<string, unknown>;
+  return fromApi(raw);
+}
+
 /** Builds the request body shared by createTask and updateTask. */
 function buildTaskBody(task: Task) {
   const start = task.startDate.toISOString();
