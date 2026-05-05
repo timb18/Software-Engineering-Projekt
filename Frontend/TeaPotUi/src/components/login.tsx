@@ -11,24 +11,28 @@ const Login: FC = () => {
   const invitationId = searchParams.get("invitationId");
 
   const toLoginAsync = useCallback(async () => {
-    if (!user) {
+    if (!user?.sub || !user.email) {
       return;
     }
-    await initForUser(user.sub!, user.email!).catch(console.error);
+
+    await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
+
     if (invitationId) {
-      await acceptInvite(invitationId, { email: user.email! }).catch(
-        console.error,
-      );
+      await acceptInvite(invitationId, { email: user.email });
+      await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
+      navigate("/teams");
+      return;
     }
+
     navigate("/");
-  }, [initForUser, invitationId, navigate, user]);
+  }, [invitationId, navigate, user]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       return;
     }
     toLoginAsync();
-  }, [initForUser, isAuthenticated, navigate, toLoginAsync, user]);
+  }, [isAuthenticated, toLoginAsync]);
 
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-50">
