@@ -4,6 +4,7 @@ import "./index.css";
 import { RouterProvider } from "react-router";
 import router from "./routes.ts";
 import { Auth0Provider } from "@auth0/auth0-react";
+import ThemeToggle from "./components/theme-toggle.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -17,6 +18,7 @@ createRoot(document.getElementById("root")!).render(
     >
       <div className="min-h-screen w-screen bg-slate-950">
         <RouterProvider router={router} />
+        <ThemeToggle />
       </div>
     </Auth0Provider>
   </StrictMode>,

@@ -22,6 +22,14 @@ const Login: FC = () => {
     }
   }, [invitationId, invitedEmail]);
 
+  useEffect(() => {
+    document.documentElement.dataset.themePage = "login";
+
+    return () => {
+      delete document.documentElement.dataset.themePage;
+    };
+  }, []);
+
   const toLoginAsync = useCallback(async () => {
     if (!user?.sub || !user.email) {
       return;
