@@ -153,7 +153,9 @@ public partial class TeapotDbContext : DbContext
         modelBuilder.Entity<TaskDependency>(entity =>
         {
             entity
-                .HasNoKey()
+                .HasKey(e => new { e.TaskId, e.DependsOnTaskId });
+
+            entity
                 .ToTable("task_dependencies");
 
             entity.Property(e => e.DependsOnTaskId).HasColumnName("depends_on_task_id");

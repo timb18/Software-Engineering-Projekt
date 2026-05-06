@@ -43,6 +43,9 @@ public class MembershipRepository(TeapotDbContext context) : IMembershipReposito
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        context.SaveChangesAsync(cancellationToken);
+
     public async Task DeleteWithWorkProfileDataAsync(Membership membership, CancellationToken cancellationToken = default)
     {
         if (membership.WorkProfile is not null)

@@ -9,5 +9,6 @@ public interface IOrganizationRepository
     Task<IEnumerable<Organization>> GetForUserAsync(string normalizedEmail, CancellationToken cancellationToken = default);
     Task<Organization?> GetWithMembershipsAndInvitationsAsync(Guid id, CancellationToken cancellationToken = default);
     Task AddAsync(Organization organization, CancellationToken cancellationToken = default);
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
     Task DeleteWithCascadeAsync(Organization organization, CancellationToken cancellationToken = default);
 }

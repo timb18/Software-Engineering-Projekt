@@ -8,6 +8,19 @@ type RemoveMembershipRequest = {
   organizationId: string;
 };
 
+type RenameOrganizationRequest = {
+  initiatorUserId: string;
+  organizationId: string;
+  name: string;
+};
+
+type UpdateMembershipRoleRequest = {
+  initiatorUserId: string;
+  userId: string;
+  organizationId: string;
+  role: "admin" | "user";
+};
+
 type OrganizationApiResponse = {
   id: string;
   name: string;
@@ -105,7 +118,62 @@ export async function removeUserFromOrganization(
   if (!res.ok) {
     const message = await res.text();
     throw new Error(
-      message || "Mitglied konnte nicht aus der Organisation entfernt werden.",
+      message || "Member could not be removed from the organization.",
+    );
+  }
+}
+
+export async function renameOrganization(
+  request: RenameOrganizationRequest,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/Organization/${request.organizationId}/rename`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      initiatorUserId: request.initiatorUserId,
+      name: request.name,
+    }),
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    if (res.status === 404 && !message) {
+      throw new Error(
+        "Organization rename API route was not found. Restart the backend with the latest code and check VITE_API_BASE_URL.",
+      );
+    }
+
+    throw new Error(
+      message ||
+        `Organization could not be renamed. (${res.status} ${res.statusText})`,
+    );
+  }
+}
+
+export async function updateMembershipRole(
+  request: UpdateMembershipRoleRequest,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/Membership/role`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    if (res.status === 404 && !message) {
+      throw new Error(
+        "Member role API route was not found. Restart the backend with the latest code and check VITE_API_BASE_URL.",
+      );
+    }
+
+    throw new Error(
+      message ||
+        `Member role could not be updated. (${res.status} ${res.statusText})`,
     );
   }
 }

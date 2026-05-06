@@ -4,7 +4,9 @@ import type { Invitation, Org, User } from "../../util/types";
 import acceptInvite from "../../util/accept-invite";
 import {
   fetchOrganizationsByUserEmail,
+  renameOrganization,
   removeUserFromOrganization,
+  updateMembershipRole,
 } from "../../util/org-api";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
@@ -49,7 +51,10 @@ const Orgs: FC = () => {
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
   const [isKickingMemberKey, setIsKickingMemberKey] = useState<string | null>(null);
+  const [isChangingRoleKey, setIsChangingRoleKey] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [isRenamingOrg, setIsRenamingOrg] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
@@ -162,7 +167,7 @@ const Orgs: FC = () => {
       setCopiedInviteId(inviteId);
       window.setTimeout(() => setCopiedInviteId(null), 1800);
     } catch {
-      setInviteError("Link konnte nicht automatisch kopiert werden. Markiere ihn und kopiere ihn manuell.");
+      setInviteError("The link could not be copied automatically. Select it and copy it manually.");
     }
   };
 
@@ -228,7 +233,7 @@ const Orgs: FC = () => {
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(
-          payload?.message ?? "Einladung konnte nicht abgelehnt werden.",
+          payload?.message ?? "Invitation could not be declined.",
         );
       }
 
@@ -238,7 +243,7 @@ const Orgs: FC = () => {
       alert(
         error instanceof Error
           ? error.message
-          : "Einladung konnte nicht abgelehnt werden.",
+          : "Invitation could not be declined.",
       );
     }
   };
@@ -264,7 +269,7 @@ const Orgs: FC = () => {
       if (!response.ok) {
         const message = await response.text();
         throw new Error(
-          message || "Organisation konnte nicht verlassen werden.",
+          message || "Organization could not be left.",
         );
       }
 
@@ -276,13 +281,13 @@ const Orgs: FC = () => {
     } catch (error) {
       if (error instanceof TypeError) {
         setLeaveError(
-          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+          "Backend is unreachable. Start the API and check whether it is running on port 5186.",
         );
       } else {
         setLeaveError(
           error instanceof Error
             ? error.message
-            : "Organisation konnte nicht verlassen werden.",
+            : "Organization could not be left.",
         );
       }
     } finally {
@@ -290,23 +295,76 @@ const Orgs: FC = () => {
     }
   };
 
-  const toggleRole = (org: Org, email: string) => {
+  const toggleRole = async (org: Org, email: string) => {
+    if (!guidPattern.test(org.id)) {
+      setLeaveError(
+        "This organization is not loaded from the database yet. Reload after the backend is running, then try again.",
+      );
+      return;
+    }
+
+    const memberToUpdate = org.users.find((u) => u.email === email);
+
+    if (!memberToUpdate) {
+      setLeaveError("Member was not found in this organization.");
+      return;
+    }
+
     const isAdmin = org.adminEmails?.includes(email) ?? false;
-    const updatedOrg: Org = {
-      ...org,
-      adminEmails: isAdmin
-        ? (org.adminEmails ?? []).filter((e) => e !== email)
-        : [...(org.adminEmails ?? []), email],
-    };
-    const nextOrgss = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    persist({ ...user, orgs: nextOrgss });
+    const nextRole = isAdmin ? "user" : "admin";
+    const memberKey = `${org.id}:${email}`;
+
+    setLeaveError(null);
+    setIsChangingRoleKey(memberKey);
+
+    try {
+      await updateMembershipRole({
+        initiatorUserId: user.id,
+        userId: memberToUpdate.id,
+        organizationId: org.id,
+        role: nextRole,
+      });
+
+      const updatedOrg: Org = {
+        ...org,
+        adminEmails: isAdmin
+          ? (org.adminEmails ?? []).filter((e) => e !== email)
+          : [...(org.adminEmails ?? []), email],
+        users: org.users.map((member) =>
+          member.email === email ? { ...member, role: nextRole } : member,
+        ),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setLeaveError(
+          "Backend is unreachable. Start the API and check whether it is running on port 5186.",
+        );
+      } else {
+        setLeaveError(
+          error instanceof Error
+            ? error.message
+            : "Member role could not be updated.",
+        );
+      }
+    } finally {
+      setIsChangingRoleKey(null);
+    }
   };
 
   const kickUser = async (org: Org, email: string) => {
+    if (!guidPattern.test(org.id)) {
+      setLeaveError(
+        "This organization is not loaded from the database yet. Reload after the backend is running, then try again.",
+      );
+      return;
+    }
+
     const memberToKick = org.users.find((u) => u.email === email);
 
     if (!memberToKick) {
-      setLeaveError("Mitglied wurde in der Organisation nicht gefunden.");
+      setLeaveError("Member was not found in this organization.");
       return;
     }
 
@@ -331,13 +389,13 @@ const Orgs: FC = () => {
     } catch (error) {
       if (error instanceof TypeError) {
         setLeaveError(
-          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+          "Backend is unreachable. Start the API and check whether it is running on port 5186.",
         );
       } else {
         setLeaveError(
           error instanceof Error
             ? error.message
-            : "Mitglied konnte nicht entfernt werden.",
+            : "Member could not be removed.",
         );
       }
     } finally {
@@ -364,7 +422,7 @@ const Orgs: FC = () => {
     try {
       if (!guidPattern.test(org.id)) {
         throw new Error(
-          "Diese Organisation hat noch keine echte DB-ID. Lade die Organisationen zuerst aus dem Backend statt aus den Mock-Daten.",
+          "This organization does not have a real database ID yet. Load organizations from the backend instead of mock data.",
         );
       }
 
@@ -391,7 +449,7 @@ const Orgs: FC = () => {
         let message =
           payload?.message ??
           validationErrors ??
-          "Einladung konnte nicht erstellt werden.";
+          "Invitation could not be created.";
 
         if (message.includes("Email format is invalid")) {
           message = "Bitte gib eine gültige E-Mail-Adresse ein.";
@@ -400,7 +458,7 @@ const Orgs: FC = () => {
         if (message.includes("An open invitation already exists")) {
           await syncOrganizationInvites(org);
           message =
-            "Für diese E-Mail gibt es bereits eine offene Einladung. Ich habe die Liste unter 'Eingeladen' aktualisiert.";
+            "There is already an open invitation for this email. I refreshed the Invited list.";
         }
 
         throw new Error(message);
@@ -436,15 +494,18 @@ const Orgs: FC = () => {
       setLastInviteLink(payload.data?.invitationLink ?? null);
       setInviteSuccess(
         payload.data?.emailSent
-          ? "Einladung wurde erstellt und per E-Mail versendet."
+          ? "Invitation was created and sent by email."
           : payload.data?.invitationLink
-            ? "E-Mail nicht verschickt. Hier ist der Link, du kannst ihn manuell versenden."
-          : "Einladung wurde erstellt und per E-Mail versendet.",
+            ? "Invitation link was created, but email delivery could not be confirmed. Copy the link and send it manually."
+          : "Invitation was created and sent by email.",
       );
+      if (payload.data?.emailError) {
+        setInviteError(`Email delivery failed: ${payload.data.emailError}`);
+      }
     } catch (error) {
       if (error instanceof TypeError) {
         setInviteError(
-          "Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.",
+          "Backend is unreachable. Start the API and check whether it is running on port 5186.",
         );
       } else {
         setInviteError(
@@ -460,7 +521,7 @@ const Orgs: FC = () => {
 
   const withdrawInvite = async (org: Org, invite: Invitation) => {
     if (!invite.id) {
-      setInviteError("Diese Einladung hat keine Backend-ID.");
+      setInviteError("This invitation does not have a backend ID.");
       return;
     }
 
@@ -478,7 +539,7 @@ const Orgs: FC = () => {
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(
-          payload?.message ?? "Einladung konnte nicht zurueckgezogen werden.",
+          payload?.message ?? "Invitation could not be withdrawn.",
         );
       }
 
@@ -492,19 +553,57 @@ const Orgs: FC = () => {
       setInviteError(
         error instanceof Error
           ? error.message
-          : "Einladung konnte nicht zurueckgezogen werden.",
+          : "Invitation could not be withdrawn.",
       );
     } finally {
       setWithdrawingInviteId(null);
     }
   };
 
-  const renameOrg = (org: Org) => {
-    if (!renameValue.trim()) return;
-    const updatedOrg: Org = { ...org, name: renameValue.trim() };
-    const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
-    persist({ ...user, orgs: nextOrgs });
-    setRenameValue("");
+  const renameOrg = async (org: Org) => {
+    const nextName = renameValue.trim();
+    if (!nextName) return;
+
+    setRenameError(null);
+
+    if (!guidPattern.test(org.id)) {
+      setRenameError(
+        "This organization is not loaded from the database yet. Reload after the backend is running, then try again.",
+      );
+      return;
+    }
+
+    setIsRenamingOrg(true);
+
+    try {
+      await renameOrganization({
+        initiatorUserId: user.id,
+        organizationId: org.id,
+        name: nextName,
+      });
+
+      const updatedOrg: Org = {
+        ...org,
+        name: nextName,
+        invites: (org.invites ?? []).map((invite) => ({
+          ...invite,
+          orgName: nextName,
+        })),
+      };
+      const nextOrgs = orgs.map((t) => (t.id === org.id ? updatedOrg : t));
+      persist({ ...user, orgs: nextOrgs });
+      setRenameValue("");
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setRenameError(
+          "Backend is unreachable. Start the API and check whether it is running on port 5186.",
+        );
+      } else {
+        setRenameError(error instanceof Error ? error.message : "Organization could not be renamed.");
+      }
+    } finally {
+      setIsRenamingOrg(false);
+    }
   };
 
   const deleteOrg = async (org: Org) => {
@@ -512,6 +611,14 @@ const Orgs: FC = () => {
 
     setDeleteError(null);
     setDeleteSuccess(null);
+
+    if (!guidPattern.test(org.id)) {
+      setDeleteError(
+        "This organization is not loaded from the database yet. Reload after the backend is running, then try again.",
+      );
+      return;
+    }
+
     setIsDeletingOrg(true);
 
     try {
@@ -528,7 +635,7 @@ const Orgs: FC = () => {
 
       if (!response.ok) {
         const message = await response.text();
-        throw new Error(message || "Organisation konnte nicht gelöscht werden.");
+        throw new Error(message || "Organization could not be deleted.");
       }
 
       const nextOrgs = orgs.filter((t) => t.id !== org.id);
@@ -536,12 +643,12 @@ const Orgs: FC = () => {
       persist({ ...user, orgs: nextOrgs, invites: nextInvites });
       void setActiveOrganization(nextOrgs[0]?.id ?? null);
       setDeleteConfirm("");
-      setDeleteSuccess("Organisation wurde endgültig gelöscht.");
+      setDeleteSuccess("Organization was permanently deleted.");
     } catch (error) {
       if (error instanceof TypeError) {
-        setDeleteError("Backend nicht erreichbar. Starte die API und pruefe, ob sie auf Port 5186 laeuft.");
+        setDeleteError("Backend is unreachable. Start the API and check whether it is running on port 5186.");
       } else {
-        setDeleteError(error instanceof Error ? error.message : "Organisation konnte nicht gelöscht werden.");
+        setDeleteError(error instanceof Error ? error.message : "Organization could not be deleted.");
       }
     } finally {
       setIsDeletingOrg(false);
@@ -608,10 +715,10 @@ const Orgs: FC = () => {
 
       <div className="grid min-w-0 grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
         <div className="min-w-0 flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-          <div className="text-lg font-semibold text-slate-50">Meine Orgs </div>
+          <div className="text-lg font-semibold text-slate-50">My orgs</div>
           {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
-              Du bist noch in keinem Org.
+              You are not in any organization yet.
             </div>
           )}
           <div className="flex flex-col gap-3">
@@ -630,7 +737,7 @@ const Orgs: FC = () => {
                       {currentRole(org)}
                     </span>
                     <span className="text-xs text-slate-400">
-                      {org.users.length} Mitglieder
+                      {org.users.length} members
                     </span>
                   </div>
                 </div>
@@ -643,14 +750,14 @@ const Orgs: FC = () => {
                         : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700"
                     }`}
                   >
-                    {currentRole(org) === "Admin" ? "Verwalten" : "Ansehen"}
+                    {currentRole(org) === "Admin" ? "Manage" : "View"}
                   </button>
                   <button
                     onClick={() => leaveOrg(org.id)}
                     disabled={isLeavingOrgId === org.id}
                     className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-300 transition hover:border-rose-400/60 hover:text-rose-200"
                   >
-                    {isLeavingOrgId === org.id ? "Verlasse..." : "Austreten"}
+                    {isLeavingOrgId === org.id ? "Leaving..." : "Leave"}
                   </button>
                 </div>
               </div>
@@ -687,13 +794,13 @@ const Orgs: FC = () => {
                         onClick={() => onAcceptInvite(invite)}
                         className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-100 hover:bg-emerald-400/25"
                       >
-                        Annehmen
+                        Accept
                       </button>
                       <button
                         onClick={() => declineInvite(invite)}
                         className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-xs font-semibold text-slate-300 hover:border-rose-300/60 hover:text-rose-200"
                       >
-                        Ablehnen
+                        Decline
                       </button>
                     </div>
                   </div>
@@ -712,12 +819,12 @@ const Orgs: FC = () => {
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Org verwalten</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Manage organization</div>
                   <div className="break-words text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
                 </div>
                 {!isSelectedAdmin && (
                   <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
-                    Nur Admins können bearbeiten
+                    Only admins can edit
                   </span>
                 )}
               </div>
@@ -733,10 +840,10 @@ const Orgs: FC = () => {
                         : "border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
                     }`}
                   >
-                    {tab === "members" && "Aktive Mitglieder"}
-                    {tab === "invites" && "Eingeladen"}
-                    {tab === "invite" && "Einladen"}
-                    {tab === "settings" && "Einstellungen"}
+                    {tab === "members" && "Active members"}
+                    {tab === "invites" && "Invited"}
+                    {tab === "invite" && "Invite"}
+                    {tab === "settings" && "Settings"}
                   </button>
                 ))}
               </div>
@@ -754,17 +861,20 @@ const Orgs: FC = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] uppercase tracking-wide text-slate-300">
-                          {selectedOrg.adminEmails?.includes(member.email) ? "Admin" : "Mitglied"}
+                          {selectedOrg.adminEmails?.includes(member.email) ? "Admin" : "Member"}
                         </span>
                         {isSelectedAdmin && member.email !== user.email && (
                           <>
                             <button
                               onClick={() =>
-                                toggleRole(selectedOrg, member.email)
+                                void toggleRole(selectedOrg, member.email)
                               }
+                              disabled={isChangingRoleKey === `${selectedOrg.id}:${member.email}`}
                               className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                             >
-                              Rolle ändern
+                              {isChangingRoleKey === `${selectedOrg.id}:${member.email}`
+                                ? "Saving..."
+                                : "Change role"}
                             </button>
                             <button
                               onClick={() =>
@@ -774,7 +884,7 @@ const Orgs: FC = () => {
                               className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                             >
                               {isKickingMemberKey === `${selectedOrg.id}:${member.email}`
-                                ? "Kicke..."
+                                ? "Removing..."
                                 : "Kick"}
                             </button>
                           </>
@@ -784,7 +894,7 @@ const Orgs: FC = () => {
                   ))}
                   {selectedOrg.users.length === 0 && (
                     <div className="text-sm text-slate-500">
-                      Keine Mitglieder im Org.
+                      No members in this organization.
                     </div>
                   )}
                 </div>
@@ -794,7 +904,7 @@ const Orgs: FC = () => {
                 <div className="mt-4 flex min-w-0 flex-col gap-3">
                   {(selectedOrg.invites ?? []).length === 0 && (
                     <div className="text-sm text-slate-500">
-                      Keine offenen Einladungen.
+                      No open invitations.
                     </div>
                   )}
                   {(selectedOrg.invites ?? []).map((inv) => (
@@ -819,7 +929,7 @@ const Orgs: FC = () => {
                               onClick={() => copyInvitationLink(inv.invitationUrl!, inv.id ?? inv.email)}
                               className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                             >
-                              {copiedInviteId === (inv.id ?? inv.email) ? "Kopiert" : "Link kopieren"}
+                              {copiedInviteId === (inv.id ?? inv.email) ? "Copied" : "Copy link"}
                             </button>
                           </div>
                         )}
@@ -831,8 +941,8 @@ const Orgs: FC = () => {
                           className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                         >
                           {withdrawingInviteId === inv.id
-                            ? "Ziehe zurueck..."
-                            : "Zurückziehen"}
+                            ? "Withdrawing..."
+                            : "Withdraw"}
                         </button>
                       )}
                     </div>
@@ -843,7 +953,7 @@ const Orgs: FC = () => {
               {activeTab === "invite" && (
                 <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
                   <div className="text-sm font-semibold text-slate-100">
-                    Nutzer per E-Mail einladen
+                    Invite a user by email
                   </div>
                   <div className="flex gap-2 max-sm:flex-col">
                     <input
@@ -857,7 +967,7 @@ const Orgs: FC = () => {
                       disabled={!isSelectedAdmin || isSendingInvite}
                       className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                     >
-                      {isSendingInvite ? "Sende..." : "Senden"}
+                      {isSendingInvite ? "Sending..." : "Send"}
                     </button>
                   </div>
                   {inviteSuccess && (
@@ -877,7 +987,7 @@ const Orgs: FC = () => {
                             onClick={() => copyInvitationLink(lastInviteLink, "latest")}
                             className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                           >
-                            {copiedInviteId === "latest" ? "Kopiert" : "Link kopieren"}
+                            {copiedInviteId === "latest" ? "Copied" : "Copy link"}
                           </button>
                         </div>
                       )}
@@ -888,7 +998,7 @@ const Orgs: FC = () => {
                   )}
                   {!isSelectedAdmin && (
                     <div className="text-xs text-slate-500">
-                      Nur Admins dürfen einladen.
+                      Only admins can invite users.
                     </div>
                   )}
                 </div>
@@ -898,7 +1008,7 @@ const Orgs: FC = () => {
                 <div className="mt-4 flex flex-col gap-4">
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
                     <div className="text-sm font-semibold text-slate-100">
-                      Org umbenennen
+                      Rename organization
                     </div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
@@ -908,28 +1018,31 @@ const Orgs: FC = () => {
                         className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                       />
                       <button
-                        onClick={() => renameOrg(selectedOrg)}
-                        disabled={!isSelectedAdmin}
+                        onClick={() => void renameOrg(selectedOrg)}
+                        disabled={!isSelectedAdmin || isRenamingOrg}
                         className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                       >
-                        Speichern
+                        {isRenamingOrg ? "Saving..." : "Save"}
                       </button>
                     </div>
+                    {renameError && (
+                      <div className="mt-2 text-xs text-rose-300">{renameError}</div>
+                    )}
                     {!isSelectedAdmin && (
                       <div className="text-xs text-slate-500">
-                        Nur Admins dürfen umbenennen.
+                        Only admins can rename the organization.
                       </div>
                     )}
                   </div>
 
                   <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4">
                     <div className="text-sm font-semibold text-rose-50">
-                      Organisation löschen
+                      Delete organization
                     </div>
                     <div className="mt-1 text-xs text-rose-100/80">
-                      Alle zugehörigen Daten werden unwiderruflich gelöscht. Die Organisation
-                      muss leer sein, bevor sie gelöscht werden kann. Gib den Organisationsnamen
-                      exakt ein, um zu bestätigen.
+                      All related data will be permanently deleted. The organization
+                      must be empty before it can be deleted. Enter the exact organization
+                      name to confirm.
                     </div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
@@ -945,7 +1058,7 @@ const Orgs: FC = () => {
                         }
                         className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                       >
-                        {isDeletingOrg ? "Loesche..." : "Organisation löschen"}
+                        {isDeletingOrg ? "Deleting..." : "Delete organization"}
                       </button>
                     </div>
                     {deleteSuccess && (
@@ -956,7 +1069,7 @@ const Orgs: FC = () => {
                     )}
                     {!isSelectedAdmin && (
                       <div className="text-xs text-rose-100/80">
-                        Nur Admins dürfen löschen.
+                        Only admins can delete the organization.
                       </div>
                     )}
                   </div>

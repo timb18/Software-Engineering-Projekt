@@ -41,7 +41,7 @@ public class UserTaskServiceTests
         _dbContext.SaveChanges();
 
         _workProfileId = workProfile.Id;
-        _service = new UserTaskService(new UserTaskRepository(_dbContext));
+        _service = new UserTaskService(new UserTaskRepository(_dbContext), new TaskDependencyRepository(_dbContext), new TaskBlockRepository(_dbContext));
     }
 
     [TearDown]

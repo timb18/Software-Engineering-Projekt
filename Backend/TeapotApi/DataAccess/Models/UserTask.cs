@@ -39,4 +39,7 @@ public class UserTask
     public DateTime LateFinish { get; set; }
 
     public virtual WorkProfile? WorkProfile { get; set; }
+
+    [NotMapped]
+    public List<Guid> DependsOnTaskIds { get; set; } = [];
 }

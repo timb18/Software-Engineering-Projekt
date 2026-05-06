@@ -1,12 +1,65 @@
 using DataAccess.Models;
+using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Services.Planning;
 
 namespace Api.Controller;
 
-[Route("api/[controller]")]
+public record PlanningResultResponse(
+    bool Success,
+    string? ErrorMessage,
+    int BacktrackingCount,
+    IReadOnlyList<TaskBlock> PlannedBlocks);
+
+public record TaskBlockResponse(
+    Guid TaskId,
+    string TaskName,
+    string? TaskStatus,
+    DateTime StartDate,
+    DateTime EndDate,
+    bool IsFixed);
+
+[Route("api/planning/{workProfileId:guid}")]
 [ApiController]
-public class PlanningController : ControllerBase
+public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockRepository taskBlockRepository) : ControllerBase
 {
+    /// <summary>
+    /// Generates a work plan for all open tasks of the given work profile.
+    /// Runs dependency analysis, critical path computation, and recursive scheduling.
+    /// </summary>
+    [HttpPost("schedule")]
+    [ProducesResponseType(typeof(PlanningResultResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PlanningResultResponse), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Schedule(Guid workProfileId, CancellationToken cancellationToken)
+    {
+        var result = await taskPlanner.ScheduleAsync(workProfileId, cancellationToken);
+
+        var response = new PlanningResultResponse(
+            result.Success,
+            result.ErrorMessage,
+            result.BacktrackingCount,
+            result.PlannedBlocks);
+
+        return result.Success
+            ? Ok(response)
+            : UnprocessableEntity(response);
+    }
+
+    /// <summary>Returns all task blocks for the given work profile (for calendar rendering).</summary>
+    [HttpGet("blocks")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskBlockResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBlocks(Guid workProfileId, CancellationToken cancellationToken)
+    {
+        var blocks = await taskBlockRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
+        var response = blocks.Select(b => new TaskBlockResponse(
+            b.TaskId,
+            b.Task.Name,
+            b.Task.Status,
+            b.StartDate,
+            b.EndDate,
+            b.IsFixed));
+        return Ok(response);
+    }
 }
 
 public record WorkProfileSaveRequest(

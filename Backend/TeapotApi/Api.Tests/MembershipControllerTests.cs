@@ -22,7 +22,7 @@ public class MembershipControllerTests
             },
             CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<NotFoundResult>());
+        Assert.That(result, Is.TypeOf<NotFoundObjectResult>());
     }
 
     [Test]
@@ -120,7 +120,7 @@ public class MembershipControllerTests
             },
             CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<NotFoundResult>());
+        Assert.That(result, Is.TypeOf<NotFoundObjectResult>());
     }
 
     [Test]
@@ -180,6 +180,7 @@ public class MembershipControllerTests
         public Guid? LastInitiatorUserId { get; private set; }
         public Guid? LastUserId { get; private set; }
         public Guid? LastOrganizationId { get; private set; }
+        public string? LastRole { get; private set; }
 
         public Task LeaveOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
         {
@@ -203,6 +204,20 @@ public class MembershipControllerTests
             LastInitiatorUserId = initiatorUserId;
             LastUserId = userId;
             LastOrganizationId = organizationId;
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateRoleAsync(Guid initiatorUserId, Guid userId, Guid organizationId, string role, CancellationToken cancellationToken = default)
+        {
+            if (ExceptionToThrow is not null)
+            {
+                throw ExceptionToThrow;
+            }
+
+            LastInitiatorUserId = initiatorUserId;
+            LastUserId = userId;
+            LastOrganizationId = organizationId;
+            LastRole = role;
             return Task.CompletedTask;
         }
     }

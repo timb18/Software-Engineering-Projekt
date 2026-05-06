@@ -26,9 +26,13 @@ public class MembershipController(IMembershipService membershipService) : Contro
             await membershipService.LeaveOrganizationAsync(userId, organizationId, cancellationToken);
             return NoContent();
         }
-        catch (KeyNotFoundException)
+        catch (KeyNotFoundException ex)
         {
-            return NotFound();
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
         }
         catch (ArgumentException exception)
         {
@@ -65,9 +69,57 @@ public class MembershipController(IMembershipService membershipService) : Contro
         {
             return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
         }
-        catch (KeyNotFoundException)
+        catch (KeyNotFoundException ex)
         {
-            return NotFound();
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpPatch("role")]
+    [HttpPost("role")]
+    public async Task<IActionResult> UpdateRoleAsync(
+        [FromBody] UpdateRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(request.InitiatorUserId, out var initiatorUserId))
+        {
+            return BadRequest("InitiatorUserId must be a valid GUID.");
+        }
+
+        if (!Guid.TryParse(request.UserId, out var userId))
+        {
+            return BadRequest("UserId must be a valid GUID.");
+        }
+
+        if (!Guid.TryParse(request.OrganizationId, out var organizationId))
+        {
+            return BadRequest("OrganizationId must be a valid GUID.");
+        }
+
+        try
+        {
+            await membershipService.UpdateRoleAsync(initiatorUserId, userId, organizationId, request.Role, cancellationToken);
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
         }
         catch (ArgumentException exception)
         {
@@ -87,4 +139,12 @@ public class RemoveUserRequest
     public string InitiatorUserId { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
     public string OrganizationId { get; set; } = string.Empty;
+}
+
+public class UpdateRoleRequest
+{
+    public string InitiatorUserId { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string OrganizationId { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
 }
