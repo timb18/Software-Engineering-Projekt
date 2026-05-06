@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties, type FC } from "react";
+import { useMemo, useRef, useState, useEffect, type CSSProperties, type FC } from "react";
 import type {
   DateSelectArg,
   DayHeaderContentArg,
@@ -13,6 +13,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import type { User, WorkBreak, WorkWeekDay } from "../../util/types";
 import { DAY_LABELS, WEEK_DAYS, getProductiveHoursForBlock, timeToMinutes } from "../../util/work-profile";
 import { useWorkProfile } from "../../util/use-work-profile";
+import { getBreakColor, getOrgColor, rgbToCss } from "../../util/color-prefs";
 import "./work-profile-configurator.css";
 
 type WorkProfileConfiguratorProps = {
@@ -167,6 +168,13 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     endTime: user.plannerViewEnd ?? DEFAULT_PLANNER_VIEW_END,
   }));
 
+  const [colorVersion, setColorVersion] = useState(0);
+  useEffect(() => {
+    const handler = () => setColorVersion((v) => v + 1);
+    window.addEventListener("teapot-colors-changed", handler);
+    return () => window.removeEventListener("teapot-colors-changed", handler);
+  }, []);
+
   const {
     workForm,
     companyOptions,
@@ -257,30 +265,41 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             }))
         : []),
       ...workForm.days.flatMap((day) =>
-        day.blocks.map((block) => ({
-          id: block.id,
-          title: "",
-          start: getDateForShiftTime(day.day, block.startTime),
-          end: getDateForShiftTime(day.day, block.endTime),
-          classNames: ["work-shift-event"],
-          extendedProps: {
-            label: companyOptions.find((c) => c.id === block.companyId)?.name ?? "Shift",
-            companyColorIdx: Math.max(0, companyOptions.findIndex((c) => c.id === block.companyId)),
-          },
-        })),
+        day.blocks.map((block) => {
+          const c = getOrgColor(block.companyId);
+          return {
+            id: block.id,
+            title: "",
+            start: getDateForShiftTime(day.day, block.startTime),
+            end: getDateForShiftTime(day.day, block.endTime),
+            backgroundColor: rgbToCss(c, 0.22),
+            borderColor: rgbToCss(c, 0.55),
+            textColor: "#f0fdf4",
+            classNames: ["work-shift-event"],
+            extendedProps: {
+              label: companyOptions.find((c) => c.id === block.companyId)?.name ?? "Shift",
+              companyColorIdx: Math.max(0, companyOptions.findIndex((c) => c.id === block.companyId)),
+            },
+          };
+        }),
       ),
-      ...workForm.days.flatMap((day) =>
-        day.breaks.map((workBreak) => ({
+      ...workForm.days.flatMap((day) => {
+        const bc = getBreakColor();
+        return day.breaks.map((workBreak) => ({
           id: `break-${workBreak.id}`,
           title: "",
           start: getDateForShiftTime(day.day, workBreak.startTime),
           end: getDateForShiftTime(day.day, workBreak.endTime),
+          backgroundColor: rgbToCss(bc, 0.15),
+          borderColor: rgbToCss(bc, 0.45),
+          textColor: rgbToCss(bc, 1),
           classNames: ["work-break-event"],
           extendedProps: { label: "Break" },
-        })),
-      ),
+        }));
+      }),
     ],
-    [workForm.days, companyOptions, showEncouragement],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workForm.days, companyOptions, showEncouragement, colorVersion],
   );
 
   // ── FullCalendar wrappers ─────────────────────────────────────────────────
