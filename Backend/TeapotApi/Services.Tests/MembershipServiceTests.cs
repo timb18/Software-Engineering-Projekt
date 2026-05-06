@@ -137,6 +137,60 @@ public class MembershipServiceTests
         Assert.ThrowsAsync<KeyNotFoundException>(async () => await act());
     }
 
+    [Test]
+    public async Task UpdateRoleAsync_Persists_New_Role_When_Initiator_Is_Organizer()
+    {
+        var initiator = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@example.com",
+            Username = "organizer",
+            CreatedAt = DateTime.UtcNow
+        };
+        var member = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@example.com",
+            Username = "member",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Org",
+            Description = "Test org",
+            MaxUsers = 10,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.AddRange(initiator, member);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.AddRange(
+            new Membership
+            {
+                Id = Guid.NewGuid(),
+                UserId = initiator.Id,
+                OrganizationId = organization.Id,
+                Role = ERole.Organizer,
+                CreatedAt = DateTime.UtcNow
+            },
+            new Membership
+            {
+                Id = Guid.NewGuid(),
+                UserId = member.Id,
+                OrganizationId = organization.Id,
+                Role = ERole.User,
+                CreatedAt = DateTime.UtcNow
+            });
+        await _dbContext.SaveChangesAsync();
+
+        await _service.UpdateRoleAsync(initiator.Id, member.Id, organization.Id, "admin");
+
+        var updatedMembership = await _dbContext.Memberships
+            .SingleAsync(m => m.UserId == member.Id && m.OrganizationId == organization.Id);
+        Assert.That(updatedMembership.Role, Is.EqualTo(ERole.Organizer));
+    }
+
     [TearDown]
     public async Task TearDown()
     {

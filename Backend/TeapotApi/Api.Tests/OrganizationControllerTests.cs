@@ -63,6 +63,7 @@ public class OrganizationControllerTests
     {
         public Exception? ExceptionToThrow { get; init; }
         public DeleteOrganizationCommand? LastCommand { get; private set; }
+        public RenameOrganizationCommand? LastRenameCommand { get; private set; }
 
         public Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default) =>
             Task.FromResult<IEnumerable<OrganizationDetailsDto>>([]);
@@ -73,6 +74,15 @@ public class OrganizationControllerTests
                 throw ExceptionToThrow;
 
             LastCommand = command;
+            return Task.CompletedTask;
+        }
+
+        public Task RenameOrganizationAsync(RenameOrganizationCommand command, CancellationToken cancellationToken = default)
+        {
+            if (ExceptionToThrow is not null)
+                throw ExceptionToThrow;
+
+            LastRenameCommand = command;
             return Task.CompletedTask;
         }
     }
