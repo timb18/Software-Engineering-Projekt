@@ -1,5 +1,5 @@
 import { useCallback, useEffect, type FC } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useAuth0 } from "@auth0/auth0-react";
 import { initForUser } from "../stores/user-store";
 import acceptInvite from "../util/accept-invite";
@@ -10,8 +10,9 @@ import {
 } from "../util/pending-invitation";
 
 const Login: FC = () => {
-  const { loginWithPopup: login, isAuthenticated, user } = useAuth0();
+  const { loginWithRedirect: login, isAuthenticated, isLoading, user } = useAuth0();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
   const invitedEmail = searchParams.get("email") ?? undefined;
@@ -29,6 +30,20 @@ const Login: FC = () => {
       delete document.documentElement.dataset.themePage;
     };
   }, []);
+
+  const beginAuth0Login = useCallback(
+    (screenHint?: "signup") => {
+      if (invitationId) {
+        savePendingInvitation({ invitationId, email: invitedEmail });
+      }
+
+      void login({
+        appState: { returnTo: `/login${location.search}` },
+        authorizationParams: screenHint ? { screen_hint: screenHint } : undefined,
+      });
+    },
+    [invitationId, invitedEmail, location.search, login],
+  );
 
   const toLoginAsync = useCallback(async () => {
     if (!user?.sub || !user.email) {
@@ -53,11 +68,11 @@ const Login: FC = () => {
   }, [invitationId, invitedEmail, navigate, user]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isLoading || !isAuthenticated) {
       return;
     }
     toLoginAsync();
-  }, [isAuthenticated, toLoginAsync]);
+  }, [isAuthenticated, isLoading, toLoginAsync]);
 
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-50">
@@ -128,16 +143,16 @@ const Login: FC = () => {
               <div className="flex flex-col gap-3">
                 <button
                   className="flex min-h-12 w-full items-center justify-center rounded-lg border border-emerald-300/50 bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-                  onClick={() => login()}
+                  disabled={isLoading}
+                  onClick={() => beginAuth0Login()}
                 >
                   {invitationId ? "Log in and accept invitation" : "Log in"}
                 </button>
 
                 <button
                   className="flex min-h-12 w-full items-center justify-center rounded-lg border border-slate-700 bg-slate-950/50 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-300/50 hover:bg-slate-950"
-                  onClick={() =>
-                    login({ authorizationParams: { screen_hint: "signup" } })
-                  }
+                  disabled={isLoading}
+                  onClick={() => beginAuth0Login("signup")}
                 >
                   Create account
                 </button>
