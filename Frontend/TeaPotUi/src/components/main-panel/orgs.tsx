@@ -13,6 +13,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
 const guidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type InvitationResponse = {
   id: string;
@@ -352,6 +353,12 @@ const Orgs: FC = () => {
     setInviteError(null);
     setInviteSuccess(null);
     setLastInviteLink(null);
+
+    if (!emailPattern.test(email)) {
+      setInviteError("Bitte gib eine gültige E-Mail-Adresse ein.");
+      return;
+    }
+
     setIsSendingInvite(true);
 
     try {
@@ -385,6 +392,10 @@ const Orgs: FC = () => {
           payload?.message ??
           validationErrors ??
           "Einladung konnte nicht erstellt werden.";
+
+        if (message.includes("Email format is invalid")) {
+          message = "Bitte gib eine gültige E-Mail-Adresse ein.";
+        }
 
         if (message.includes("An open invitation already exists")) {
           await syncOrganizationInvites(org);
@@ -427,12 +438,9 @@ const Orgs: FC = () => {
         payload.data?.emailSent
           ? "Einladung wurde erstellt und per E-Mail versendet."
           : payload.data?.invitationLink
-            ? "Einladungslink wurde erstellt, aber die E-Mail konnte nicht bestätigt werden. Kopiere den Link und versende ihn manuell."
+            ? "E-Mail nicht verschickt. Hier ist der Link, du kannst ihn manuell versenden."
           : "Einladung wurde erstellt und per E-Mail versendet.",
       );
-      if (payload.data?.emailError) {
-        setInviteError(`E-Mail-Versand fehlgeschlagen: ${payload.data.emailError}`);
-      }
     } catch (error) {
       if (error instanceof TypeError) {
         setInviteError(
@@ -839,6 +847,7 @@ const Orgs: FC = () => {
                   </div>
                   <div className="flex gap-2 max-sm:flex-col">
                     <input
+                      type="email"
                       value={newInviteEmail}
                       onChange={(e) => setNewInviteEmail(e.target.value)}
                       placeholder="email@example.com"
