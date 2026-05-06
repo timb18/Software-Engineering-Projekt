@@ -26,7 +26,8 @@ public class OrganizationService(
                 .FirstOrDefault(m => string.Equals(m.User.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
                 ?.WorkProfile?.Id,
             Users = o.Memberships
-                .OrderBy(m => m.User.Username)
+                .OrderByDescending(m => m.Role == ERole.Organizer)
+                .ThenBy(m => m.User.Username)
                 .Select(m => new OrganizationUserDto
                 {
                     Id = m.User.Id,
@@ -42,6 +43,7 @@ public class OrganizationService(
                 {
                     Id = i.Id,
                     OrganizationId = i.OrganizationId,
+                    OrganizationName = o.Name,
                     Email = i.Email,
                     FirstName = i.FirstName,
                     LastName = i.LastName,

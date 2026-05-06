@@ -17,6 +17,7 @@ public class InvitationRepository(TeapotDbContext context) : IInvitationReposito
 
     public async Task<IEnumerable<Invitation>> GetPendingForEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
         await context.Invitations
+            .Include(i => i.Organization)
             .Where(i => i.Email == normalizedEmail &&
                         i.Status == EInvitationStatus.Open &&
                         i.ExpiryDate > DateTime.UtcNow)
@@ -24,6 +25,7 @@ public class InvitationRepository(TeapotDbContext context) : IInvitationReposito
 
     public async Task<IEnumerable<Invitation>> GetForOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default) =>
         await context.Invitations
+            .Include(i => i.Organization)
             .Where(i => i.OrganizationId == organizationId)
             .ToListAsync(cancellationToken);
 

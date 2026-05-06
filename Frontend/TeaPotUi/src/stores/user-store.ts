@@ -123,6 +123,8 @@ export const initForUser = async (
       workProfileId: activeWorkProfileId,
       activeOrganizationId: activeOrganization?.id ?? null,
     });
+
+    return { userId, workProfileId: activeWorkProfileId };
   } catch (err) {
     console.error("initForUser failed, falling back to empty task list", err);
     const currentState = userStore.getState();
@@ -131,7 +133,7 @@ export const initForUser = async (
       (currentState.user.email === email || currentState.user.id === sub);
 
     if (hasPersistedUser) {
-      return;
+      return { userId: currentState.user.id, workProfileId: currentState.workProfileId };
     }
 
     userStore.setState({
@@ -147,6 +149,8 @@ export const initForUser = async (
       workProfileId: null,
       activeOrganizationId: null,
     });
+
+    return { userId: sub, workProfileId: null };
   }
 };
 

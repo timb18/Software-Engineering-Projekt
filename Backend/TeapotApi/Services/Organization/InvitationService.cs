@@ -59,6 +59,7 @@ public class InvitationService(
         var invitation = new Invitation
         {
             OrganizationId = organizationId,
+            Organization = organization,
             CreatedBy = creator.Id,
             Email = normalizedEmail,
             FirstName = firstName,
@@ -247,6 +248,7 @@ public class InvitationService(
     {
         Id = invitation.Id,
         OrganizationId = invitation.OrganizationId,
+        OrganizationName = invitation.Organization?.Name,
         Email = invitation.Email,
         FirstName = invitation.FirstName,
         LastName = invitation.LastName,

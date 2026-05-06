@@ -79,6 +79,7 @@ public class InvitationServiceTests
 
         Assert.That(result.Email, Is.EqualTo("member@test.com"));
         Assert.That(result.OrganizationId, Is.EqualTo(organization.Id));
+        Assert.That(result.OrganizationName, Is.EqualTo(organization.Name));
         Assert.That(result.Status, Is.EqualTo("Open"));
         Assert.That(result.InvitationLink, Does.Contain($"/api/Invitation/{result.Id}/accept-link"));
         Assert.That(result.EmailSent, Is.True);
@@ -310,6 +311,45 @@ public class InvitationServiceTests
         Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(2));
         Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(2), "A new WorkProfile must be created for the org membership");
         Assert.That(_dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task GetPendingInvitationsForEmailAsync_IncludesOrganizationName()
+    {
+        var organizer = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@test.com",
+            Username = "Organizer",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Real DB Org",
+            Description = "Test",
+            MaxUsers = 10,
+            CreatedAt = DateTime.UtcNow
+        };
+        var invitation = new Invitation
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organization.Id,
+            CreatedBy = organizer.Id,
+            Email = "member@test.com",
+            Status = EInvitationStatus.Open,
+            CreatedAt = DateTime.UtcNow,
+            ExpiryDate = DateTime.UtcNow.AddDays(7)
+        };
+
+        _dbContext.Users.Add(organizer);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Invitations.Add(invitation);
+        await _dbContext.SaveChangesAsync();
+
+        var pending = (await _service.GetPendingInvitationsForEmailAsync("member@test.com")).Single();
+
+        Assert.That(pending.OrganizationName, Is.EqualTo("Real DB Org"));
     }
 
     [Test]

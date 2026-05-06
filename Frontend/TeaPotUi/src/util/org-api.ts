@@ -71,11 +71,20 @@ const mapMember = (member: OrganizationApiResponse["users"][number]): User => ({
   invites: [],
 });
 
+const sortMembers = (members: User[]) =>
+  [...members].sort((a, b) => {
+    if (a.role !== b.role) {
+      return a.role === "admin" ? -1 : 1;
+    }
+
+    return a.username.localeCompare(b.username);
+  });
+
 const mapOrganization = (org: OrganizationApiResponse): Org => ({
   id: org.id,
   name: org.name,
   workProfileId: org.workProfileId ?? null,
-  users: org.users.map(mapMember),
+  users: sortMembers(org.users.map(mapMember)),
   adminEmails: org.users
     .filter((member) => member.role === "organizer")
     .map((member) => member.email),
@@ -95,9 +104,8 @@ export async function fetchOrganizationsByUserEmail(email: string): Promise<Org[
   const deduped = new Map<string, Org>();
 
   organizations.map(mapOrganization).forEach((organization) => {
-    const key = organization.name.trim().toLowerCase();
-    if (!deduped.has(key)) {
-      deduped.set(key, organization);
+    if (!deduped.has(organization.id)) {
+      deduped.set(organization.id, organization);
     }
   });
 
