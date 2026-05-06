@@ -10,6 +10,14 @@ const Login: FC = () => {
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
 
+  useEffect(() => {
+    document.documentElement.dataset.themePage = "login";
+
+    return () => {
+      delete document.documentElement.dataset.themePage;
+    };
+  }, []);
+
   const toLoginAsync = useCallback(async () => {
     if (!user?.sub || !user.email) {
       return;
