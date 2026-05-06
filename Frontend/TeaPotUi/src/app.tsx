@@ -11,7 +11,7 @@ import {
 } from "./util/pending-invitation";
 
 function App() {
-  const { isAuthenticated, user: authUser } = useAuth0();
+  const { isAuthenticated, isLoading, user: authUser } = useAuth0();
   const navigate = useNavigate();
   const initialized = useRef(false);
   const acceptedInvitation = useRef<string | null>(null);
@@ -28,10 +28,14 @@ function App() {
       });
     }
 
+    if (isLoading) {
+      return;
+    }
+
     if (!isAuthenticated) {
       navigate(`/login${location.search}`);
     }
-  }, [isAuthenticated, location.search, navigate]);
+  }, [isAuthenticated, isLoading, location.search, navigate]);
 
   useEffect(() => {
     if (isAuthenticated && authUser?.sub && authUser?.email && !initialized.current) {

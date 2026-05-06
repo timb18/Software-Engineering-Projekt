@@ -15,6 +15,12 @@ createRoot(document.getElementById("root")!).render(
         redirect_uri: window.location.origin,
         audience: import.meta.env.VITE_AUTH0_AUDIENCE,
       }}
+      onRedirectCallback={(appState) => {
+        const returnTo =
+          typeof appState?.returnTo === "string" ? appState.returnTo : "/";
+
+        window.history.replaceState({}, document.title, returnTo);
+      }}
     >
       <div className="min-h-screen w-screen bg-slate-950">
         <RouterProvider router={router} />
