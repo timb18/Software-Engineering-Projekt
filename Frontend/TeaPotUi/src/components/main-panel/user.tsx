@@ -10,7 +10,7 @@ import { getLegacyWorkSettings } from "../../util/work-profile";
 import { updateUserProfile } from "../../util/user-api";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import {
-  getBreakColor, getOrgColor, setBreakColor, setOrgColor, rgbToCss, rgbToHex, hexToRgb,
+  getBreakColor, getOrgColor, setBreakColor, setOrgColor, rgbToHex, hexToRgb,
   DEFAULT_ORG_COLOR, DEFAULT_BREAK_COLOR, type RgbColor,
 } from "../../util/color-prefs";
 

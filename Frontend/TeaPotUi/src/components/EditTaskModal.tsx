@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import type { Task } from "../util/types";
 import useUserStore from "../stores/user-store";
-import { fetchTask, updateTask } from "../util/task-api";
+import { updateTask } from "../util/task-api";
 
 interface EditTaskModalProps {
   task: Task;
@@ -19,7 +19,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
     priority: (task.priority ?? "medium") as Task["priority"],
     status: (task.status ?? "todo") as Task["status"],
     deadline: task.deadline ? dayjs(task.deadline).format("YYYY-MM-DDTHH:mm") : "",
-    dependencies: task.dependencies.map((d) => d.name),
+    dependencies: task.dependencies.map((d: { name: string }) => d.name),
     isFixed: task.isFixed ?? false,
     startDate: dayjs(task.startDate).format("YYYY-MM-DDTHH:mm"),
     endDate: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
@@ -38,30 +38,6 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
 
   const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
 
-  // Load task data when modal opens
-  useEffect(() => {
-    if (!workProfileId || !task.id) return;
-    const load = async () => {
-      try {
-        const fresh = await fetchTask(workProfileId, task.id!);
-        setForm({
-          name: fresh.name,
-          description: fresh.description,
-          durationMinutes: dayjs(fresh.endDate).diff(dayjs(fresh.startDate), "minute"),
-          priority: (fresh.priority ?? "medium")! as Task["priority"],
-          status: (fresh.status ?? "todo")! as Task["status"],
-          deadline: fresh.deadline ? dayjs(fresh.deadline).format("YYYY-MM-DDTHH:mm") : "",
-          dependencies: fresh.dependencies.map((d) => d.name),
-          isFixed: fresh.isFixed ?? false,
-          startDate: dayjs(fresh.startDate).format("YYYY-MM-DDTHH:mm"),
-          endDate: dayjs(fresh.endDate).format("YYYY-MM-DDTHH:mm"),
-        });
-      } catch {
-        setError("Failed to load task.");
-      }
-    };
-    load();
-  }, [workProfileId, task.id]);
 
   const submit = async () => {
     setError(undefined);
