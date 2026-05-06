@@ -51,17 +51,21 @@ public class TaskBlockRepository(TeapotDbContext context) : ITaskBlockRepository
 
     public async Task DeleteForTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        await context.TaskBlocks
+        var blocks = await context.TaskBlocks
             .Where(b => b.TaskId == taskId)
-            .ExecuteDeleteAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+        context.TaskBlocks.RemoveRange(blocks);
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpsertFixedBlockAsync(
         Guid taskId, DateTime start, DateTime end, CancellationToken cancellationToken = default)
     {
-        await context.TaskBlocks
+        var existing = await context.TaskBlocks
             .Where(b => b.TaskId == taskId)
-            .ExecuteDeleteAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+        context.TaskBlocks.RemoveRange(existing);
+        await context.SaveChangesAsync(cancellationToken);
 
         await context.Database.ExecuteSqlAsync(
             $"INSERT INTO task_blocks (task_id, start_date, end_date, is_fixed) VALUES ({taskId}, {start}, {end}, true)",
