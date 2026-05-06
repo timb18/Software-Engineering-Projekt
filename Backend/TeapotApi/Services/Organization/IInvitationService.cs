@@ -55,6 +55,7 @@ public sealed record InvitationDto
 {
     public Guid Id { get; init; }
     public Guid OrganizationId { get; init; }
+    public string? OrganizationName { get; init; }
     public string Email { get; init; } = null!;
     public string? FirstName { get; init; }
     public string? LastName { get; init; }

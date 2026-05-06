@@ -63,14 +63,16 @@ function App() {
 
     const acceptPendingInvitation = async () => {
       try {
-        await initForUser(userSub, userEmail, userName, userPicture);
-        await acceptInvite(pendingInvitation.invitationId, { email: userEmail });
+        const { userId } = await initForUser(userSub, userEmail, userName, userPicture);
+        await acceptInvite(pendingInvitation.invitationId, { userId });
         clearPendingInvitation();
         await initForUser(userSub, userEmail, userName, userPicture);
+        navigate("/teams", { replace: true });
       } catch (error) {
         console.error("acceptInvite failed", error);
-      } finally {
-        navigate("/teams", { replace: true });
+        acceptedInvitation.current = null;
+        const message = error instanceof Error ? error.message : "Einladung konnte nicht angenommen werden.";
+        navigate(`/login?inviteStatus=error&message=${encodeURIComponent(message)}`, { replace: true });
       }
     };
 

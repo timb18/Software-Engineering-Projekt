@@ -15,6 +15,7 @@ const Login: FC = () => {
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
   const invitedEmail = searchParams.get("email") ?? undefined;
+  const inviteMessage = searchParams.get("message");
 
   useEffect(() => {
     if (invitationId) {
@@ -35,14 +36,14 @@ const Login: FC = () => {
       return;
     }
 
-    await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
+    const { userId } = await initForUser(user.sub, user.email, user.name, user.picture);
 
     const pendingInvitation = invitationId
       ? { invitationId, email: invitedEmail }
       : getPendingInvitation();
 
     if (pendingInvitation) {
-      await acceptInvite(pendingInvitation.invitationId, { email: user.email });
+      await acceptInvite(pendingInvitation.invitationId, { userId });
       clearPendingInvitation();
       await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
       navigate("/teams");
@@ -126,6 +127,12 @@ const Login: FC = () => {
               </div>
 
               <div className="flex flex-col gap-3">
+                {inviteMessage && (
+                  <div className="rounded-lg border border-rose-400/40 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                    {inviteMessage}
+                  </div>
+                )}
+
                 <button
                   className="flex min-h-12 w-full items-center justify-center rounded-lg border border-emerald-300/50 bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
                   onClick={() => login()}
