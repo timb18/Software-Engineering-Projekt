@@ -8,8 +8,91 @@ import { defaultUser } from "../../util/default-data";
 import { saveWorkProfile } from "../../util/work-profile-api";
 import { getLegacyWorkSettings } from "../../util/work-profile";
 import { updateUserProfile } from "../../util/user-api";
+import { HexColorPicker, HexColorInput } from "react-colorful";
+import {
+  getBreakColor, getOrgColor, setBreakColor, setOrgColor, rgbToCss, rgbToHex, hexToRgb,
+  DEFAULT_ORG_COLOR, DEFAULT_BREAK_COLOR, type RgbColor,
+} from "../../util/color-prefs";
 
-type Tab = "general" | "work" | "security" | "account";
+type Tab = "general" | "work" | "security" | "account" | "appearance";
+
+// ── Preset palette ────────────────────────────────────────────────────────────
+const PALETTE_PRESETS = [
+  "#10b981", "#3b82f6", "#8b5cf6", "#ec4899",
+  "#f59e0b", "#ef4444", "#06b6d4", "#84cc16",
+  "#f97316", "#64748b", "#a78bfa", "#fb7185",
+];
+
+// ── Color picker card ─────────────────────────────────────────────────────────
+const ColorPickerCard: FC<{
+  label: string;
+  color: RgbColor;
+  onChange: (c: RgbColor) => void;
+  onReset: () => void;
+}> = ({ label, color, onChange, onReset }) => {
+  const hex = rgbToHex(color);
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <div
+          className="h-6 w-6 shrink-0 rounded-full border border-slate-600 shadow-sm"
+          style={{ background: hex }}
+        />
+        <div className="text-sm font-semibold text-slate-100">{label}</div>
+        <button
+          onClick={onReset}
+          className="ml-auto rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100"
+        >
+          Zurücksetzen
+        </button>
+      </div>
+
+      {/* react-colorful saturation+hue picker */}
+      <HexColorPicker
+        color={hex}
+        onChange={(h) => onChange(hexToRgb(h))}
+        style={{ width: "100%", height: 180 }}
+      />
+
+      {/* Hex input */}
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-xs text-slate-500">#</span>
+        <HexColorInput
+          color={hex}
+          onChange={(h) => onChange(hexToRgb(h))}
+          prefixed={false}
+          className="w-24 rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 font-mono text-xs uppercase text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+        />
+        <div
+          className="h-6 w-6 shrink-0 rounded border border-slate-600"
+          style={{ background: hex }}
+        />
+        <span className="text-xs text-slate-500">
+          rgb({color.r}, {color.g}, {color.b})
+        </span>
+      </div>
+
+      {/* Preset swatches */}
+      <div className="mt-4">
+        <div className="mb-2 text-[10px] uppercase tracking-[0.15em] text-slate-500">Schnellauswahl</div>
+        <div className="flex flex-wrap gap-2">
+          {PALETTE_PRESETS.map((p) => (
+            <button
+              key={p}
+              title={p}
+              onClick={() => onChange(hexToRgb(p))}
+              className="h-7 w-7 shrink-0 rounded-full border-2 transition hover:scale-110"
+              style={{
+                background: p,
+                borderColor: hex.toLowerCase() === p ? "white" : "transparent",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const User: FC = () => {
   const { logout } = useLoginStore();
@@ -41,6 +124,25 @@ const User: FC = () => {
   });
   const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] = useState(false);
   const [isDeletingWorkProfile, setIsDeletingWorkProfile] = useState(false);
+
+  // ── Appearance / color state ──────────────────────────────────────────
+  const initOrgColors = () => {
+    const map: Record<string, RgbColor> = {};
+    for (const org of userFromDb.orgs ?? []) map[org.id] = getOrgColor(org.id);
+    return map;
+  };
+  const [orgColors, setOrgColorsState] = useState<Record<string, RgbColor>>(initOrgColors);
+  const [breakColorState, setBreakColorState] = useState<RgbColor>(() => getBreakColor());
+
+  const updateOrgColor = (orgId: string, color: RgbColor) => {
+    setOrgColor(orgId, color);
+    setOrgColorsState((prev) => ({ ...prev, [orgId]: color }));
+  };
+  const updateBreakColorState = (color: RgbColor) => {
+    setBreakColor(color);
+    setBreakColorState(color);
+  };
+  // ─────────────────────────────────────────────────────────────────────
 
   const defaultWorkProfile = {
     capacity: defaultUser.workCapacityHours ?? 8,
@@ -331,7 +433,13 @@ const User: FC = () => {
         </div>
         <div className="min-w-0 overflow-x-auto pb-1">
           <div className="flex min-w-max flex-nowrap gap-2 pr-1 text-sm xl:min-w-0 xl:flex-wrap">
-            {(["general", "work", "security", "account"] as Tab[]).map((t) => (
+            {([
+            "general",
+            "work",
+            "security",
+            "account",
+            "appearance",
+          ] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => handleTabClick(t)}
@@ -345,6 +453,7 @@ const User: FC = () => {
                 {t === "work" && "Work profile"}
                 {t === "security" && "Security"}
                 {t === "account" && "Account"}
+                {t === "appearance" && "Appearance"}
               </button>
             ))}
           </div>
@@ -558,6 +667,40 @@ const User: FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {tab === "appearance" && (
+          <div className="flex flex-col gap-6">
+            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Kalenderfarben</div>
+
+            {/* Break color */}
+            <ColorPickerCard
+              label="Pausen"
+              color={breakColorState}
+              onChange={updateBreakColorState}
+              onReset={() => updateBreakColorState({ ...DEFAULT_BREAK_COLOR })}
+            />
+
+            {/* Per-org colors */}
+            {(userFromDb.orgs ?? []).map((org) => {
+              const c = orgColors[org.id] ?? { ...DEFAULT_ORG_COLOR };
+              return (
+                <ColorPickerCard
+                  key={org.id}
+                  label={org.name}
+                  color={c}
+                  onChange={(next) => updateOrgColor(org.id, next)}
+                  onReset={() => updateOrgColor(org.id, { ...DEFAULT_ORG_COLOR })}
+                />
+              );
+            })}
+
+            {(userFromDb.orgs ?? []).length === 0 && (
+              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-400">
+                Noch keine Organisationen. Tritt einer Organisation bei, um deren Farben anzupassen.
+              </div>
+            )}
           </div>
         )}
 
