@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -207,7 +208,8 @@ static Dictionary<string, string> ParseQueryString(string query)
 builder.Services.AddDbContext<TeapotDbContext>(options =>
 {
     if (useInMemory)
-        options.UseInMemoryDatabase("TeapotDev");
+        options.UseInMemoryDatabase("TeapotDev")
+               .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
     else
         options.UseNpgsql(connectionString, o => o
             .MapEnum<EInvitationStatus>("invitation_status")
@@ -220,7 +222,9 @@ builder.Services.AddDbContext<TeapotDbContext>(options =>
     .AddScoped<IMembershipRepository, MembershipRepository>()
     .AddScoped<IInvitationRepository, InvitationRepository>()
     .AddScoped<IWorkProfileRepository, WorkProfileRepository>()
-    .AddScoped<IUserTaskRepository, UserTaskRepository>();
+    .AddScoped<IUserTaskRepository, UserTaskRepository>()
+    .AddScoped<ITaskDependencyRepository, TaskDependencyRepository>()
+    .AddScoped<ITaskBlockRepository, TaskBlockRepository>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection(ResendOptions.SectionName));

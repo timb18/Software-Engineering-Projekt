@@ -159,6 +159,7 @@ ALTER TABLE ONLY public.work_day_profiles ADD CONSTRAINT work_day_profiles_pkey 
 ALTER TABLE ONLY public.work_blocks ADD CONSTRAINT work_blocks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.work_breaks ADD CONSTRAINT work_breaks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.user_tasks ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.task_dependencies ADD CONSTRAINT task_dependencies_pkey PRIMARY KEY (task_id, depends_on_task_id);
 
 -- Foreign Keys
 ALTER TABLE ONLY public.memberships ADD CONSTRAINT memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);

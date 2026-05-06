@@ -3,12 +3,22 @@ using DataAccess.Repositories;
 
 namespace Services.Planning;
 
-public class UserTaskService(IUserTaskRepository userTaskRepository) : IUserTaskService
+public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDependencyRepository taskDependencyRepository, ITaskBlockRepository taskBlockRepository) : IUserTaskService
 {
     public async Task<IEnumerable<UserTask>> GetTasksAsync(
         Guid workProfileId, CancellationToken cancellationToken = default)
     {
-        return await userTaskRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
+        var tasks = (await userTaskRepository.GetByWorkProfileAsync(workProfileId, cancellationToken)).ToList();
+        var dependencies = await taskDependencyRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
+
+        var depsByTaskId = dependencies
+            .GroupBy(d => d.TaskId)
+            .ToDictionary(g => g.Key, g => g.Select(d => d.DependsOnTaskId).ToList());
+
+        foreach (var task in tasks)
+            task.DependsOnTaskIds = depsByTaskId.TryGetValue(task.Id, out var ids) ? ids : [];
+
+        return tasks;
     }
 
     public async Task<UserTask> GetTaskAsync(Guid workProfileId, Guid taskId, CancellationToken cancellationToken = default)
@@ -20,12 +30,17 @@ public class UserTaskService(IUserTaskRepository userTaskRepository) : IUserTask
     public async Task<UserTask> CreateTaskAsync(
         Guid workProfileId, UserTask task, CancellationToken cancellationToken = default)
     {
+        var dependsOnIds = task.DependsOnTaskIds.ToList();
         task.Id = Guid.Empty;
         task.WorkProfileId = workProfileId;
         task.WorkProfile = null;
         task.CreatedAt = DateTime.UtcNow;
         task.EditedAt = null;
         await userTaskRepository.AddAsync(task, cancellationToken);
+        if (dependsOnIds.Count > 0)
+            await taskDependencyRepository.ReplaceForTaskAsync(task.Id, dependsOnIds, cancellationToken);
+        if (task.IsFixed)
+            await taskBlockRepository.UpsertFixedBlockAsync(task.Id, task.EarlyStart, task.EarlyFinish, cancellationToken);
         return task;
     }
 
@@ -50,6 +65,12 @@ public class UserTaskService(IUserTaskRepository userTaskRepository) : IUserTask
         existing.EditedAt = DateTime.UtcNow;
 
         await userTaskRepository.UpdateAsync(existing, cancellationToken);
+        await taskDependencyRepository.ReplaceForTaskAsync(taskId, updated.DependsOnTaskIds, cancellationToken);
+        if (existing.IsFixed)
+            await taskBlockRepository.UpsertFixedBlockAsync(taskId, existing.EarlyStart, existing.EarlyFinish, cancellationToken);
+        else
+            await taskBlockRepository.DeleteForTaskAsync(taskId, cancellationToken);
+        existing.DependsOnTaskIds = updated.DependsOnTaskIds;
         return existing;
     }
 
@@ -59,6 +80,8 @@ public class UserTaskService(IUserTaskRepository userTaskRepository) : IUserTask
         var task = await userTaskRepository.FindAsync(taskId, workProfileId, cancellationToken)
             ?? throw new KeyNotFoundException($"Task {taskId} not found.");
 
+        await taskBlockRepository.DeleteForTaskAsync(taskId, cancellationToken);
+        await taskDependencyRepository.ReplaceForTaskAsync(taskId, [], cancellationToken);
         await userTaskRepository.DeleteAsync(task, cancellationToken);
     }
 }

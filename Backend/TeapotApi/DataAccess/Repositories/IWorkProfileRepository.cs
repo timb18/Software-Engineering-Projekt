@@ -7,6 +7,8 @@ public interface IWorkProfileRepository
     Task<WorkProfile?> GetPersonalAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<WorkProfile?> GetPersonalNoTrackingAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<WorkProfile?> FindByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkProfileTimeInterval>> GetTimeIntervalsAsync(Guid workProfileId, CancellationToken cancellationToken = default);
     Task<WorkProfile?> GetForDeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<WorkProfile?> GetForDeleteByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);
     Task AddAsync(WorkProfile profile, CancellationToken cancellationToken = default);

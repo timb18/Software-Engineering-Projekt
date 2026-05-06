@@ -1,4 +1,5 @@
 using DataAccess;
+using DataAccess.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Services.Organizations;
 using Services.Planning;
@@ -16,6 +17,7 @@ public static class DependencyInjectionExtension
             services.AddHttpClient<ResendEmailSender>();
             services.AddScoped<SmtpEmailSender>();
             services.AddScoped<IEmailSender, ConfiguredEmailSender>();
+            services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
 
             services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
             services.AddScoped<IOrganizationService, OrganizationService>();
@@ -24,6 +26,11 @@ public static class DependencyInjectionExtension
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IUserTaskService, UserTaskService>();
             services.AddScoped<IWorkProfileService, WorkProfileService>();
+
+            // Planning
+            services.AddScoped<DependencyAnalyzer>();
+            services.AddScoped<SchedulingAlgorithm>();
+            services.AddScoped<IUserTaskPlanner, UserTaskPlanner>();
 
             return services;
         }

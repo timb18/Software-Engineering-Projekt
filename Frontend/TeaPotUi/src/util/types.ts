@@ -66,6 +66,8 @@ export type Calendar = {
   tasks: Task[];
 };
 
+export type TaskIntensity = "light" | "normal" | "intensive";
+
 export type Task = {
   id?: string;
   startDate: Date;
@@ -74,11 +76,15 @@ export type Task = {
   description: string;
   isFixed?: boolean;
   priority?: Priority;
+  intensity?: TaskIntensity;
   status?: "todo" | "in-progress" | "done";
   org: string;
   recurrence?: "none" | "daily" | "weekly";
   deadline?: Date;
   dependencies: Task[];
+  /** Original work-duration estimate in minutes, kept separate from startDate/endDate so
+   *  editing a scheduled task does not corrupt the estimate. */
+  timeEstimateMinutes?: number;
 };
 
 export type Priority = "low" | "medium" | "high";

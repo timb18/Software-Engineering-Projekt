@@ -1,0 +1,235 @@
+.task-calendar .fc {
+  --fc-border-color: rgba(71, 85, 105, 0.45);
+  --fc-neutral-bg-color: rgba(15, 23, 42, 0.78);
+  --fc-neutral-text-color: #cbd5e1;
+  --fc-page-bg-color: transparent;
+  --fc-today-bg-color: rgba(52, 211, 153, 0.07);
+  --fc-event-bg-color: rgba(16, 185, 129, 0.25);
+  --fc-event-border-color: rgba(52, 211, 153, 0.45);
+  --fc-event-text-color: #f0fdf4;
+}
+
+.task-calendar .fc .fc-scrollgrid,
+.task-calendar .fc .fc-scrollgrid-section > * {
+  border-color: rgba(71, 85, 105, 0.45);
+}
+
+.task-calendar .fc .fc-scrollgrid {
+  overflow: hidden;
+  border-radius: 0.9rem;
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.task-calendar .fc .fc-col-header-cell-cushion {
+  display: block;
+  padding: 0.7rem 0.35rem;
+  color: #e2e8f0;
+  text-decoration: none;
+}
+
+.task-calendar .fc .fc-daygrid-day-number {
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.task-calendar .fc .fc-timegrid-axis-cushion,
+.task-calendar .fc .fc-timegrid-slot-label-cushion {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.task-calendar .fc .fc-timegrid-slot {
+  height: 20px;
+}
+
+.task-calendar .fc .fc-timegrid-col.fc-day-today {
+  background: rgba(52, 211, 153, 0.05);
+}
+
+.task-calendar .fc .fc-highlight {
+  background: rgba(52, 211, 153, 0.18);
+  border: 1px dashed rgba(52, 211, 153, 0.6);
+}
+
+/* Drag-select mirror event */
+.task-calendar .fc .fc-event.fc-mirror {
+  background: rgba(52, 211, 153, 0.35) !important;
+  border: 2px solid rgba(52, 211, 153, 0.8) !important;
+  border-radius: 6px;
+  opacity: 0.85;
+}
+
+.task-calendar .fc .fc-timegrid-event-harness {
+  margin-inline: 3px;
+}
+
+.task-calendar .fc .fc-timegrid-event,
+.task-calendar .fc .fc-timegrid-more-link {
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+/* ── Task event styles ─────────────────────────────────────────────── */
+.task-calendar .fc .task-event {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(16, 185, 129, 0.22);
+  cursor: pointer;
+}
+
+.task-calendar .fc .task-event:hover {
+  border-color: rgba(52, 211, 153, 0.8);
+  background: rgba(16, 185, 129, 0.35);
+}
+
+.task-calendar .fc .task-event.task-fixed {
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(14, 165, 233, 0.22);
+}
+
+.task-calendar .fc .task-event.task-fixed:hover {
+  border-color: rgba(56, 189, 248, 0.9);
+  background: rgba(14, 165, 233, 0.36);
+}
+
+.task-calendar .fc .task-event.task-done {
+  border-color: rgba(100, 116, 139, 0.4);
+  background: rgba(51, 65, 85, 0.3);
+  opacity: 0.7;
+}
+
+.task-calendar .fc .task-event .fc-event-main {
+  padding: 0.25rem 0.4rem;
+  overflow: hidden;
+}
+
+.task-calendar .fc .task-event-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  overflow: hidden;
+}
+
+.task-calendar .fc .task-event-time {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.2;
+}
+
+.task-calendar .fc .task-event-name {
+  display: block;
+  font-size: 0.72rem;
+  color: #e2e8f0;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-calendar .fc .task-event-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.3rem;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.2);
+  color: #bae6fd;
+}
+
+/* ── Month grid ────────────────────────────────────────────────────── */
+.task-calendar .fc .fc-daygrid-event {
+  border-radius: 4px;
+  font-size: 0.72rem;
+  padding: 1px 4px;
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #f0fdf4;
+  cursor: pointer;
+}
+
+.task-calendar .fc .fc-daygrid-event.task-fixed {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.task-calendar .fc .fc-day-today .fc-daygrid-day-number {
+  color: #34d399;
+  font-weight: 700;
+}
+
+/* ── Navigation toolbar ─────────────────────────────────────────────── */
+.task-calendar .fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.task-calendar .fc .fc-button {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.6);
+  color: #cbd5e1;
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.7rem;
+  transition: all 0.15s;
+}
+
+.task-calendar .fc .fc-button:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #f0fdf4;
+}
+
+.task-calendar .fc .fc-button-active,
+.task-calendar .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(52, 211, 153, 0.6) !important;
+  color: #f0fdf4 !important;
+}
+
+.task-calendar .fc .fc-toolbar-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+/* ── Break event styles ─────────────────────────────────────────────── */
+.task-calendar .fc .break-event {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(245, 158, 11, 0.15);
+  cursor: grab;
+  border-style: dashed;
+}
+
+.task-calendar .fc .break-event:hover {
+  border-color: rgba(251, 191, 36, 0.75);
+  background: rgba(245, 158, 11, 0.25);
+}
+
+.break-event-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 4px;
+  overflow: hidden;
+}
+
+.break-event-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fde68a;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.break-event-time {
+  font-size: 0.65rem;
+  color: #fcd34d;
+  opacity: 0.85;
+  white-space: nowrap;
+}

@@ -358,7 +358,7 @@ const TaskBoard: FC = () => {
                 {user.tasks.sort(sortFn).map((task) => (
                   <div
                     key={task.name}
-                    className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm"
+                    className="cursor-pointer rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm transition hover:border-emerald-400/40 hover:bg-slate-800/80"
                     onClick={() => setSelectedTask(task)}
                   >
                 <div className="text-xs tracking-[0.12em] text-emerald-200 uppercase">
