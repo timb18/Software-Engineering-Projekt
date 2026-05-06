@@ -14,10 +14,16 @@ public class DependencyAnalyzer
     /// <exception cref="InvalidOperationException">
     /// Thrown when cyclic dependencies are detected or deadlines are not achievable.
     /// </exception>
+    /// <param name="fixedTaskTimes">
+    /// Optional: actual start/finish times for fixed tasks (keyed by task id).
+    /// When provided, the forward pass uses these instead of computing from TimeEstimate.
+    /// Deadline feasibility checks are skipped for fixed tasks (the user explicitly chose the time).
+    /// </param>
     public DependencyAnalysisResult Analyze(
         IReadOnlyList<UserTask> tasks,
         IReadOnlyList<TaskDependency> dependencies,
-        DateTime projectStart)
+        DateTime projectStart,
+        IReadOnlyDictionary<Guid, (DateTime Start, DateTime End)>? fixedTaskTimes = null)
     {
         if (tasks.Count == 0)
             return new DependencyAnalysisResult([], new HashSet<Guid>(), new Dictionary<Guid, IReadOnlyList<Guid>>());
@@ -67,18 +73,34 @@ public class DependencyAnalyzer
             var task = taskMap[taskId];
             var preds = predecessorsDict[taskId];
 
-            earlyStart[taskId] = preds.Count > 0
-                ? preds.Max(p => earlyFinish[p])
-                : projectStart;
+            if (fixedTaskTimes != null && fixedTaskTimes.TryGetValue(taskId, out var fixedTime))
+            {
+                // Fixed task: use the actual block window, not a duration estimate.
+                // Predecessors must still finish before the fixed block starts.
+                var predFinish = preds.Count > 0 ? preds.Max(p => earlyFinish[p]) : projectStart;
+                if (predFinish > fixedTime.Start)
+                    throw new InvalidOperationException(
+                        $"Abhängigkeiten nicht vereinbar: Vorgänger von '{task.Name}' können nicht " +
+                        $"vor dem fixierten Zeitblock ({fixedTime.Start:g}) abgeschlossen werden.");
+                earlyStart[taskId] = fixedTime.Start;
+                earlyFinish[taskId] = fixedTime.End;
+                // No deadline check: the user explicitly pinned this time.
+            }
+            else
+            {
+                earlyStart[taskId] = preds.Count > 0
+                    ? preds.Max(p => earlyFinish[p])
+                    : projectStart;
 
-            earlyFinish[taskId] = earlyStart[taskId] + task.TimeEstimate;
+                earlyFinish[taskId] = earlyStart[taskId] + task.TimeEstimate;
 
-            // Check deadline feasibility (deadline = end-of-day, so midnight of the next day is the exclusive bound)
-            if (task.Deadline.HasValue && earlyFinish[taskId] > task.Deadline.Value.Date.AddDays(1))
-                throw new InvalidOperationException(
-                    $"Abhängigkeiten und Deadlines nicht vereinbar: " +
-                    $"Aufgabe '{task.Name}' kann frühestens um {earlyFinish[taskId]:g} fertig werden, " +
-                    $"Deadline ist {task.Deadline.Value:g}.");
+                // Check deadline feasibility (deadline = end-of-day, so midnight of the next day is the exclusive bound)
+                if (task.Deadline.HasValue && earlyFinish[taskId] > task.Deadline.Value.Date.AddDays(1))
+                    throw new InvalidOperationException(
+                        $"Abhängigkeiten und Deadlines nicht vereinbar: " +
+                        $"Aufgabe '{task.Name}' kann frühestens um {earlyFinish[taskId]:g} fertig werden, " +
+                        $"Deadline ist {task.Deadline.Value:g}.");
+            }
         }
 
         // Determine project end (max of all early finishes and deadlines).
@@ -95,12 +117,16 @@ public class DependencyAnalyzer
 
         // Initialize late finish from deadlines or project end.
         // Deadline is treated as end-of-day: midnight of the following day is the exclusive upper bound.
+        // Fixed tasks: use their actual block end time.
         foreach (var taskId in topOrder)
         {
             var task = taskMap[taskId];
-            lateFinish[taskId] = task.Deadline.HasValue
-                ? task.Deadline.Value.Date.AddDays(1)
-                : projectEnd;
+            if (fixedTaskTimes != null && fixedTaskTimes.TryGetValue(taskId, out var ft))
+                lateFinish[taskId] = ft.End;
+            else
+                lateFinish[taskId] = task.Deadline.HasValue
+                    ? task.Deadline.Value.Date.AddDays(1)
+                    : projectEnd;
         }
 
         // Process in reverse topological order
@@ -114,7 +140,11 @@ public class DependencyAnalyzer
                     lateFinish[taskId] = minSuccLateStart;
             }
 
-            lateStart[taskId] = lateFinish[taskId] - taskMap[taskId].TimeEstimate;
+            // Fixed tasks: lateStart is the actual block start (duration is pinned).
+            if (fixedTaskTimes != null && fixedTaskTimes.TryGetValue(taskId, out var fixedT))
+                lateStart[taskId] = fixedT.Start;
+            else
+                lateStart[taskId] = lateFinish[taskId] - taskMap[taskId].TimeEstimate;
         }
 
         // Identify critical tasks: slack (lateStart - earlyStart) <= 0

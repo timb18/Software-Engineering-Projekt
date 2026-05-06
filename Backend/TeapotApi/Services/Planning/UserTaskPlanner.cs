@@ -24,6 +24,22 @@ public class UserTaskPlanner(
     {
         // Load open tasks (todo + in-progress)
         var allTasks = (await taskRepository.GetByWorkProfileAsync(workProfileId, cancellationToken)).ToList();
+
+        // Auto-complete: if all scheduled blocks of a task are in the past, mark it as done
+        var now = DateTime.UtcNow;
+        var existingBlocks = (await taskBlockRepository.GetByWorkProfileAsync(workProfileId, cancellationToken)).ToList();
+        var blocksByTask = existingBlocks.GroupBy(b => b.TaskId).ToDictionary(g => g.Key, g => g.ToList());
+        foreach (var task in allTasks.Where(t => t.Status != "done"))
+        {
+            if (blocksByTask.TryGetValue(task.Id, out var taskBlocks)
+                && taskBlocks.Count > 0
+                && taskBlocks.All(b => b.EndDate <= now))
+            {
+                task.Status = "done";
+                await taskRepository.UpdateAsync(task, cancellationToken);
+            }
+        }
+
         var openTasks = allTasks.Where(t => t.Status != "done").ToList();
 
         if (openTasks.Count == 0)
@@ -57,11 +73,25 @@ public class UserTaskPlanner(
             .Max()
             .AddDays(1);
 
+        // Build fixed-task time map: for each fixed task, determine its actual time window
+        // from the earliest fixed block start to the latest fixed block end.
+        var fixedTaskTimes = openTasks
+            .Where(t => t.IsFixed)
+            .Select(t => new
+            {
+                t.Id,
+                Blocks = fixedBlocks.Where(b => b.TaskId == t.Id).ToList()
+            })
+            .Where(x => x.Blocks.Count > 0)
+            .ToDictionary(
+                x => x.Id,
+                x => (Start: x.Blocks.Min(b => b.StartDate), End: x.Blocks.Max(b => b.EndDate)));
+
         // --- Diagram 1: Dependency analysis ---
         DependencyAnalysisResult analysis;
         try
         {
-            analysis = dependencyAnalyzer.Analyze(openTasks, dependencies, projectStart);
+            analysis = dependencyAnalyzer.Analyze(openTasks, dependencies, projectStart, fixedTaskTimes);
         }
         catch (InvalidOperationException ex)
         {
@@ -77,7 +107,6 @@ public class UserTaskPlanner(
         freeSlots.Sort((a, b) => a.Start.CompareTo(b.Start));
 
         // Remove slots that are already in the past so tasks are never scheduled retroactively
-        var now = DateTime.UtcNow;
         freeSlots.RemoveAll(s => s.End <= now);
         for (var i = 0; i < freeSlots.Count; i++)
         {
@@ -93,11 +122,20 @@ public class UserTaskPlanner(
         foreach (var fb in fixedBlocks)
             SubtractInterval(freeSlots, fb.StartDate, fb.EndDate);
 
-        // Initialize remaining durations for dynamically-scheduled tasks only
+        // Initialize remaining durations for dynamically-scheduled tasks only.
+        // Subtract minutes already covered by past blocks so partial progress is respected.
         // Fixed-task predecessors are absent from this dict; AllPredecessorsDone treats them as done via GetValueOrDefault
         var remainingMinutes = tasksToSchedule.ToDictionary(
             t => t.Id,
-            t => (int)t.TimeEstimate.TotalMinutes);
+            t =>
+            {
+                var total = (int)t.TimeEstimate.TotalMinutes;
+                if (!blocksByTask.TryGetValue(t.Id, out var pastBlocks)) return total;
+                var alreadyDone = (int)pastBlocks
+                    .Where(b => b.EndDate <= now)
+                    .Sum(b => (b.EndDate - b.StartDate).TotalMinutes);
+                return Math.Max(0, total - alreadyDone);
+            });
 
         // Initialize daily budgets from MaxDailyLoad
         var dailyBudgets = BuildDailyBudgets(workProfile, freeSlots);
@@ -136,13 +174,13 @@ public class UserTaskPlanner(
 
         // Sync EarlyStart / EarlyFinish on each task to its scheduled block window so the
         // frontend calendar can read the actual scheduled times from the task endpoint.
-        var blocksByTask = state.PlannedBlocks
+        var plannedBlocksByTask = state.PlannedBlocks
             .GroupBy(b => b.TaskId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         foreach (var task in tasksToSchedule)
         {
-            if (!blocksByTask.TryGetValue(task.Id, out var taskBlocks) || taskBlocks.Count == 0)
+            if (!plannedBlocksByTask.TryGetValue(task.Id, out var taskBlocks) || taskBlocks.Count == 0)
                 continue;
             task.EarlyStart = taskBlocks.Min(b => b.StartDate);
             task.EarlyFinish = taskBlocks.Max(b => b.EndDate);

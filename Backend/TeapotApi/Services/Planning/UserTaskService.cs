@@ -3,7 +3,7 @@ using DataAccess.Repositories;
 
 namespace Services.Planning;
 
-public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDependencyRepository taskDependencyRepository) : IUserTaskService
+public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDependencyRepository taskDependencyRepository, ITaskBlockRepository taskBlockRepository) : IUserTaskService
 {
     public async Task<IEnumerable<UserTask>> GetTasksAsync(
         Guid workProfileId, CancellationToken cancellationToken = default)
@@ -33,6 +33,8 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         await userTaskRepository.AddAsync(task, cancellationToken);
         if (dependsOnIds.Count > 0)
             await taskDependencyRepository.ReplaceForTaskAsync(task.Id, dependsOnIds, cancellationToken);
+        if (task.IsFixed)
+            await taskBlockRepository.UpsertFixedBlockAsync(task.Id, task.EarlyStart, task.EarlyFinish, cancellationToken);
         return task;
     }
 
@@ -58,6 +60,10 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
 
         await userTaskRepository.UpdateAsync(existing, cancellationToken);
         await taskDependencyRepository.ReplaceForTaskAsync(taskId, updated.DependsOnTaskIds, cancellationToken);
+        if (existing.IsFixed)
+            await taskBlockRepository.UpsertFixedBlockAsync(taskId, existing.EarlyStart, existing.EarlyFinish, cancellationToken);
+        else
+            await taskBlockRepository.DeleteForTaskAsync(taskId, cancellationToken);
         existing.DependsOnTaskIds = updated.DependsOnTaskIds;
         return existing;
     }
@@ -68,6 +74,7 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         var task = await userTaskRepository.FindAsync(taskId, workProfileId, cancellationToken)
             ?? throw new KeyNotFoundException($"Task {taskId} not found.");
 
+        await taskBlockRepository.DeleteForTaskAsync(taskId, cancellationToken);
         await taskDependencyRepository.ReplaceForTaskAsync(taskId, [], cancellationToken);
         await userTaskRepository.DeleteAsync(task, cancellationToken);
     }
