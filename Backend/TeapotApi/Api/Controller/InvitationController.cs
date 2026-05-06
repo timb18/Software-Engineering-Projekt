@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Services;
+using Services.Organizations;
 
 namespace Api.Controller;
 

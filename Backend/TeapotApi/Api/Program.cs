@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Api;
 using Api.Authorization;
 using Auth0.AspNetCore.Authentication.Api;
+using Auth0Net.DependencyInjection;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,9 +29,17 @@ var jsonStringEnumConverter = new JsonStringEnumConverter(
     false);
 var auth0Domain = builder.Configuration["Auth0:Domain"];
 var auth0Audience = builder.Configuration["Auth0:Audience"];
+var auth0ClientId = builder.Configuration["Auth0:ClientId"];
+var auth0ClientSecret = builder.Configuration["Auth0:ClientSecret"];
+var auth0ConnectionId = builder.Configuration["Auth0:ConnectionId"];
+var auth0ManagementAudience = builder.Configuration["Auth0:ManagementAudience"];
 var isAuth0Configured =
     !string.IsNullOrWhiteSpace(auth0Domain) &&
-    !string.IsNullOrWhiteSpace(auth0Audience);
+    !string.IsNullOrWhiteSpace(auth0Audience) &&
+    !string.IsNullOrWhiteSpace(auth0ClientId) &&
+    !string.IsNullOrWhiteSpace(auth0ClientSecret) &&
+    !string.IsNullOrWhiteSpace(auth0ConnectionId) &&
+    !string.IsNullOrWhiteSpace(auth0ManagementAudience);
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer()
@@ -91,7 +100,12 @@ if (isAuth0Configured)
         {
             Audience = auth0Audience
         };
-    });
+    }).Services.AddAuth0AuthenticationClient(config =>
+    {
+        config.Domain = auth0Domain;
+        config.ClientId = auth0ClientId;
+        config.ClientSecret = auth0ClientSecret;
+    }).Services.AddAuth0ManagementClient();
 }
 else
 {
@@ -165,7 +179,8 @@ static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
         Environment.GetEnvironmentVariable("PGSSLMODE"),
         "Require");
 
-    return $"Host={uri.Host};Port={uri.Port};Database={databaseName};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
+    return
+        $"Host={uri.Host};Port={uri.Port};Database={databaseName};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
 }
 
 static string? TryBuildConnectionStringFromDiscreteEnvironmentVariables()
@@ -196,7 +211,8 @@ static string? TryBuildConnectionStringFromDiscreteEnvironmentVariables()
     }
 
     var sslMode = GetFirstNonEmpty(Environment.GetEnvironmentVariable("PGSSLMODE"), "Require");
-    return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
+    return
+        $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
 }
 
 static string? GetFirstNonEmpty(params string?[] values) =>
@@ -222,17 +238,17 @@ static Dictionary<string, string> ParseQueryString(string query)
 }
 
 builder.Services.AddDbContext<TeapotDbContext>(options =>
-{
-    if (useInMemory)
-        options.UseInMemoryDatabase("TeapotDev")
-               .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
-    else
-        options.UseNpgsql(connectionString, o => o
-            .MapEnum<EInvitationStatus>("invitation_status")
-            .MapEnum<ERole>("role")
-            .MapEnum<ETaskPriority>("task_priority")
-            .MapEnum<ETaskIntensity>("task_intensity"));
-})
+    {
+        if (useInMemory)
+            options.UseInMemoryDatabase("TeapotDev")
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
+        else
+            options.UseNpgsql(connectionString, o => o
+                .MapEnum<EInvitationStatus>("invitation_status")
+                .MapEnum<ERole>("role")
+                .MapEnum<ETaskPriority>("task_priority")
+                .MapEnum<ETaskIntensity>("task_intensity"));
+    })
     .AddScoped<IUserRepository, UserRepository>()
     .AddScoped<IOrganizationRepository, OrganizationRepository>()
     .AddScoped<IMembershipRepository, MembershipRepository>()

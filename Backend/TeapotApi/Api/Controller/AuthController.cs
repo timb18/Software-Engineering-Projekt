@@ -1,6 +1,7 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Services.Users;
 
 namespace Api.Controller;
 
