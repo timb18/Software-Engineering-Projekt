@@ -15,6 +15,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
 const guidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const emailPattern = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
 type InvitationResponse = {
   id: string;
@@ -410,6 +411,12 @@ const Orgs: FC = () => {
     setInviteError(null);
     setInviteSuccess(null);
     setLastInviteLink(null);
+
+    if (!emailPattern.test(email)) {
+      setInviteError("Bitte gib eine gültige E-Mail-Adresse ein.");
+      return;
+    }
+
     setIsSendingInvite(true);
 
     try {
@@ -443,6 +450,10 @@ const Orgs: FC = () => {
           payload?.message ??
           validationErrors ??
           "Invitation could not be created.";
+
+        if (message.includes("Email format is invalid")) {
+          message = "Bitte gib eine gültige E-Mail-Adresse ein.";
+        }
 
         if (message.includes("An open invitation already exists")) {
           await syncOrganizationInvites(org);

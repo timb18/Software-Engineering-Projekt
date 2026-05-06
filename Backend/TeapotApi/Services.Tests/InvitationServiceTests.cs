@@ -86,6 +86,52 @@ public class InvitationServiceTests
     }
 
     [Test]
+    public async Task SendInvitationAsync_Throws_AndDoesNotCreateInvitation_WhenEmailIsInvalid()
+    {
+        var organizer = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@test.com",
+            Username = "Organizer",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "TeaPot GmbH",
+            Description = "Test",
+            MaxUsers = 10,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(organizer);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.Add(new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = organizer.Id,
+            OrganizationId = organization.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _dbContext.SaveChangesAsync();
+
+        foreach (var invalidEmail in new[] { "testemail", "user@", "@example.com", "user@example", "user @example.com" })
+        {
+            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await _service.SendInvitationAsync(
+                    invalidEmail,
+                    organization.Id,
+                    7,
+                    createdByEmail: organizer.Email));
+
+            Assert.That(exception!.Message, Is.EqualTo("Email format is invalid."));
+        }
+
+        Assert.That(_dbContext.Invitations.Any(), Is.False);
+    }
+
+    [Test]
     public async Task SendInvitationAsync_Returns_Link_When_Email_Send_Fails()
     {
         var organizer = new User
