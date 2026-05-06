@@ -3,12 +3,24 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useAuth0 } from "@auth0/auth0-react";
 import { initForUser } from "../stores/user-store";
 import acceptInvite from "../util/accept-invite";
+import {
+  clearPendingInvitation,
+  getPendingInvitation,
+  savePendingInvitation,
+} from "../util/pending-invitation";
 
 const Login: FC = () => {
   const { loginWithPopup: login, isAuthenticated, user } = useAuth0();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const invitationId = searchParams.get("invitationId");
+  const invitedEmail = searchParams.get("email") ?? undefined;
+
+  useEffect(() => {
+    if (invitationId) {
+      savePendingInvitation({ invitationId, email: invitedEmail });
+    }
+  }, [invitationId, invitedEmail]);
 
   const toLoginAsync = useCallback(async () => {
     if (!user?.sub || !user.email) {
@@ -17,15 +29,20 @@ const Login: FC = () => {
 
     await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
 
-    if (invitationId) {
-      await acceptInvite(invitationId, { email: user.email });
+    const pendingInvitation = invitationId
+      ? { invitationId, email: invitedEmail }
+      : getPendingInvitation();
+
+    if (pendingInvitation) {
+      await acceptInvite(pendingInvitation.invitationId, { email: user.email });
+      clearPendingInvitation();
       await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
       navigate("/teams");
       return;
     }
 
     navigate("/");
-  }, [invitationId, navigate, user]);
+  }, [invitationId, invitedEmail, navigate, user]);
 
   useEffect(() => {
     if (!isAuthenticated) {
