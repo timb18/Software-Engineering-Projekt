@@ -7,6 +7,21 @@ namespace Api.Controller;
 [ApiController]
 public class TaskController(IUserTaskService taskService) : ControllerBase
 {
+    /// <summary>Loads a single task for editing.</summary>
+    /// <remarks>Returns the full UserTask object needed to populate the edit modal.</remarks>
+    [HttpGet("{taskId:guid}")]
+    [ProducesResponseType(typeof(UserTask), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTask(
+        Guid workProfileId,
+        Guid taskId,
+        CancellationToken cancellationToken)
+    {
+        var task = await taskService.GetTaskAsync(workProfileId, taskId, cancellationToken);
+        if (task == null)
+            return NotFound();
+        return Ok(task);
+    }
     /// <summary>Returns all tasks for the given work profile.</summary>
     [HttpGet("")]
     [ProducesResponseType(typeof(IEnumerable<UserTask>), StatusCodes.Status200OK)]

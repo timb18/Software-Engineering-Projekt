@@ -21,6 +21,12 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         return tasks;
     }
 
+    public async Task<UserTask> GetTaskAsync(Guid workProfileId, Guid taskId, CancellationToken cancellationToken = default)
+    {
+        return await userTaskRepository.FindAsync(taskId, workProfileId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Task {taskId} not found.");
+    }
+
     public async Task<UserTask> CreateTaskAsync(
         Guid workProfileId, UserTask task, CancellationToken cancellationToken = default)
     {
