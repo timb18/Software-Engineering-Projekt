@@ -543,7 +543,7 @@ const Tasks: FC = () => {
   };
 
   return (
-    <div className="grid h-full w-full grid-rows-[3.5rem_auto_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
+    <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs uppercase tracking-[0.28em] text-emerald-300">Planner</span>
@@ -624,9 +624,9 @@ const Tasks: FC = () => {
           </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[1.35fr_0.65fr] gap-5 max-lg:grid-cols-1">
+      <div className="grid h-full min-h-0 grid-cols-[1.35fr_0.65fr] gap-5 max-lg:grid-cols-1">
         <div className="relative flex min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-800 bg-linear-to-b from-slate-900/80 to-slate-950/80 shadow-2xl backdrop-blur">
-          <div className="task-calendar min-h-0 flex-1 p-4" style={{ height: "calc(100vh - 13rem)" }}>
+          <div className="task-calendar min-h-0 flex-1 p-4">
             <FullCalendar
               ref={calendarRef}
               plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
@@ -665,6 +665,7 @@ const Tasks: FC = () => {
               allDaySlot={false}
               height="100%"
               locale="de"
+              firstDay={1}
             />
             {/* Visible range controls overlaid on the calendar toolbar */}
             <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-end">

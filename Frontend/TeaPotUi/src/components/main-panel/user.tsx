@@ -420,7 +420,7 @@ const User: FC = () => {
   }, [blocker, isWorkDirty, pendingTabChange]);
 
   return (
-    <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6 text-slate-50">
+    <div className="grid min-h-full w-full min-w-0 grid-rows-[3.5rem_auto] gap-6 p-6 text-slate-50">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">

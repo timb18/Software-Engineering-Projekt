@@ -695,7 +695,7 @@ const Orgs: FC = () => {
   }, [activeTab, selectedOrg?.id, isSelectedAdmin]);
 
   return (
-    <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6">
+    <div className="grid min-h-full w-full min-w-0 grid-rows-[3.5rem_auto] gap-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
