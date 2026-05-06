@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Text.RegularExpressions;
 using System.Text;
 using DataAccess;
 using DataAccess.Models;
@@ -18,6 +19,10 @@ public class InvitationService(
     IEmailSender emailSender,
     IOptions<EmailOptions> emailOptions) : IInvitationService
 {
+    private static readonly Regex EmailPattern = new(
+        @"^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
     private readonly EmailOptions _emailOptions = emailOptions.Value;
     public async Task<InvitationDto> SendInvitationAsync(
         string email,
@@ -255,7 +260,17 @@ public class InvitationService(
     private string BuildAcceptLink(Invitation invitation) =>
         $"{TrimTrailingSlash(_emailOptions.ApiBaseUrl)}/api/Invitation/{invitation.Id}/accept-link?email={WebUtility.UrlEncode(invitation.Email)}";
 
-    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+    private static string NormalizeEmail(string email)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+            throw new ArgumentException("Email is required.");
+
+        if (!EmailPattern.IsMatch(normalized))
+            throw new ArgumentException("Email format is invalid.");
+
+        return normalized;
+    }
 
     private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 }
