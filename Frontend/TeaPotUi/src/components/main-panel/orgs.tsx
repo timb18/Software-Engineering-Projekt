@@ -34,7 +34,8 @@ const mapInvitationStatus = (status: string): Invitation["status"] =>
     : (status.toLowerCase() as Invitation["status"]);
 
 const Orgs: FC = () => {
-  const { user, setUser, activeOrganizationId, setActiveOrganization } = useUserStore();
+  const { user, setUser, activeOrganizationId, setActiveOrganization } =
+    useUserStore();
 
   const [orgs, setOrgs] = useState<Org[]>(user?.orgs ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
@@ -50,8 +51,12 @@ const Orgs: FC = () => {
   );
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isLeavingOrgId, setIsLeavingOrgId] = useState<string | null>(null);
-  const [isKickingMemberKey, setIsKickingMemberKey] = useState<string | null>(null);
-  const [isChangingRoleKey, setIsChangingRoleKey] = useState<string | null>(null);
+  const [isKickingMemberKey, setIsKickingMemberKey] = useState<string | null>(
+    null,
+  );
+  const [isChangingRoleKey, setIsChangingRoleKey] = useState<string | null>(
+    null,
+  );
   const [renameValue, setRenameValue] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
   const [isRenamingOrg, setIsRenamingOrg] = useState(false);
@@ -67,13 +72,18 @@ const Orgs: FC = () => {
     setOrgs(nextOrgs);
     setInvites(nextUser.invites ?? []);
 
-    if (nextOrgs.length > 0 && !nextOrgs.some((o) => o.id === activeOrganizationId)) {
+    if (
+      nextOrgs.length > 0 &&
+      !nextOrgs.some((o) => o.id === activeOrganizationId)
+    ) {
       void setActiveOrganization(nextOrgs[0].id);
     }
   };
 
   const fetchOrganizationInvites = async (org: Org): Promise<Invitation[]> => {
-    const response = await fetch(apiUrl(`/api/Invitation/organization/${org.id}`));
+    const response = await fetch(
+      apiUrl(`/api/Invitation/organization/${org.id}`),
+    );
 
     if (!response.ok) {
       return org.invites ?? [];
@@ -167,7 +177,9 @@ const Orgs: FC = () => {
       setCopiedInviteId(inviteId);
       window.setTimeout(() => setCopiedInviteId(null), 1800);
     } catch {
-      setInviteError("The link could not be copied automatically. Select it and copy it manually.");
+      setInviteError(
+        "The link could not be copied automatically. Select it and copy it manually.",
+      );
     }
   };
 
@@ -268,9 +280,7 @@ const Orgs: FC = () => {
 
       if (!response.ok) {
         const message = await response.text();
-        throw new Error(
-          message || "Organization could not be left.",
-        );
+        throw new Error(message || "Organization could not be left.");
       }
 
       const nextOrgs = orgs.filter((t) => t.id !== orgId);
@@ -497,7 +507,7 @@ const Orgs: FC = () => {
           ? "Invitation was created and sent by email."
           : payload.data?.invitationLink
             ? "Invitation link was created, but email delivery could not be confirmed. Copy the link and send it manually."
-          : "Invitation was created and sent by email.",
+            : "Invitation was created and sent by email.",
       );
       if (payload.data?.emailError) {
         setInviteError(`Email delivery failed: ${payload.data.emailError}`);
@@ -599,7 +609,11 @@ const Orgs: FC = () => {
           "Backend is unreachable. Start the API and check whether it is running on port 5186.",
         );
       } else {
-        setRenameError(error instanceof Error ? error.message : "Organization could not be renamed.");
+        setRenameError(
+          error instanceof Error
+            ? error.message
+            : "Organization could not be renamed.",
+        );
       }
     } finally {
       setIsRenamingOrg(false);
@@ -639,16 +653,24 @@ const Orgs: FC = () => {
       }
 
       const nextOrgs = orgs.filter((t) => t.id !== org.id);
-      const nextInvites = (user.invites ?? []).filter((i) => i.orgId !== org.id);
+      const nextInvites = (user.invites ?? []).filter(
+        (i) => i.orgId !== org.id,
+      );
       persist({ ...user, orgs: nextOrgs, invites: nextInvites });
       void setActiveOrganization(nextOrgs[0]?.id ?? null);
       setDeleteConfirm("");
       setDeleteSuccess("Organization was permanently deleted.");
     } catch (error) {
       if (error instanceof TypeError) {
-        setDeleteError("Backend is unreachable. Start the API and check whether it is running on port 5186.");
+        setDeleteError(
+          "Backend is unreachable. Start the API and check whether it is running on port 5186.",
+        );
       } else {
-        setDeleteError(error instanceof Error ? error.message : "Organization could not be deleted.");
+        setDeleteError(
+          error instanceof Error
+            ? error.message
+            : "Organization could not be deleted.",
+        );
       }
     } finally {
       setIsDeletingOrg(false);
@@ -714,7 +736,7 @@ const Orgs: FC = () => {
       )}
 
       <div className="grid min-w-0 grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
-        <div className="min-w-0 flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
+        <div className="flex min-w-0 flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
           <div className="text-lg font-semibold text-slate-50">My orgs</div>
           {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
@@ -725,15 +747,19 @@ const Orgs: FC = () => {
             {orgs.map((org) => (
               <div
                 key={org.id}
-                className={`min-w-0 w-full min-h-[12rem] rounded-2xl border ${activeOrganizationId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
+                className={`min-h-48 w-full min-w-0 rounded-2xl border ${activeOrganizationId === org.id ? "border-emerald-300/70" : "border-slate-800"} bg-slate-900/80 p-4 shadow`}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <div className="text-sm uppercase tracking-[0.16em] text-slate-400">Org</div>
-                    <div className="break-words text-lg font-semibold text-slate-50">{org.name}</div>
+                    <div className="text-sm tracking-[0.16em] text-slate-400 uppercase">
+                      Org
+                    </div>
+                    <div className="text-lg font-semibold wrap-break-word text-slate-50">
+                      {org.name}
+                    </div>
                   </div>
                   <div className="flex flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-end sm:gap-1 sm:text-right">
-                    <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-200">
+                    <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-200 uppercase">
                       {currentRole(org)}
                     </span>
                     <span className="text-xs text-slate-400">
@@ -809,7 +835,7 @@ const Orgs: FC = () => {
           </div>
         </div>
 
-        <div className="min-w-0 flex h-full min-h-[62vh] flex-col gap-4 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur">
+        <div className="flex h-full min-h-[62vh] min-w-0 flex-col gap-4 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur">
           {!selectedOrg && (
             <div className="text-sm text-slate-400">
               Chose your organization to manage.
@@ -819,8 +845,12 @@ const Orgs: FC = () => {
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Manage organization</div>
-                  <div className="break-words text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
+                  <div className="text-xs tracking-[0.18em] text-emerald-300 uppercase">
+                    Manage organization
+                  </div>
+                  <div className="text-2xl font-semibold wrap-break-word text-slate-50">
+                    {selectedOrg.name}
+                  </div>
                 </div>
                 {!isSelectedAdmin && (
                   <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
@@ -856,12 +886,18 @@ const Orgs: FC = () => {
                       className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200 md:flex-row md:items-center md:justify-between"
                     >
                       <div className="min-w-0">
-                        <div className="break-words font-semibold text-slate-50">{member.username}</div>
-                        <div className="break-all text-xs text-slate-400">{member.email}</div>
+                        <div className="font-semibold wrap-break-word text-slate-50">
+                          {member.username}
+                        </div>
+                        <div className="text-xs break-all text-slate-400">
+                          {member.email}
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] uppercase tracking-wide text-slate-300">
-                          {selectedOrg.adminEmails?.includes(member.email) ? "Admin" : "Member"}
+                        <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
+                          {selectedOrg.adminEmails?.includes(member.email)
+                            ? "Admin"
+                            : "Member"}
                         </span>
                         {isSelectedAdmin && member.email !== user.email && (
                           <>
@@ -869,10 +905,14 @@ const Orgs: FC = () => {
                               onClick={() =>
                                 void toggleRole(selectedOrg, member.email)
                               }
-                              disabled={isChangingRoleKey === `${selectedOrg.id}:${member.email}`}
+                              disabled={
+                                isChangingRoleKey ===
+                                `${selectedOrg.id}:${member.email}`
+                              }
                               className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                             >
-                              {isChangingRoleKey === `${selectedOrg.id}:${member.email}`
+                              {isChangingRoleKey ===
+                              `${selectedOrg.id}:${member.email}`
                                 ? "Saving..."
                                 : "Change role"}
                             </button>
@@ -880,10 +920,14 @@ const Orgs: FC = () => {
                               onClick={() =>
                                 void kickUser(selectedOrg, member.email)
                               }
-                              disabled={isKickingMemberKey === `${selectedOrg.id}:${member.email}`}
+                              disabled={
+                                isKickingMemberKey ===
+                                `${selectedOrg.id}:${member.email}`
+                              }
                               className="rounded-full border border-rose-300/60 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/20"
                             >
-                              {isKickingMemberKey === `${selectedOrg.id}:${member.email}`
+                              {isKickingMemberKey ===
+                              `${selectedOrg.id}:${member.email}`
                                 ? "Removing..."
                                 : "Kick"}
                             </button>
@@ -913,23 +957,34 @@ const Orgs: FC = () => {
                       className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200 md:flex-row md:items-center md:justify-between"
                     >
                       <div className="min-w-0">
-                        <div className="break-all font-semibold text-slate-50">{inv.email}</div>
-                        <div className="text-xs text-slate-400">Status: {inv.status}</div>
+                        <div className="font-semibold break-all text-slate-50">
+                          {inv.email}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          Status: {inv.status}
+                        </div>
                         {inv.invitationUrl && (
                           <div className="mt-2 flex min-w-0 flex-col gap-2">
                             <a
                               href={inv.invitationUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="break-all text-xs text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
+                              className="text-xs break-all text-emerald-300 underline decoration-emerald-400/40 underline-offset-2"
                             >
                               {inv.invitationUrl}
                             </a>
                             <button
-                              onClick={() => copyInvitationLink(inv.invitationUrl!, inv.id ?? inv.email)}
+                              onClick={() =>
+                                copyInvitationLink(
+                                  inv.invitationUrl!,
+                                  inv.id ?? inv.email,
+                                )
+                              }
                               className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                             >
-                              {copiedInviteId === (inv.id ?? inv.email) ? "Copied" : "Copy link"}
+                              {copiedInviteId === (inv.id ?? inv.email)
+                                ? "Copied"
+                                : "Copy link"}
                             </button>
                           </div>
                         )}
@@ -984,10 +1039,14 @@ const Orgs: FC = () => {
                             {lastInviteLink}
                           </a>
                           <button
-                            onClick={() => copyInvitationLink(lastInviteLink, "latest")}
+                            onClick={() =>
+                              copyInvitationLink(lastInviteLink, "latest")
+                            }
                             className="w-fit rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20"
                           >
-                            {copiedInviteId === "latest" ? "Copied" : "Copy link"}
+                            {copiedInviteId === "latest"
+                              ? "Copied"
+                              : "Copy link"}
                           </button>
                         </div>
                       )}
@@ -1026,7 +1085,9 @@ const Orgs: FC = () => {
                       </button>
                     </div>
                     {renameError && (
-                      <div className="mt-2 text-xs text-rose-300">{renameError}</div>
+                      <div className="mt-2 text-xs text-rose-300">
+                        {renameError}
+                      </div>
                     )}
                     {!isSelectedAdmin && (
                       <div className="text-xs text-slate-500">
@@ -1040,9 +1101,9 @@ const Orgs: FC = () => {
                       Delete organization
                     </div>
                     <div className="mt-1 text-xs text-rose-100/80">
-                      All related data will be permanently deleted. The organization
-                      must be empty before it can be deleted. Enter the exact organization
-                      name to confirm.
+                      All related data will be permanently deleted. The
+                      organization must be empty before it can be deleted. Enter
+                      the exact organization name to confirm.
                     </div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
@@ -1054,7 +1115,9 @@ const Orgs: FC = () => {
                       <button
                         onClick={() => void deleteOrg(selectedOrg)}
                         disabled={
-                          !isSelectedAdmin || deleteConfirm !== selectedOrg.name || isDeletingOrg
+                          !isSelectedAdmin ||
+                          deleteConfirm !== selectedOrg.name ||
+                          isDeletingOrg
                         }
                         className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/60 disabled:text-slate-500"
                       >
@@ -1062,10 +1125,14 @@ const Orgs: FC = () => {
                       </button>
                     </div>
                     {deleteSuccess && (
-                      <div className="mt-2 text-xs text-emerald-300">{deleteSuccess}</div>
+                      <div className="mt-2 text-xs text-emerald-300">
+                        {deleteSuccess}
+                      </div>
                     )}
                     {deleteError && (
-                      <div className="mt-2 text-xs text-rose-300">{deleteError}</div>
+                      <div className="mt-2 text-xs text-rose-300">
+                        {deleteError}
+                      </div>
                     )}
                     {!isSelectedAdmin && (
                       <div className="text-xs text-rose-100/80">

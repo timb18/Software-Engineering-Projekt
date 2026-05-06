@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState, useEffect, type CSSProperties, type FC } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+  type CSSProperties,
+  type FC,
+} from "react";
 import type {
   DateSelectArg,
   DayHeaderContentArg,
@@ -8,10 +15,17 @@ import type {
   EventInput,
 } from "@fullcalendar/core";
 import FullCalendar from "@fullcalendar/react";
-import interactionPlugin, { type EventResizeDoneArg } from "@fullcalendar/interaction";
+import interactionPlugin, {
+  type EventResizeDoneArg,
+} from "@fullcalendar/interaction";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import type { User, WorkBreak, WorkWeekDay } from "../../util/types";
-import { DAY_LABELS, WEEK_DAYS, getProductiveHoursForBlock, timeToMinutes } from "../../util/work-profile";
+import {
+  DAY_LABELS,
+  WEEK_DAYS,
+  getProductiveHoursForBlock,
+  timeToMinutes,
+} from "../../util/work-profile";
 import { useWorkProfile } from "../../util/use-work-profile";
 import { getBreakColor, getOrgColor, rgbToCss } from "../../util/color-prefs";
 import "./work-profile-configurator.css";
@@ -59,7 +73,9 @@ const DAY_INDEX_BY_KEY: Record<WorkWeekDay, number> = {
 };
 
 const REFERENCE_WEEK_START = new Date(REFERENCE_WEEK_MONDAY_MS);
-const REFERENCE_WEEK_END = new Date(REFERENCE_WEEK_MONDAY_MS + WEEK_DAYS.length * MS_PER_DAY);
+const REFERENCE_WEEK_END = new Date(
+  REFERENCE_WEEK_MONDAY_MS + WEEK_DAYS.length * MS_PER_DAY,
+);
 
 const toTimeString = (date: Date) =>
   `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
@@ -81,8 +97,14 @@ const getDateForShiftTime = (dayKey: WorkWeekDay, time: string) => {
 };
 
 const getWorkWeekDayFromDate = (date: Date): WorkWeekDay | undefined => {
-  const dayStartMs = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const dayIndex = Math.round((dayStartMs - REFERENCE_WEEK_MONDAY_MS) / MS_PER_DAY);
+  const dayStartMs = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  ).getTime();
+  const dayIndex = Math.round(
+    (dayStartMs - REFERENCE_WEEK_MONDAY_MS) / MS_PER_DAY,
+  );
 
   if (dayIndex < 0 || dayIndex >= WEEK_DAYS.length) {
     return undefined;
@@ -91,7 +113,10 @@ const getWorkWeekDayFromDate = (date: Date): WorkWeekDay | undefined => {
   return WEEK_DAYS[dayIndex];
 };
 
-const getSingleDayFromRange = (start: Date, end: Date): WorkWeekDay | undefined => {
+const getSingleDayFromRange = (
+  start: Date,
+  end: Date,
+): WorkWeekDay | undefined => {
   if (end <= start) {
     return undefined;
   }
@@ -119,7 +144,10 @@ const getPlannerViewWindow = (
   startTime: string | undefined,
   endTime: string | undefined,
 ): PlannerViewWindow => {
-  const normalizedStart = normalizePlannerTime(startTime, DEFAULT_PLANNER_VIEW_START);
+  const normalizedStart = normalizePlannerTime(
+    startTime,
+    DEFAULT_PLANNER_VIEW_START,
+  );
   const normalizedEnd = normalizePlannerTime(endTime, DEFAULT_PLANNER_VIEW_END);
   const startMinutes = timeToMinutes(normalizedStart);
   const endMinutes = timeToMinutes(normalizedEnd);
@@ -139,7 +167,8 @@ const getPlannerViewWindow = (
       slotMinTime: toCalendarDurationString(DEFAULT_CALENDAR_START_MINUTES),
       slotMaxTime: toCalendarDurationString(DEFAULT_CALENDAR_END_MINUTES),
       scrollTime: toCalendarDurationString(DEFAULT_CALENDAR_START_MINUTES),
-      visibleMinutes: DEFAULT_CALENDAR_END_MINUTES - DEFAULT_CALENDAR_START_MINUTES,
+      visibleMinutes:
+        DEFAULT_CALENDAR_END_MINUTES - DEFAULT_CALENDAR_START_MINUTES,
       validationError:
         "Visible end must be after visible start. Use the same start and end time for a 24-hour view.",
       isFullDay: false,
@@ -148,7 +177,9 @@ const getPlannerViewWindow = (
 
   return {
     slotMinTime: toCalendarDurationString(startMinutes),
-    slotMaxTime: toCalendarDurationString(Math.max(startMinutes + 30, endMinutes)),
+    slotMaxTime: toCalendarDurationString(
+      Math.max(startMinutes + 30, endMinutes),
+    ),
     scrollTime: toCalendarDurationString(startMinutes),
     visibleMinutes: endMinutes - startMinutes,
     isFullDay: false,
@@ -163,10 +194,12 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
   onDirtyChange,
 }) => {
   const calendarRef = useRef<FullCalendar | null>(null);
-  const [plannerViewForm, setPlannerViewForm] = useState<PlannerViewForm>(() => ({
-    startTime: user.plannerViewStart ?? DEFAULT_PLANNER_VIEW_START,
-    endTime: user.plannerViewEnd ?? DEFAULT_PLANNER_VIEW_END,
-  }));
+  const [plannerViewForm, setPlannerViewForm] = useState<PlannerViewForm>(
+    () => ({
+      startTime: user.plannerViewStart ?? DEFAULT_PLANNER_VIEW_START,
+      endTime: user.plannerViewEnd ?? DEFAULT_PLANNER_VIEW_END,
+    }),
+  );
 
   const [colorVersion, setColorVersion] = useState(0);
   useEffect(() => {
@@ -216,10 +249,16 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     toggleCopyDayTarget,
     toggleCopyEntryTarget,
     saveWork: saveWorkAction,
-  } = useWorkProfile(user, { onSaveUser, onStatusChange, onErrorChange, onDirtyChange });
+  } = useWorkProfile(user, {
+    onSaveUser,
+    onStatusChange,
+    onErrorChange,
+    onDirtyChange,
+  });
 
   const plannerViewWindow = useMemo(
-    () => getPlannerViewWindow(plannerViewForm.startTime, plannerViewForm.endTime),
+    () =>
+      getPlannerViewWindow(plannerViewForm.startTime, plannerViewForm.endTime),
     [plannerViewForm.endTime, plannerViewForm.startTime],
   );
   const calendarSlotHeight = useMemo(() => {
@@ -227,7 +266,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
     return Math.min(
       MAX_SLOT_HEIGHT_PX,
-      Math.max(MIN_SLOT_HEIGHT_PX, Math.round(DEFAULT_HALF_HOUR_SLOTS_HEIGHT_PX / slotCount)),
+      Math.max(
+        MIN_SLOT_HEIGHT_PX,
+        Math.round(DEFAULT_HALF_HOUR_SLOTS_HEIGHT_PX / slotCount),
+      ),
     );
   }, [plannerViewWindow.visibleMinutes]);
   const calendarStyle = useMemo<CSSProperties>(
@@ -239,7 +281,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
   );
 
   const breakLookup = useMemo(() => {
-    const nextLookup = new Map<string, { dayKey: WorkWeekDay; workBreak: WorkBreak }>();
+    const nextLookup = new Map<
+      string,
+      { dayKey: WorkWeekDay; workBreak: WorkBreak }
+    >();
 
     workForm.days.forEach((day) => {
       day.breaks.forEach((workBreak) => {
@@ -277,8 +322,13 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             textColor: "#f0fdf4",
             classNames: ["work-shift-event"],
             extendedProps: {
-              label: companyOptions.find((c) => c.id === block.companyId)?.name ?? "Shift",
-              companyColorIdx: Math.max(0, companyOptions.findIndex((c) => c.id === block.companyId)),
+              label:
+                companyOptions.find((c) => c.id === block.companyId)?.name ??
+                "Shift",
+              companyColorIdx: Math.max(
+                0,
+                companyOptions.findIndex((c) => c.id === block.companyId),
+              ),
             },
           };
         }),
@@ -315,11 +365,18 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
   };
 
   const saveWork = () => {
-    saveWorkAction(plannerViewForm.startTime, plannerViewForm.endTime, plannerViewWindow.validationError);
+    saveWorkAction(
+      plannerViewForm.startTime,
+      plannerViewForm.endTime,
+      plannerViewWindow.validationError,
+    );
   };
 
   const handleCalendarSelect = (selectionInfo: DateSelectArg) => {
-    const dayKey = getSingleDayFromRange(selectionInfo.start, selectionInfo.end);
+    const dayKey = getSingleDayFromRange(
+      selectionInfo.start,
+      selectionInfo.end,
+    );
     if (!dayKey) {
       clearMessages();
       selectionInfo.view.calendar.unselect();
@@ -339,7 +396,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       return;
     }
 
-    onStatusChange("Range selected. Choose whether to create a shift or a break in the pop-up.");
+    onStatusChange(
+      "Range selected. Choose whether to create a shift or a break in the pop-up.",
+    );
   };
 
   const handleCalendarEventClick = (clickInfo: EventClickArg) => {
@@ -358,9 +417,18 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     const eventId = dropInfo.event.id;
     const newStart = dropInfo.event.start;
     const newEnd = dropInfo.event.end;
-    if (!newStart || !newEnd) { dropInfo.revert(); return; }
+    if (!newStart || !newEnd) {
+      dropInfo.revert();
+      return;
+    }
     const targetDayKey = getWorkWeekDayFromDate(newStart);
-    if (!targetDayKey || targetDayKey !== getSingleDayFromRange(newStart, newEnd)) { dropInfo.revert(); return; }
+    if (
+      !targetDayKey ||
+      targetDayKey !== getSingleDayFromRange(newStart, newEnd)
+    ) {
+      dropInfo.revert();
+      return;
+    }
     const newStartTime = toTimeString(newStart);
     const newEndTime = toTimeString(newEnd);
     const success = eventId.startsWith("break-")
@@ -373,9 +441,15 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     const eventId = resizeInfo.event.id;
     const newStart = resizeInfo.event.start;
     const newEnd = resizeInfo.event.end;
-    if (!newStart || !newEnd) { resizeInfo.revert(); return; }
+    if (!newStart || !newEnd) {
+      resizeInfo.revert();
+      return;
+    }
     const dayKey = getWorkWeekDayFromDate(newStart);
-    if (!dayKey) { resizeInfo.revert(); return; }
+    if (!dayKey) {
+      resizeInfo.revert();
+      return;
+    }
     const newStartTime = toTimeString(newStart);
     const newEndTime = toTimeString(newEnd);
     const success = eventId.startsWith("break-")
@@ -388,7 +462,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     return (
       <div className="work-shift-content">
         <div className="work-shift-time">{contentInfo.timeText}</div>
-        <div className="work-shift-label">{contentInfo.event.extendedProps.label}</div>
+        <div className="work-shift-label">
+          {contentInfo.event.extendedProps.label}
+        </div>
       </div>
     );
   };
@@ -400,7 +476,8 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       return <></>;
     }
 
-    const dayHasBlocks = (workForm.days.find((d) => d.day === dayKey)?.blocks.length ?? 0) > 0;
+    const dayHasBlocks =
+      (workForm.days.find((d) => d.day === dayKey)?.blocks.length ?? 0) > 0;
     const showHint = showEncouragement && !dayHasBlocks;
 
     return (
@@ -420,10 +497,13 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300 shadow-lg">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-sm font-semibold text-slate-100">Shift Planner</div>
+            <div className="text-sm font-semibold text-slate-100">
+              Shift Planner
+            </div>
             <p className="mt-2 max-w-3xl text-slate-400">
-              Drag a range in the calendar and confirm in the pop-up whether it becomes a shift or
-              a break. Move or resize shifts directly in the weekly view.
+              Drag a range in the calendar and confirm in the pop-up whether it
+              becomes a shift or a break. Move or resize shifts directly in the
+              weekly view.
             </p>
           </div>
           <button
@@ -437,16 +517,28 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Active Days</div>
-            <div className="mt-2 text-2xl font-semibold text-slate-50">{workSummary.activeDayCount}</div>
+            <div className="text-[11px] tracking-[0.18em] text-slate-500 uppercase">
+              Active Days
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-slate-50">
+              {workSummary.activeDayCount}
+            </div>
           </div>
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Weekly Hours</div>
-            <div className="mt-2 text-2xl font-semibold text-slate-50">{workSummary.weeklyHours}</div>
+            <div className="text-[11px] tracking-[0.18em] text-slate-500 uppercase">
+              Weekly Hours
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-slate-50">
+              {workSummary.weeklyHours}
+            </div>
           </div>
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Total Shifts</div>
-            <div className="mt-2 text-2xl font-semibold text-slate-50">{workSummary.totalBlocks}</div>
+            <div className="text-[11px] tracking-[0.18em] text-slate-500 uppercase">
+              Total Shifts
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-slate-50">
+              {workSummary.totalBlocks}
+            </div>
           </div>
         </div>
       </div>
@@ -454,15 +546,20 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
         <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-slate-100">Week View</div>
+            <div className="text-sm font-semibold text-slate-100">
+              Week View
+            </div>
             <p className="mt-1 text-xs text-slate-400">
-              Drag over empty space for a shift or fully inside an existing shift for a break.
+              Drag over empty space for a shift or fully inside an existing
+              shift for a break.
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-2 text-xs sm:w-auto sm:min-w-[22rem] sm:flex-row sm:items-center sm:gap-px sm:p-1">
+          <div className="flex w-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-2 text-xs sm:w-auto sm:min-w-88 sm:flex-row sm:items-center sm:gap-px sm:p-1">
             {/* Visible range */}
             <div className="flex flex-wrap items-center gap-2 rounded-xl px-3 py-2">
-              <span className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Visible</span>
+              <span className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                Visible
+              </span>
               <input
                 type="time"
                 step={900}
@@ -522,20 +619,26 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
           {copyDayPanelOpen ? (
             <div className="mb-3 rounded-2xl border border-emerald-300/20 bg-emerald-400/8 px-4 py-3">
               {/* Step 1: pick source */}
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
+              <div className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-emerald-300 uppercase">
                 Step 1 — Which day do you want to copy from?
               </div>
               <div className="flex flex-wrap gap-1">
                 {WEEK_DAYS.map((day) => {
                   const hasEntries =
-                    (workForm.days.find((d) => d.day === day)?.blocks.length ?? 0) > 0 ||
-                    (workForm.days.find((d) => d.day === day)?.breaks.length ?? 0) > 0;
+                    (workForm.days.find((d) => d.day === day)?.blocks.length ??
+                      0) > 0 ||
+                    (workForm.days.find((d) => d.day === day)?.breaks.length ??
+                      0) > 0;
                   return (
                     <button
                       key={day}
                       type="button"
                       disabled={!hasEntries}
-                      onClick={() => setCopyDaySource(day === copyDaySource ? undefined : day)}
+                      onClick={() =>
+                        setCopyDaySource(
+                          day === copyDaySource ? undefined : day,
+                        )
+                      }
                       className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                         copyDaySource === day
                           ? "border border-emerald-300/60 bg-emerald-400/30 text-emerald-100"
@@ -553,7 +656,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
               {/* Step 2: pick targets — only shown once a source is selected */}
               {copyDaySource && (
                 <>
-                  <div className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
+                  <div className="mt-4 mb-2 text-[11px] font-semibold tracking-[0.14em] text-emerald-300 uppercase">
                     Step 2 — Copy to which days?
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -582,21 +685,29 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                       }
                       className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-xs font-semibold text-slate-400 transition hover:border-emerald-300/30 hover:text-emerald-200"
                     >
-                      {copyDayTargets.length === WEEK_DAYS.length - 1 ? "Deselect all" : "All"}
+                      {copyDayTargets.length === WEEK_DAYS.length - 1
+                        ? "Deselect all"
+                        : "All"}
                     </button>
                   </div>
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
                       disabled={copyDayTargets.length === 0}
-                      onClick={() => copyDayScheduleTo(copyDaySource, copyDayTargets)}
+                      onClick={() =>
+                        copyDayScheduleTo(copyDaySource, copyDayTargets)
+                      }
                       className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Apply copy
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setCopyDayPanelOpen(false); setCopyDaySource(undefined); setCopyDayTargets([]); }}
+                      onClick={() => {
+                        setCopyDayPanelOpen(false);
+                        setCopyDaySource(undefined);
+                        setCopyDayTargets([]);
+                      }}
                       className="rounded-full border border-slate-700 bg-slate-900/60 px-4 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
                     >
                       Cancel
@@ -607,72 +718,83 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             </div>
           ) : null}
           <div className="relative">
-            <div className="work-planner-calendar min-w-[56rem] lg:min-w-[70rem]" style={calendarStyle}>
-            <FullCalendar
-              ref={calendarRef}
-              plugins={[timeGridPlugin, interactionPlugin]}
-              initialView="timeGridWeek"
-              initialDate={REFERENCE_WEEK_START}
-              visibleRange={{ start: REFERENCE_WEEK_START, end: REFERENCE_WEEK_END }}
-              headerToolbar={false}
-              firstDay={1}
-              weekends
-              allDaySlot={false}
-              height="auto"
-              expandRows={false}
-              editable
-              eventStartEditable
-              eventDurationEditable
-              eventResizableFromStart
-              selectable
-              selectMirror
-              selectMinDistance={10}
-              eventOverlap={false}
-              slotEventOverlap={false}
-              selectOverlap
-              nowIndicator={false}
-              scrollTimeReset={false}
-              slotDuration="00:30:00"
-              snapDuration="00:15:00"
-              slotLabelInterval="01:00:00"
-              slotMinTime={plannerViewWindow.slotMinTime}
-              slotMaxTime={plannerViewWindow.slotMaxTime}
-              scrollTime={plannerViewWindow.scrollTime}
-              events={calendarEvents}
-              displayEventEnd
-              eventTimeFormat={{
-                hour: "2-digit",
-                minute: "2-digit",
-                meridiem: false,
-                hour12: false,
-              }}
-              dayHeaderContent={renderDayHeaderContent}
-              selectAllow={(selectionInfo) =>
-                Boolean(getSingleDayFromRange(selectionInfo.start, selectionInfo.end))
-              }
-              select={handleCalendarSelect}
-              eventDrop={handleEventDrop}
-              eventResize={handleEventResize}
-              eventClick={handleCalendarEventClick}
-              eventContent={renderEventContent}
-              eventClassNames={(eventInfo) => {
-                const id = eventInfo.event.id;
-                if (id.startsWith("break-")) {
-                  const breakId = id.slice(6);
-                  return selectedBreak?.breakId === breakId
-                    ? ["work-break-event", "is-selected-shift"]
-                    : ["work-break-event"];
+            <div
+              className="work-planner-calendar min-w-4xl lg:min-w-280"
+              style={calendarStyle}
+            >
+              <FullCalendar
+                ref={calendarRef}
+                plugins={[timeGridPlugin, interactionPlugin]}
+                initialView="timeGridWeek"
+                initialDate={REFERENCE_WEEK_START}
+                visibleRange={{
+                  start: REFERENCE_WEEK_START,
+                  end: REFERENCE_WEEK_END,
+                }}
+                headerToolbar={false}
+                firstDay={1}
+                weekends
+                allDaySlot={false}
+                height="auto"
+                expandRows={false}
+                editable
+                eventStartEditable
+                eventDurationEditable
+                eventResizableFromStart
+                selectable
+                selectMirror
+                selectMinDistance={10}
+                eventOverlap={false}
+                slotEventOverlap={false}
+                selectOverlap
+                nowIndicator={false}
+                scrollTimeReset={false}
+                slotDuration="00:30:00"
+                snapDuration="00:15:00"
+                slotLabelInterval="01:00:00"
+                slotMinTime={plannerViewWindow.slotMinTime}
+                slotMaxTime={plannerViewWindow.slotMaxTime}
+                scrollTime={plannerViewWindow.scrollTime}
+                events={calendarEvents}
+                displayEventEnd
+                eventTimeFormat={{
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  meridiem: false,
+                  hour12: false,
+                }}
+                dayHeaderContent={renderDayHeaderContent}
+                selectAllow={(selectionInfo) =>
+                  Boolean(
+                    getSingleDayFromRange(
+                      selectionInfo.start,
+                      selectionInfo.end,
+                    ),
+                  )
                 }
-                const colorIdx: number = eventInfo.event.extendedProps.companyColorIdx ?? 0;
-                const companyClass = `work-shift-company-${colorIdx}`;
-                return selectedShift?.blockId === id
-                  ? ["work-shift-event", companyClass, "is-selected-shift"]
-                  : ["work-shift-event", companyClass];
-              }}
-            />
+                select={handleCalendarSelect}
+                eventDrop={handleEventDrop}
+                eventResize={handleEventResize}
+                eventClick={handleCalendarEventClick}
+                eventContent={renderEventContent}
+                eventClassNames={(eventInfo) => {
+                  const id = eventInfo.event.id;
+                  if (id.startsWith("break-")) {
+                    const breakId = id.slice(6);
+                    return selectedBreak?.breakId === breakId
+                      ? ["work-break-event", "is-selected-shift"]
+                      : ["work-break-event"];
+                  }
+                  const colorIdx: number =
+                    eventInfo.event.extendedProps.companyColorIdx ?? 0;
+                  const companyClass = `work-shift-company-${colorIdx}`;
+                  return selectedShift?.blockId === id
+                    ? ["work-shift-event", companyClass, "is-selected-shift"]
+                    : ["work-shift-event", companyClass];
+                }}
+              />
+            </div>
           </div>
-
-        </div>
         </div>
       </section>
 
@@ -682,13 +804,14 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
           onClick={closeEntryDialog}
         >
           <div
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-slate-800 bg-slate-900 p-5 shadow-2xl"
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold text-slate-100">
-                  {pendingSelection?.entryType === "break" || selectedBreakDetails
+                  {pendingSelection?.entryType === "break" ||
+                  selectedBreakDetails
                     ? "Pause (Break)"
                     : "Shift"}
                 </div>
@@ -701,10 +824,12 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
               <div className="flex items-center gap-2">
                 {(pendingSelection || selectedShiftDetails) && (
                   <span className="rounded-full border border-emerald-300/20 bg-emerald-400/8 px-3 py-1 text-xs font-semibold text-emerald-100">
-                    {DAY_LABELS[
-                      pendingSelection?.dayKey ??
-                        selectedShiftDetails!.day.day
-                    ]}
+                    {
+                      DAY_LABELS[
+                        pendingSelection?.dayKey ??
+                          selectedShiftDetails!.day.day
+                      ]
+                    }
                   </span>
                 )}
                 {selectedBreakDetails && (
@@ -723,7 +848,8 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             </div>
 
             {/* ── Create or edit a SHIFT ── */}
-            {(pendingSelection?.entryType === "shift" || (!pendingSelection && selectedShiftDetails)) && (
+            {(pendingSelection?.entryType === "shift" ||
+              (!pendingSelection && selectedShiftDetails)) && (
               <div className="mt-5 flex flex-col gap-4">
                 {/* Entry type toggle */}
                 <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 p-1">
@@ -739,7 +865,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     onClick={() => {
                       if (pendingSelection) {
                         setPendingSelection((current) =>
-                          current ? { ...current, entryType: "break" } : current,
+                          current
+                            ? { ...current, entryType: "break" }
+                            : current,
                         );
                       } else if (selectedShiftDetails) {
                         convertShiftToBreak(
@@ -755,7 +883,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                     Company
                   </label>
                   <select
@@ -767,7 +895,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     onChange={(event) => {
                       if (pendingSelection) {
                         setPendingSelection((current) =>
-                          current ? { ...current, companyId: event.target.value } : current,
+                          current
+                            ? { ...current, companyId: event.target.value }
+                            : current,
                         );
                       } else if (selectedShiftDetails) {
                         updateBlockCompany(
@@ -789,7 +919,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                       Start time
                     </label>
                     <input
@@ -802,7 +932,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                       onChange={(event) => {
                         if (pendingSelection) {
                           setPendingSelection((current) =>
-                            current ? { ...current, startTime: event.target.value } : current,
+                            current
+                              ? { ...current, startTime: event.target.value }
+                              : current,
                           );
                         } else if (selectedShiftDetails) {
                           updateWorkBlock(
@@ -816,7 +948,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                       End time
                     </label>
                     <input
@@ -829,7 +961,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                       onChange={(event) => {
                         if (pendingSelection) {
                           setPendingSelection((current) =>
-                            current ? { ...current, endTime: event.target.value } : current,
+                            current
+                              ? { ...current, endTime: event.target.value }
+                              : current,
                           );
                         } else if (selectedShiftDetails) {
                           updateWorkBlock(
@@ -847,7 +981,8 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                 {!pendingSelection && selectedShiftDetails && (
                   <div className="flex flex-wrap gap-2 text-xs text-slate-400">
                     <span className="rounded-full border border-slate-800 bg-slate-950/70 px-2 py-1">
-                      {selectedShiftDetails.block.startTime} – {selectedShiftDetails.block.endTime}
+                      {selectedShiftDetails.block.startTime} –{" "}
+                      {selectedShiftDetails.block.endTime}
                     </span>
                     <span className="rounded-full border border-slate-800 bg-slate-950/70 px-2 py-1">
                       {getProductiveHoursForBlock(selectedShiftDetails.block)} h
@@ -877,11 +1012,13 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     <>
                       {/* Copy shift to other days */}
                       <div className="w-full">
-                        <div className="mb-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                        <div className="mb-1 text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                           Copy to other days
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {WEEK_DAYS.filter((d) => d !== selectedShiftDetails!.day.day).map((day) => (
+                          {WEEK_DAYS.filter(
+                            (d) => d !== selectedShiftDetails!.day.day,
+                          ).map((day) => (
                             <button
                               key={day}
                               type="button"
@@ -899,7 +1036,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                             type="button"
                             onClick={() =>
                               setCopyEntryTargets(
-                                WEEK_DAYS.filter((d) => d !== selectedShiftDetails!.day.day),
+                                WEEK_DAYS.filter(
+                                  (d) => d !== selectedShiftDetails!.day.day,
+                                ),
                               )
                             }
                             className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-xs font-semibold text-slate-400 transition hover:border-emerald-300/30 hover:text-emerald-200"
@@ -910,7 +1049,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                             <button
                               type="button"
                               onClick={() =>
-                                copySingleShiftTo(selectedShiftDetails!.block, copyEntryTargets)
+                                copySingleShiftTo(
+                                  selectedShiftDetails!.block,
+                                  copyEntryTargets,
+                                )
                               }
                               className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/25"
                             >
@@ -938,7 +1080,8 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             )}
 
             {/* ── Create or edit a BREAK ── */}
-            {(pendingSelection?.entryType === "break" || (!pendingSelection && selectedBreakDetails)) && (
+            {(pendingSelection?.entryType === "break" ||
+              (!pendingSelection && selectedBreakDetails)) && (
               <div className="mt-5 flex flex-col gap-4">
                 {/* Entry type toggle */}
                 <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 p-1">
@@ -947,7 +1090,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     onClick={() => {
                       if (pendingSelection) {
                         setPendingSelection((current) =>
-                          current ? { ...current, entryType: "shift" } : current,
+                          current
+                            ? { ...current, entryType: "shift" }
+                            : current,
                         );
                       } else if (selectedBreakDetails) {
                         convertBreakToShift(
@@ -971,7 +1116,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                       Start time
                     </label>
                     <input
@@ -984,7 +1129,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                       onChange={(event) => {
                         if (pendingSelection) {
                           setPendingSelection((current) =>
-                            current ? { ...current, startTime: event.target.value } : current,
+                            current
+                              ? { ...current, startTime: event.target.value }
+                              : current,
                           );
                         } else if (selectedBreakDetails) {
                           updateDayBreak(
@@ -998,7 +1145,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                       End time
                     </label>
                     <input
@@ -1011,7 +1158,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                       onChange={(event) => {
                         if (pendingSelection) {
                           setPendingSelection((current) =>
-                            current ? { ...current, endTime: event.target.value } : current,
+                            current
+                              ? { ...current, endTime: event.target.value }
+                              : current,
                           );
                         } else if (selectedBreakDetails) {
                           updateDayBreak(
@@ -1029,7 +1178,8 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                 {!pendingSelection && selectedBreakDetails && (
                   <div className="flex flex-wrap gap-2 text-xs text-slate-400">
                     <span className="rounded-full border border-slate-800 bg-slate-950/70 px-2 py-1">
-                      {selectedBreakDetails.workBreak.startTime} – {selectedBreakDetails.workBreak.endTime}
+                      {selectedBreakDetails.workBreak.startTime} –{" "}
+                      {selectedBreakDetails.workBreak.endTime}
                     </span>
                   </div>
                 )}
@@ -1056,11 +1206,13 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     <>
                       {/* Copy break to other days */}
                       <div className="w-full">
-                        <div className="mb-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                        <div className="mb-1 text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                           Copy to other days
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {WEEK_DAYS.filter((d) => d !== selectedBreakDetails!.day.day).map((day) => (
+                          {WEEK_DAYS.filter(
+                            (d) => d !== selectedBreakDetails!.day.day,
+                          ).map((day) => (
                             <button
                               key={day}
                               type="button"
@@ -1078,7 +1230,9 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                             type="button"
                             onClick={() =>
                               setCopyEntryTargets(
-                                WEEK_DAYS.filter((d) => d !== selectedBreakDetails!.day.day),
+                                WEEK_DAYS.filter(
+                                  (d) => d !== selectedBreakDetails!.day.day,
+                                ),
                               )
                             }
                             className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-xs font-semibold text-slate-400 transition hover:border-amber-300/30 hover:text-amber-200"
@@ -1089,7 +1243,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                             <button
                               type="button"
                               onClick={() =>
-                                copySingleBreakTo(selectedBreakDetails!.workBreak, copyEntryTargets)
+                                copySingleBreakTo(
+                                  selectedBreakDetails!.workBreak,
+                                  copyEntryTargets,
+                                )
                               }
                               className="rounded-full border border-amber-300/60 bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-400/25"
                             >

@@ -15,11 +15,15 @@ const Login: FC = () => {
       return;
     }
 
-    await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
+    await initForUser(user.sub, user.email, user.name, user.picture).catch(
+      console.error,
+    );
 
     if (invitationId) {
       await acceptInvite(invitationId, { email: user.email });
-      await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
+      await initForUser(user.sub, user.email, user.name, user.picture).catch(
+        console.error,
+      );
       navigate("/teams");
       return;
     }
@@ -38,14 +42,20 @@ const Login: FC = () => {
     <div className="min-h-screen bg-[#070b14] text-slate-50">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative hidden overflow-hidden border-r border-slate-800 bg-[#0b1220] lg:block">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:44px_44px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-size-[44px_44px]" />
           <div className="relative flex h-full flex-col justify-between p-12">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-emerald-300/30 bg-slate-950/70">
-                <img src="/logo_only_pot.png" alt="TeaPot" className="h-8 w-8 object-contain" />
+                <img
+                  src="/logo_only_pot.png"
+                  alt="TeaPot"
+                  className="h-8 w-8 object-contain"
+                />
               </div>
               <div>
-                <div className="text-xl font-semibold tracking-tight">TeaPot</div>
+                <div className="text-xl font-semibold tracking-tight">
+                  TeaPot
+                </div>
                 <div className="text-sm text-slate-400">Work planning</div>
               </div>
             </div>
@@ -54,17 +64,21 @@ const Login: FC = () => {
               <div className="mb-5 inline-flex rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-sm font-medium text-emerald-100">
                 {invitationId ? "Invitation ready" : "Welcome back"}
               </div>
-              <h1 className="text-5xl font-semibold leading-tight tracking-tight text-white">
+              <h1 className="text-5xl leading-tight font-semibold tracking-tight text-white">
                 Plan work where your team already is.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-slate-300">
-                Tasks, organizations, and working hours stay together in one calm, focused workspace.
+                Tasks, organizations, and working hours stay together in one
+                calm, focused workspace.
               </p>
             </div>
 
             <div className="grid max-w-xl grid-cols-3 gap-3 text-sm">
               {["Orgs", "Tasks", "Work profile"].map((item) => (
-                <div key={item} className="rounded-lg border border-slate-800 bg-slate-950/55 p-4 text-slate-300">
+                <div
+                  key={item}
+                  className="rounded-lg border border-slate-800 bg-slate-950/55 p-4 text-slate-300"
+                >
                   <div className="h-1.5 w-8 rounded-full bg-emerald-300" />
                   <div className="mt-3 font-medium text-slate-100">{item}</div>
                 </div>
@@ -77,7 +91,11 @@ const Login: FC = () => {
           <div className="w-full max-w-md">
             <div className="mb-10 flex items-center gap-3 lg:hidden">
               <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-emerald-300/30 bg-slate-900">
-                <img src="/logo_only_pot.png" alt="TeaPot" className="h-7 w-7 object-contain" />
+                <img
+                  src="/logo_only_pot.png"
+                  alt="TeaPot"
+                  className="h-7 w-7 object-contain"
+                />
               </div>
               <div>
                 <div className="text-lg font-semibold">TeaPot</div>
@@ -87,7 +105,7 @@ const Login: FC = () => {
 
             <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-7 shadow-2xl shadow-black/40 backdrop-blur">
               <div className="mb-8">
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-300">
+                <p className="text-sm font-medium tracking-[0.18em] text-emerald-300 uppercase">
                   Sign in
                 </p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight">
