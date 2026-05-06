@@ -181,7 +181,7 @@ public class InvitationServiceTests
         {
             Assert.That(result.InvitationLink, Does.Contain($"/api/Invitation/{result.Id}/accept-link"));
             Assert.That(result.EmailSent, Is.False);
-            Assert.That(result.EmailError, Does.Contain("SMTP failed"));
+            Assert.That(result.EmailError, Is.Null);
             Assert.That(_dbContext.Invitations.Any(i => i.Id == result.Id), Is.True);
         });
     }

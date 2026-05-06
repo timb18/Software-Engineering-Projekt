@@ -68,22 +68,21 @@ public class InvitationService(
         };
 
         await invitationRepository.AddAsync(invitation, cancellationToken);
-        string? emailError = null;
         var emailSent = false;
         try
         {
             await SendInvitationEmailAsync(invitation, organization, expiryDays, cancellationToken);
             emailSent = true;
         }
-        catch (Exception ex)
+        catch
         {
-            emailError = $"{ex.GetType().Name}: {ex.GetBaseException().Message}";
+            emailSent = false;
         }
 
         return MapToDto(invitation) with
         {
             EmailSent = emailSent,
-            EmailError = emailError
+            EmailError = null
         };
     }
 
