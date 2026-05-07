@@ -17,38 +17,60 @@ const Home: FC = () => {
     .slice(0, 3);
   const upcomingDeadlines = tasks
     .map((task) => ({ task, deadline: dayjs(task.deadline ?? task.endDate) }))
-    .filter(({ deadline, task }) => deadline.isAfter(now) && task.status !== "done")
+    .filter(
+      ({ deadline, task }) => deadline.isAfter(now) && task.status !== "done",
+    )
     .sort((a, b) => a.deadline.valueOf() - b.deadline.valueOf())
     .slice(0, 3)
     .map(({ task }) => task);
   const teams = user.orgs ?? [];
 
   return (
-    <div className="grid min-h-full w-full grid-rows-[auto_1fr] gap-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 text-slate-50">
+    <div className="grid min-h-full w-full grid-rows-[auto_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-8 text-slate-50">
       <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl backdrop-blur">
-        <div className="text-sm uppercase tracking-[0.22em] text-emerald-300">Welcome back</div>
+        <div className="text-sm tracking-[0.22em] text-emerald-300 uppercase">
+          Welcome back
+        </div>
         <div className="mt-2 text-4xl font-semibold">
           Hi {user.displayName ?? user.username}, plan your week.
         </div>
-        <div className="mt-2 text-slate-400">Keep tasks and teams aligned in one glance.</div>
+        <div className="mt-2 text-slate-400">
+          Keep tasks and teams aligned in one glance.
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-5 max-xl:grid-cols-2 max-md:grid-cols-1">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl">
-          <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Teams</div>
-          <div className="mt-2 text-3xl font-semibold text-emerald-100">{teams.length}</div>
-          <div className="text-sm text-slate-400">Groups you collaborate with</div>
+          <div className="text-xs tracking-[0.16em] text-slate-400 uppercase">
+            Teams
+          </div>
+          <div className="mt-2 text-3xl font-semibold text-emerald-100">
+            {teams.length}
+          </div>
+          <div className="text-sm text-slate-400">
+            Groups you collaborate with
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl">
-          <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Tasks this week</div>
-          <div className="mt-2 text-3xl font-semibold text-emerald-100">{tasks.length}</div>
-          <div className="text-sm text-slate-400">Scheduled items in your planner</div>
+          <div className="text-xs tracking-[0.16em] text-slate-400 uppercase">
+            Tasks this week
+          </div>
+          <div className="mt-2 text-3xl font-semibold text-emerald-100">
+            {tasks.length}
+          </div>
+          <div className="text-sm text-slate-400">
+            Scheduled items in your planner
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl">
-          <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Upcoming</div>
-          <div className="mt-2 text-3xl font-semibold text-emerald-100">{upcomingTasks.length}</div>
+          <div className="text-xs tracking-[0.16em] text-slate-400 uppercase">
+            Upcoming
+          </div>
+          <div className="mt-2 text-3xl font-semibold text-emerald-100">
+            {upcomingTasks.length}
+          </div>
           <div className="text-sm text-slate-400">Next tasks in the queue</div>
         </div>
 
@@ -68,15 +90,20 @@ const Home: FC = () => {
                 key={`${task.name}-${task.startDate.toString()}`}
                 className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm"
               >
-                <div className="text-xs uppercase tracking-[0.12em] text-emerald-200">
+                <div className="text-xs tracking-[0.12em] text-emerald-200 uppercase">
                   {dayjs(task.startDate).format("ddd, DD MMM")}
                 </div>
-                <div className="text-lg font-semibold text-slate-50">{task.name}</div>
+                <div className="text-lg font-semibold text-slate-50">
+                  {task.name}
+                </div>
                 <div className="text-xs text-slate-300">
-                  {dayjs(task.startDate).format("HH:mm")} - {dayjs(task.endDate).format("HH:mm")}
+                  {dayjs(task.startDate).format("HH:mm")} -{" "}
+                  {dayjs(task.endDate).format("HH:mm")}
                 </div>
                 {task.description && (
-                  <div className="mt-1 text-sm text-slate-400">{task.description}</div>
+                  <div className="mt-1 text-sm text-slate-400">
+                    {task.description}
+                  </div>
                 )}
               </div>
             ))}
@@ -100,15 +127,20 @@ const Home: FC = () => {
                 key={`${task.name}-${task.endDate.toString()}`}
                 className="rounded-xl border border-rose-800/60 bg-rose-900/30 p-4 shadow-sm"
               >
-                <div className="text-xs uppercase tracking-[0.12em] text-rose-200">
-                  Fällig am {dayjs(task.deadline ?? task.endDate).format("ddd, DD MMM")}
+                <div className="text-xs tracking-[0.12em] text-rose-200 uppercase">
+                  Fällig am{" "}
+                  {dayjs(task.deadline ?? task.endDate).format("ddd, DD MMM")}
                 </div>
-                <div className="text-lg font-semibold text-slate-50">{task.name}</div>
+                <div className="text-lg font-semibold text-slate-50">
+                  {task.name}
+                </div>
                 <div className="text-xs text-slate-300">
                   {dayjs(task.deadline ?? task.endDate).format("HH:mm")}
                 </div>
                 {task.description && (
-                  <div className="mt-1 text-sm text-slate-200">{task.description}</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {task.description}
+                  </div>
                 )}
               </div>
             ))}

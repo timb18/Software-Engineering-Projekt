@@ -1,7 +1,7 @@
+using System.Net;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.Extensions.Options;
-using System.Net;
 
 namespace Services.Organizations;
 

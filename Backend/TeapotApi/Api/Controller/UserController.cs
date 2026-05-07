@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Services.Users;
 
 namespace Api.Controller;
 

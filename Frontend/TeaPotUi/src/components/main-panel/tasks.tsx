@@ -6,7 +6,9 @@ import type {
   EventInput,
 } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin, { type EventResizeDoneArg } from "@fullcalendar/interaction";
+import interactionPlugin, {
+  type EventResizeDoneArg,
+} from "@fullcalendar/interaction";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayjs from "dayjs";
@@ -15,21 +17,46 @@ import useUserStore from "../../stores/user-store";
 import { fetchBlocks, fetchTasks, type TaskBlock } from "../../util/task-api";
 import type { Task, WorkBreak, WorkWeekDay } from "../../util/types";
 import { saveWorkProfile } from "../../util/work-profile-api";
-import { getBreakColor, getOrgColor, rgbToCss, type RgbColor } from "../../util/color-prefs";
+import {
+  getBreakColor,
+  getOrgColor,
+  rgbToCss,
+  type RgbColor,
+} from "../../util/color-prefs";
 import "./tasks-calendar.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const DAY_TO_JS: Record<WorkWeekDay, number> = {
-  Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+  Sun: 0,
 };
 const JS_TO_DAY: Record<number, WorkWeekDay> = {
-  0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat",
+  0: "Sun",
+  1: "Mon",
+  2: "Tue",
+  3: "Wed",
+  4: "Thu",
+  5: "Fri",
+  6: "Sat",
 };
 
-
 const Tasks: FC = () => {
-  const { user, setUser, activeOrganizationId, setActiveOrganization, addTask, saveTask, removeTask, workProfileId } = useUserStore();
+  const {
+    user,
+    setUser,
+    activeOrganizationId,
+    setActiveOrganization,
+    addTask,
+    saveTask,
+    removeTask,
+    workProfileId,
+  } = useUserStore();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -58,12 +85,24 @@ const Tasks: FC = () => {
   const [status, setStatus] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [view, setView] = useState<"day" | "week" | "month">("week");
-  const [filterStatus, setFilterStatus] = useState<"all" | "todo" | "in-progress" | "done">("all");
-  const [filterOrgId, setFilterOrgId] = useState<string | "all">(activeOrganizationId ?? "all");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "todo" | "in-progress" | "done"
+  >("all");
+  const [filterOrgId, setFilterOrgId] = useState<string | "all">(
+    activeOrganizationId ?? "all",
+  );
   const [scheduling, setScheduling] = useState(false);
-  const [scheduleMsg, setScheduleMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [scheduleMsg, setScheduleMsg] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
   const [blocks, setBlocks] = useState<TaskBlock[]>([]);
-  const [editingBreak, setEditingBreak] = useState<{ breakId: string; weekDay: WorkWeekDay; start: string; end: string } | null>(null);
+  const [editingBreak, setEditingBreak] = useState<{
+    breakId: string;
+    weekDay: WorkWeekDay;
+    start: string;
+    end: string;
+  } | null>(null);
   const [editBreakForm, setEditBreakForm] = useState({ start: "", end: "" });
   const [editBreakError, setEditBreakError] = useState<string | undefined>();
   const [colorVersion, setColorVersion] = useState(0);
@@ -74,8 +113,17 @@ const Tasks: FC = () => {
 
   const savePlannerView = (startTime: string, endTime: string) => {
     if (!user.workProfile) return;
-    const updatedProfile = { ...user.workProfile, plannerViewStart: startTime, plannerViewEnd: endTime };
-    setUser({ ...user, workProfile: updatedProfile, plannerViewStart: startTime, plannerViewEnd: endTime });
+    const updatedProfile = {
+      ...user.workProfile,
+      plannerViewStart: startTime,
+      plannerViewEnd: endTime,
+    };
+    setUser({
+      ...user,
+      workProfile: updatedProfile,
+      plannerViewStart: startTime,
+      plannerViewEnd: endTime,
+    });
     saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
   };
 
@@ -87,7 +135,9 @@ const Tasks: FC = () => {
 
   useEffect(() => {
     if (!workProfileId) return;
-    fetchBlocks(workProfileId).then(setBlocks).catch(() => setBlocks([]));
+    fetchBlocks(workProfileId)
+      .then(setBlocks)
+      .catch(() => setBlocks([]));
   }, [workProfileId]);
 
   useEffect(() => {
@@ -110,16 +160,26 @@ const Tasks: FC = () => {
         `${API_BASE}/api/planning/${encodeURIComponent(workProfileId)}/schedule`,
         { method: "POST" },
       );
-      const json = (await res.json()) as { success: boolean; errorMessage?: string; backtrackingCount?: number };
+      const json = (await res.json()) as {
+        success: boolean;
+        errorMessage?: string;
+        backtrackingCount?: number;
+      };
       if (json.success) {
-        setScheduleMsg({ ok: true, text: `Plan created (${json.backtrackingCount ?? 0} backtracks).` });
+        setScheduleMsg({
+          ok: true,
+          text: `Plan created (${json.backtrackingCount ?? 0} backtracks).`,
+        });
         // Reload tasks and blocks so the calendar reflects the new schedule
         const updated = await fetchTasks(workProfileId);
         setUser({ ...user, tasks: updated });
         const updatedBlocks = await fetchBlocks(workProfileId);
         setBlocks(updatedBlocks);
       } else {
-        setScheduleMsg({ ok: false, text: json.errorMessage ?? "Scheduling failed." });
+        setScheduleMsg({
+          ok: false,
+          text: json.errorMessage ?? "Scheduling failed.",
+        });
       }
     } catch {
       setScheduleMsg({ ok: false, text: "Network error while scheduling." });
@@ -129,16 +189,19 @@ const Tasks: FC = () => {
   };
 
   const orgOptions = useMemo(() => user.orgs ?? [], [user.orgs]);
-  const selectedFilterOrg = filterOrgId === "all"
-    ? undefined
-    : orgOptions.find((org) => org.id === filterOrgId);
+  const selectedFilterOrg =
+    filterOrgId === "all"
+      ? undefined
+      : orgOptions.find((org) => org.id === filterOrgId);
 
   const filteredTasks = (user.tasks ?? []).filter((t) => {
-    const byStatus = filterStatus === "all" || (t.status ?? "todo") === filterStatus;
+    const byStatus =
+      filterStatus === "all" || (t.status ?? "todo") === filterStatus;
     const byOrg =
       filterOrgId === "all" ||
       t.org === filterOrgId ||
-      (!!selectedFilterOrg?.workProfileId && t.org === selectedFilterOrg.workProfileId);
+      (!!selectedFilterOrg?.workProfileId &&
+        t.org === selectedFilterOrg.workProfileId);
     return byStatus && byOrg;
   });
 
@@ -172,7 +235,11 @@ const Tasks: FC = () => {
             textColor: rgbToCss(breakC, 1),
             classNames: ["break-event"],
             editable: true,
-            extendedProps: { type: "break", breakId: workBreak.id, weekDay: dayProfile.day },
+            extendedProps: {
+              type: "break",
+              breakId: workBreak.id,
+              weekDay: dayProfile.day,
+            },
           });
           date = date.add(7, "day");
         }
@@ -212,16 +279,30 @@ const Tasks: FC = () => {
     newEndTime: string,
     revert: () => void,
   ) => {
-    if (!user.workProfile) { revert(); return; }
+    if (!user.workProfile) {
+      revert();
+      return;
+    }
     const updatedDays = user.workProfile.days.map((day) => {
       if (day.day === oldWeekDay && day.day === newWeekDay) {
-        return { ...day, breaks: day.breaks.map((b) => b.id === breakId ? { ...b, startTime: newStartTime, endTime: newEndTime } : b) };
+        return {
+          ...day,
+          breaks: day.breaks.map((b) =>
+            b.id === breakId
+              ? { ...b, startTime: newStartTime, endTime: newEndTime }
+              : b,
+          ),
+        };
       }
       if (day.day === oldWeekDay) {
         return { ...day, breaks: day.breaks.filter((b) => b.id !== breakId) };
       }
       if (day.day === newWeekDay) {
-        const movedBreak: WorkBreak = { id: breakId, startTime: newStartTime, endTime: newEndTime };
+        const movedBreak: WorkBreak = {
+          id: breakId,
+          startTime: newStartTime,
+          endTime: newEndTime,
+        };
         return { ...day, breaks: [...day.breaks, movedBreak] };
       }
       return day;
@@ -241,15 +322,30 @@ const Tasks: FC = () => {
       const newStart = arg.event.start!;
       const newEnd = arg.event.end!;
       const newWeekDay = JS_TO_DAY[dayjs(newStart).day()];
-      updateBreakInProfile(breakId, oldWeekDay, newWeekDay, dayjs(newStart).format("HH:mm"), dayjs(newEnd).format("HH:mm"), () => arg.revert());
+      updateBreakInProfile(
+        breakId,
+        oldWeekDay,
+        newWeekDay,
+        dayjs(newStart).format("HH:mm"),
+        dayjs(newEnd).format("HH:mm"),
+        () => arg.revert(),
+      );
       return;
     }
     const task = arg.event.extendedProps.task as Task | undefined;
-    if (!task) { arg.revert(); return; }
+    if (!task) {
+      arg.revert();
+      return;
+    }
     const newStart = arg.event.start!;
     const duration = dayjs(task.endDate).diff(dayjs(task.startDate), "minute");
     const newEnd = dayjs(newStart).add(duration, "minute").toDate();
-    const updatedTask: Task = { ...task, startDate: newStart, endDate: newEnd, deadline: newEnd };
+    const updatedTask: Task = {
+      ...task,
+      startDate: newStart,
+      endDate: newEnd,
+      deadline: newEnd,
+    };
     saveTask(updatedTask).catch(() => arg.revert());
   };
 
@@ -260,14 +356,29 @@ const Tasks: FC = () => {
       const newStart = arg.event.start!;
       const newEnd = arg.event.end!;
       const newWeekDay = JS_TO_DAY[dayjs(newStart).day()];
-      updateBreakInProfile(breakId, oldWeekDay, newWeekDay, dayjs(newStart).format("HH:mm"), dayjs(newEnd).format("HH:mm"), () => arg.revert());
+      updateBreakInProfile(
+        breakId,
+        oldWeekDay,
+        newWeekDay,
+        dayjs(newStart).format("HH:mm"),
+        dayjs(newEnd).format("HH:mm"),
+        () => arg.revert(),
+      );
       return;
     }
     const task = arg.event.extendedProps.task as Task | undefined;
-    if (!task) { arg.revert(); return; }
+    if (!task) {
+      arg.revert();
+      return;
+    }
     const newStart = arg.event.start!;
     const newEnd = arg.event.end!;
-    const updatedTask: Task = { ...task, startDate: newStart, endDate: newEnd, deadline: newEnd };
+    const updatedTask: Task = {
+      ...task,
+      startDate: newStart,
+      endDate: newEnd,
+      deadline: newEnd,
+    };
     saveTask(updatedTask).catch(() => arg.revert());
   };
 
@@ -278,8 +389,16 @@ const Tasks: FC = () => {
       const start = arg.event.start!;
       const end = arg.event.end!;
       setEditBreakError(undefined);
-      setEditingBreak({ breakId, weekDay, start: dayjs(start).format("HH:mm"), end: dayjs(end).format("HH:mm") });
-      setEditBreakForm({ start: dayjs(start).format("HH:mm"), end: dayjs(end).format("HH:mm") });
+      setEditingBreak({
+        breakId,
+        weekDay,
+        start: dayjs(start).format("HH:mm"),
+        end: dayjs(end).format("HH:mm"),
+      });
+      setEditBreakForm({
+        start: dayjs(start).format("HH:mm"),
+        end: dayjs(end).format("HH:mm"),
+      });
       return;
     }
     const task = arg.event.extendedProps.task as Task | undefined;
@@ -290,7 +409,10 @@ const Tasks: FC = () => {
     if (!editingBreak || !user.workProfile) return;
     const updatedDays = user.workProfile.days.map((day) =>
       day.day === editingBreak.weekDay
-        ? { ...day, breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId) }
+        ? {
+            ...day,
+            breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
+          }
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
@@ -358,11 +480,19 @@ const Tasks: FC = () => {
     );
   };
 
-  const fcView = view === "day" ? "timeGridDay" : view === "week" ? "timeGridWeek" : "dayGridMonth";
+  const fcView =
+    view === "day"
+      ? "timeGridDay"
+      : view === "week"
+        ? "timeGridWeek"
+        : "dayGridMonth";
   const today = dayjs();
   const upcomingTasks = filteredTasks
     .filter((t) => t.endDate && dayjs(t.endDate).isAfter(today))
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
 
   const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
 
@@ -386,7 +516,9 @@ const Tasks: FC = () => {
       return;
     }
     if (!form.deadline) {
-      setError(form.isFixed ? "End time is required." : "Deadline is required.");
+      setError(
+        form.isFixed ? "End time is required." : "Deadline is required.",
+      );
       return;
     }
     if (form.isFixed && !form.fixedStart) {
@@ -429,7 +561,8 @@ const Tasks: FC = () => {
 
     const selectedOrg =
       orgOptions.find((org) => org.id === activeOrganizationId) ||
-      (filterOrgId !== "all" && orgOptions.find((org) => org.id === filterOrgId)) ||
+      (filterOrgId !== "all" &&
+        orgOptions.find((org) => org.id === filterOrgId)) ||
       orgOptions[0];
 
     if (!selectedOrg) {
@@ -459,7 +592,9 @@ const Tasks: FC = () => {
       return s.isBefore(endDate) && e.isAfter(startDate);
     });
     if (conflicts.length > 0) {
-      setError(`Overlap with ${conflicts.length} task(s). Consider rescheduling.`);
+      setError(
+        `Overlap with ${conflicts.length} task(s). Consider rescheduling.`,
+      );
     }
 
     setStatus("Saving…");
@@ -480,7 +615,9 @@ const Tasks: FC = () => {
         setStatus("Task created");
         setCalendarDialogOpen(false);
         if (workProfileId) {
-          const updatedBlocks = await fetchBlocks(workProfileId).catch(() => null);
+          const updatedBlocks = await fetchBlocks(workProfileId).catch(
+            () => null,
+          );
           if (updatedBlocks) setBlocks(updatedBlocks);
         }
       })
@@ -546,23 +683,31 @@ const Tasks: FC = () => {
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.28em] text-emerald-300">Planner</span>
-          <h1 className="text-4xl font-semibold leading-tight">Task Calendar</h1>
+          <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
+            Planner
+          </span>
+          <h1 className="text-4xl leading-tight font-semibold">
+            Task Calendar
+          </h1>
           <span className="text-sm text-slate-400">
             {filteredTasks.length} task(s)
           </span>
         </div>
-          <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-4 text-sm">
           <div className="flex flex-col items-end gap-1">
             <button
-              onClick={() => { void triggerSchedule(); }}
+              onClick={() => {
+                void triggerSchedule();
+              }}
               disabled={scheduling}
               className="rounded-full border border-emerald-500/60 bg-emerald-500/15 px-5 py-2 font-semibold text-emerald-100 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {scheduling ? "Scheduling…" : "Auto-Schedule"}
             </button>
             {scheduleMsg && (
-              <span className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}>
+              <span
+                className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}
+              >
                 {scheduleMsg.text}
               </span>
             )}
@@ -598,30 +743,34 @@ const Tasks: FC = () => {
             Month
           </button>
         </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-              className="rounded-full border border-slate-800 bg-slate-900/70 px-3 py-1 outline-none"
-            >
-              <option value="all">All statuses</option>
-              <option value="todo">To Do</option>
-              <option value="in-progress">In Progress</option>
-              <option value="done">Done</option>
-            </select>
-            <select
-              value={filterOrgId}
-              onChange={(e) => changeOrganizationContext(e.target.value as typeof filterOrgId)}
-              className="rounded-full border border-slate-800 bg-slate-900/70 px-3 py-1 outline-none"
-            >
-              <option value="all">All assignees</option>
-              {orgOptions.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <select
+            value={filterStatus}
+            onChange={(e) =>
+              setFilterStatus(e.target.value as typeof filterStatus)
+            }
+            className="rounded-full border border-slate-800 bg-slate-900/70 px-3 py-1 outline-none"
+          >
+            <option value="all">All statuses</option>
+            <option value="todo">To Do</option>
+            <option value="in-progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+          <select
+            value={filterOrgId}
+            onChange={(e) =>
+              changeOrganizationContext(e.target.value as typeof filterOrgId)
+            }
+            className="rounded-full border border-slate-800 bg-slate-900/70 px-3 py-1 outline-none"
+          >
+            <option value="all">All assignees</option>
+            {orgOptions.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid h-full min-h-0 grid-cols-[1.35fr_0.65fr] gap-5 max-lg:grid-cols-1">
@@ -670,7 +819,9 @@ const Tasks: FC = () => {
             {/* Visible range controls overlaid on the calendar toolbar */}
             <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-end">
               <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-slate-700/60 bg-slate-900/90 px-3 py-1 text-xs backdrop-blur">
-                <span className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Visible</span>
+                <span className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                  Visible
+                </span>
                 <input
                   type="time"
                   step={900}
@@ -702,7 +853,8 @@ const Tasks: FC = () => {
         <div className="flex h-full min-h-[62vh] flex-col gap-4 rounded-3xl border border-slate-800 bg-linear-to-b from-slate-900/80 to-slate-950/80 p-6 shadow-xl backdrop-blur">
           <div className="flex items-center justify-between">
             <div className="text-lg font-semibold text-slate-50">Upcoming</div>
-            <button className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100"
+            <button
+              className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100"
               onClick={() => {
                 setForm({
                   name: "",
@@ -737,18 +889,18 @@ const Tasks: FC = () => {
                 key={task.id ?? task.name}
                 className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm transition hover:border-emerald-300/50 hover:bg-slate-900/70"
               >
-                <div className="text-[11px] uppercase tracking-[0.12em] text-emerald-200">
+                <div className="text-[11px] tracking-[0.12em] text-emerald-200 uppercase">
                   {dayjs(task.startDate).format("ddd, DD MMM")}
                 </div>
                 <div className="flex items-center justify-between gap-2 text-base font-semibold text-slate-50">
                   <span className="truncate">{task.name}</span>
                   <div className="flex items-center gap-2">
                     {task.isFixed && (
-                      <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] uppercase tracking-wide text-emerald-50">
+                      <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] tracking-wide text-emerald-50 uppercase">
                         Fixed
                       </span>
                     )}
-                    <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] uppercase tracking-wide text-slate-300">
+                    <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
                       {(task.status ?? "todo").replace("-", " ")}
                     </span>
                     <button
@@ -760,7 +912,8 @@ const Tasks: FC = () => {
                   </div>
                 </div>
                 <div className="text-xs text-slate-300">
-                  {dayjs(task.startDate).format("HH:mm")} - {dayjs(task.endDate).format("HH:mm")}
+                  {dayjs(task.startDate).format("HH:mm")} -{" "}
+                  {dayjs(task.endDate).format("HH:mm")}
                 </div>
               </div>
             ))}
@@ -789,28 +942,39 @@ const Tasks: FC = () => {
             + New task — or drag on calendar to set time
           </button>
         </div>
-
       </div>
 
       {calendarDialogOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
-          onClick={() => { setCalendarDialogOpen(false); setError(undefined); setStatus(undefined); }}
+          onClick={() => {
+            setCalendarDialogOpen(false);
+            setError(undefined);
+            setStatus(undefined);
+          }}
         >
           <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-slate-800 bg-slate-900 p-5 shadow-2xl"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-sm font-semibold text-slate-100">New Task</div>
+                <div className="text-sm font-semibold text-slate-100">
+                  New Task
+                </div>
                 <p className="mt-1 text-xs text-slate-400">
-                  {form.fixedStart ? `${dayjs(form.fixedStart).format("ddd DD MMM, HH:mm")} – ${dayjs(form.deadline).format("HH:mm")}` : "Fill in the task details below."}
+                  {form.fixedStart
+                    ? `${dayjs(form.fixedStart).format("ddd DD MMM, HH:mm")} – ${dayjs(form.deadline).format("HH:mm")}`
+                    : "Fill in the task details below."}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => { setCalendarDialogOpen(false); setError(undefined); setStatus(undefined); }}
+                onClick={() => {
+                  setCalendarDialogOpen(false);
+                  setError(undefined);
+                  setStatus(undefined);
+                }}
                 className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-500 hover:text-slate-100"
               >
                 ✕ Close
@@ -820,7 +984,9 @@ const Tasks: FC = () => {
             <div className="mt-5 flex flex-col gap-4">
               {/* Quick templates */}
               <div>
-                <div className="mb-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">Quick templates</div>
+                <div className="mb-2 text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                  Quick templates
+                </div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-slate-400">
                   {[
                     { label: "Daily standup", minutes: 15, fixed: true },
@@ -848,22 +1014,28 @@ const Tasks: FC = () => {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Title</label>
+                <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                  Title
+                </label>
                 <input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   placeholder="Task title"
                   autoFocus
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Description</label>
+                <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                  Description
+                </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="min-h-20 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                  className="min-h-20 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   placeholder="What needs to be done"
                 />
               </div>
@@ -871,22 +1043,36 @@ const Tasks: FC = () => {
               <div className="grid gap-3 sm:grid-cols-2">
                 {!form.isFixed && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Duration (min)</label>
+                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                      Duration (min)
+                    </label>
                     <input
                       type="number"
                       min={1}
                       value={form.durationMinutes}
-                      onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })}
-                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          durationMinutes: Number(e.target.value),
+                        })
+                      }
+                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                     />
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Priority</label>
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                    Priority
+                  </label>
                   <select
                     value={form.priority}
-                    onChange={(e) => setForm({ ...form, priority: e.target.value as Task["priority"] })}
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        priority: e.target.value as Task["priority"],
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -894,11 +1080,18 @@ const Tasks: FC = () => {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Intensity</label>
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                    Intensity
+                  </label>
                   <select
                     value={form.intensity}
-                    onChange={(e) => setForm({ ...form, intensity: e.target.value as Task["intensity"] })}
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        intensity: e.target.value as Task["intensity"],
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   >
                     <option value="light">Light</option>
                     <option value="normal">Normal</option>
@@ -909,11 +1102,18 @@ const Tasks: FC = () => {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Status</label>
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                    Status
+                  </label>
                   <select
                     value={form.status ?? "todo"}
-                    onChange={(e) => setForm({ ...form, status: e.target.value as Task["status"] })}
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        status: e.target.value as Task["status"],
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   >
                     <option value="todo">To Do</option>
                     <option value="in-progress">In Progress</option>
@@ -921,11 +1121,17 @@ const Tasks: FC = () => {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Assignee</label>
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                    Assignee
+                  </label>
                   <select
                     value={filterOrgId}
-                    onChange={(e) => changeOrganizationContext(e.target.value as typeof filterOrgId)}
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                    onChange={(e) =>
+                      changeOrganizationContext(
+                        e.target.value as typeof filterOrgId,
+                      )
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   >
                     <option value="all">Anyone</option>
                     {orgOptions.map((org) => (
@@ -941,53 +1147,72 @@ const Tasks: FC = () => {
                 <input
                   type="checkbox"
                   checked={form.isFixed}
-                  onChange={(e) => setForm({ ...form, isFixed: e.target.checked })}
+                  onChange={(e) =>
+                    setForm({ ...form, isFixed: e.target.checked })
+                  }
                 />
                 <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-semibold text-slate-100">Fixed timeslot</span>
-                  <span className="text-[11px] text-slate-500">Use for standups and meetings that must stay at their time.</span>
+                  <span className="text-sm font-semibold text-slate-100">
+                    Fixed timeslot
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Use for standups and meetings that must stay at their time.
+                  </span>
                 </div>
               </label>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
                     {form.isFixed ? "Start time" : "Deadline"}
                   </label>
                   <input
                     type="datetime-local"
                     value={form.isFixed ? form.fixedStart : form.deadline}
                     onChange={(e) =>
-                      setForm(form.isFixed
-                        ? { ...form, fixedStart: e.target.value }
-                        : { ...form, deadline: e.target.value })
+                      setForm(
+                        form.isFixed
+                          ? { ...form, fixedStart: e.target.value }
+                          : { ...form, deadline: e.target.value },
+                      )
                     }
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
                 </div>
                 {form.isFixed && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">End time</label>
+                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                      End time
+                    </label>
                     <input
                       type="datetime-local"
                       value={form.deadline}
-                      onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                      onChange={(e) =>
+                        setForm({ ...form, deadline: e.target.value })
+                      }
+                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                     />
                   </div>
                 )}
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Dependencies</label>
-                <div className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3 max-h-36 overflow-y-auto">
+                <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                  Dependencies
+                </label>
+                <div className="flex max-h-36 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/60 p-3">
                   {dependencyOptions.length === 0 && (
-                    <div className="text-xs text-slate-500">No tasks available yet.</div>
+                    <div className="text-xs text-slate-500">
+                      No tasks available yet.
+                    </div>
                   )}
                   {dependencyOptions.map((dep) => {
                     const checked = form.dependencies.includes(dep.name);
                     return (
-                      <label key={dep.name} className="flex items-center gap-2 text-sm text-slate-200">
+                      <label
+                        key={dep.name}
+                        className="flex items-center gap-2 text-sm text-slate-200"
+                      >
                         <input
                           type="checkbox"
                           checked={checked}
@@ -1006,7 +1231,9 @@ const Tasks: FC = () => {
               </div>
 
               {error && <div className="text-sm text-rose-300">{error}</div>}
-              {status && <div className="text-sm text-emerald-200">{status}</div>}
+              {status && (
+                <div className="text-sm text-emerald-200">{status}</div>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 <button
@@ -1016,7 +1243,11 @@ const Tasks: FC = () => {
                   Add task
                 </button>
                 <button
-                  onClick={() => { setCalendarDialogOpen(false); setError(undefined); setStatus(undefined); }}
+                  onClick={() => {
+                    setCalendarDialogOpen(false);
+                    setError(undefined);
+                    setStatus(undefined);
+                  }}
                   className="rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-slate-100"
                 >
                   Cancel
@@ -1032,8 +1263,12 @@ const Tasks: FC = () => {
           <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Edit task</div>
-                <div className="text-2xl font-semibold text-slate-50">{editingTask.name}</div>
+                <div className="text-xs tracking-[0.18em] text-emerald-300 uppercase">
+                  Edit task
+                </div>
+                <div className="text-2xl font-semibold text-slate-50">
+                  {editingTask.name}
+                </div>
               </div>
               <button
                 onClick={() => setEditingTask(null)}
@@ -1045,19 +1280,30 @@ const Tasks: FC = () => {
 
             <div className="grid grid-cols-2 gap-4 text-sm text-slate-200">
               <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Title</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Title
+                </label>
                 <input
                   value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, name: e.target.value })
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Priority</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Priority
+                </label>
                 <select
                   value={editForm.priority}
-                  onChange={(e) => setEditForm({ ...editForm, priority: e.target.value as Task["priority"] })}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      priority: e.target.value as Task["priority"],
+                    })
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -1066,11 +1312,18 @@ const Tasks: FC = () => {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Status</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Status
+                </label>
                 <select
                   value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Task["status"] })}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      status: e.target.value as Task["status"],
+                    })
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                 >
                   <option value="todo">To Do</option>
                   <option value="in-progress">In Progress</option>
@@ -1078,11 +1331,15 @@ const Tasks: FC = () => {
                 </select>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Assignee</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Assignee
+                </label>
                 <select
                   value={editForm.organizationId}
-                  onChange={(e) => setEditForm({ ...editForm, organizationId: e.target.value })}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, organizationId: e.target.value })
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                 >
                   {orgOptions.map((org) => (
                     <option key={org.id} value={org.id}>
@@ -1092,31 +1349,43 @@ const Tasks: FC = () => {
                 </select>
               </div>
 
-              <div className="flex flex-col gap-2 col-span-2">
-                <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Description</label>
+              <div className="col-span-2 flex flex-col gap-2">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Description
+                </label>
                 <textarea
                   value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  className="min-h-22.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, description: e.target.value })
+                  }
+                  className="min-h-22.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-[0.14em] text-slate-500">Start</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Start
+                </label>
                 <input
                   type="datetime-local"
                   value={editForm.start}
-                  onChange={(e) => setEditForm({ ...editForm, start: e.target.value })}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, start: e.target.value })
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-[0.14em] text-slate-500">End</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  End
+                </label>
                 <input
                   type="datetime-local"
                   value={editForm.end}
-                  onChange={(e) => setEditForm({ ...editForm, end: e.target.value })}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, end: e.target.value })
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                 />
               </div>
 
@@ -1124,24 +1393,39 @@ const Tasks: FC = () => {
                 <input
                   type="checkbox"
                   checked={editForm.isFixed}
-                  onChange={(e) => setEditForm({ ...editForm, isFixed: e.target.checked })}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, isFixed: e.target.checked })
+                  }
                 />
                 <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-semibold text-slate-100">Fixed timeslot</span>
-                  <span className="text-[11px] text-slate-500">Keeps meeting time locked.</span>
+                  <span className="text-sm font-semibold text-slate-100">
+                    Fixed timeslot
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Keeps meeting time locked.
+                  </span>
                 </div>
               </label>
             </div>
 
-            {editError && <div className="mt-3 text-sm text-rose-300">{editError}</div>}
+            {editError && (
+              <div className="mt-3 text-sm text-rose-300">{editError}</div>
+            )}
 
             <div className="mt-4 flex justify-between gap-3">
               <button
                 onClick={() => {
                   if (editingTask?.id) {
-                    removeTask(editingTask.id).catch((err: unknown) => setEditError(String(err)));
+                    removeTask(editingTask.id).catch((err: unknown) =>
+                      setEditError(String(err)),
+                    );
                   } else {
-                    setUser({ ...user, tasks: (user.tasks ?? []).filter((t) => t !== editingTask) });
+                    setUser({
+                      ...user,
+                      tasks: (user.tasks ?? []).filter(
+                        (t) => t !== editingTask,
+                      ),
+                    });
                   }
                   setEditingTask(null);
                 }}
@@ -1178,8 +1462,13 @@ const Tasks: FC = () => {
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.18em] text-amber-300">Pause bearbeiten</div>
-                <div className="text-lg font-semibold text-slate-50">{editingBreak.weekDay} &mdash; {editingBreak.start}&ndash;{editingBreak.end}</div>
+                <div className="text-xs tracking-[0.18em] text-amber-300 uppercase">
+                  Pause bearbeiten
+                </div>
+                <div className="text-lg font-semibold text-slate-50">
+                  {editingBreak.weekDay} &mdash; {editingBreak.start}&ndash;
+                  {editingBreak.end}
+                </div>
               </div>
               <button
                 onClick={() => setEditingBreak(null)}
@@ -1192,26 +1481,42 @@ const Tasks: FC = () => {
             <div className="flex flex-col gap-4 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Beginn</label>
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                    Beginn
+                  </label>
                   <input
                     type="time"
                     value={editBreakForm.start}
-                    onChange={(e) => setEditBreakForm({ ...editBreakForm, start: e.target.value })}
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-amber-400/40 focus:border-amber-400/60 focus:ring"
+                    onChange={(e) =>
+                      setEditBreakForm({
+                        ...editBreakForm,
+                        start: e.target.value,
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-amber-400/40 outline-none focus:border-amber-400/60 focus:ring"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Ende</label>
+                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                    Ende
+                  </label>
                   <input
                     type="time"
                     value={editBreakForm.end}
-                    onChange={(e) => setEditBreakForm({ ...editBreakForm, end: e.target.value })}
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 outline-none ring-amber-400/40 focus:border-amber-400/60 focus:ring"
+                    onChange={(e) =>
+                      setEditBreakForm({
+                        ...editBreakForm,
+                        end: e.target.value,
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-amber-400/40 outline-none focus:border-amber-400/60 focus:ring"
                   />
                 </div>
               </div>
 
-              {editBreakError && <div className="text-sm text-rose-300">{editBreakError}</div>}
+              {editBreakError && (
+                <div className="text-sm text-rose-300">{editBreakError}</div>
+              )}
 
               <div className="flex justify-between gap-3 pt-1">
                 <button

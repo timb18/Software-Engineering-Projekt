@@ -2,6 +2,7 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using System.ComponentModel.DataAnnotations;
+using Auth0.ManagementApi;
 
 namespace Services.Users;
 
@@ -28,7 +29,8 @@ public class UserService(
         // arrive simultaneously for the same new user
         await using var tx = await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        var user = await FindOrCreateUserAsync(normalizedEmail, authProviderSubject, displayName, profileImageUrl, cancellationToken);
+        var user = await FindOrCreateUserAsync(normalizedEmail, authProviderSubject, displayName, profileImageUrl,
+            cancellationToken);
 
         var existingProfile = await workProfileRepository.FindByUserIdAsync(user.Id, cancellationToken);
         if (existingProfile is not null)
@@ -38,7 +40,7 @@ public class UserService(
         }
 
         // No work profile yet — create a personal org + membership + work profile
-        var personalOrg = new Organization
+        var personalOrg = new DataAccess.Models.Organization
         {
             Name = $"Personal ({normalizedEmail})",
             Description = "Auto-created personal workspace",
@@ -71,7 +73,7 @@ public class UserService(
     public async Task<UserProfileDto> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await userRepository.FindByIdAsync(userId, cancellationToken)
-            ?? throw new KeyNotFoundException("User not found.");
+                   ?? throw new KeyNotFoundException("User not found.");
 
         return MapProfile(user);
     }
@@ -80,7 +82,7 @@ public class UserService(
         CancellationToken cancellationToken = default)
     {
         var user = await userRepository.FindByIdAsync(userId, cancellationToken)
-            ?? throw new KeyNotFoundException("User not found.");
+                   ?? throw new KeyNotFoundException("User not found.");
 
         var normalizedDisplayName = NormalizeRequired(command.DisplayName, "Display name is required.");
         var normalizedEmail = NormalizeEmail(command.Email);
@@ -103,7 +105,8 @@ public class UserService(
         return MapProfile(user);
     }
 
-    private async Task<User> FindOrCreateUserAsync(string normalizedEmail, string? authProviderSubject, string? displayName, string? profileImageUrl, CancellationToken cancellationToken)
+    private async Task<User> FindOrCreateUserAsync(string normalizedEmail, string? authProviderSubject,
+        string? displayName, string? profileImageUrl, CancellationToken cancellationToken)
     {
         User? user = null;
 

@@ -4,7 +4,6 @@ using System.Text;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Services.Organizations;
@@ -123,7 +122,7 @@ public class InvitationService(
             };
             await membershipRepository.AddAsync(membership, cancellationToken);
 
-            var workProfile = new WorkProfile
+            var workProfile = new DataAccess.Models.WorkProfile
             {
                 MembershipId = membership.Id,
                 MaxDailyLoad = TimeSpan.FromHours(8),
@@ -195,7 +194,7 @@ public class InvitationService(
     public Task<int> CleanupExpiredInvitationsAsync(CancellationToken cancellationToken = default) =>
         invitationRepository.MarkExpiredInvitationsAsync(cancellationToken);
 
-    private async Task<User> ResolveCreatorAsync(Guid? createdByUserId, string? normalizedCreatorEmail, CancellationToken cancellationToken)
+    private async Task<DataAccess.Models.User> ResolveCreatorAsync(Guid? createdByUserId, string? normalizedCreatorEmail, CancellationToken cancellationToken)
     {
         if (createdByUserId.HasValue)
         {
@@ -212,7 +211,7 @@ public class InvitationService(
         throw new ArgumentException("Inviting user could not be found.");
     }
 
-    private async Task SendInvitationEmailAsync(Invitation invitation, Organization organization, int expiryDays, CancellationToken cancellationToken)
+    private async Task SendInvitationEmailAsync(Invitation invitation, DataAccess.Models.Organization organization, int expiryDays, CancellationToken cancellationToken)
     {
         var acceptUrl = BuildAcceptLink(invitation);
         var rejectUrl = $"{TrimTrailingSlash(_emailOptions.ApiBaseUrl)}/api/Invitation/{invitation.Id}/reject-link";
@@ -221,7 +220,7 @@ public class InvitationService(
         await emailSender.SendAsync(invitation.Email, subject, body, cancellationToken);
     }
 
-    private static string GenerateInvitationEmailBody(Organization organization, Invitation invitation, string acceptUrl, string rejectUrl, int expiryDays)
+    private static string GenerateInvitationEmailBody(DataAccess.Models.Organization organization, Invitation invitation, string acceptUrl, string rejectUrl, int expiryDays)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Hello {invitation.FirstName ?? ""},");

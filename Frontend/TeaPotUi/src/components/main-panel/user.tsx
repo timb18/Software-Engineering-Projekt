@@ -10,17 +10,40 @@ import { getLegacyWorkSettings } from "../../util/work-profile";
 import { updateUserProfile } from "../../util/user-api";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import {
-  getBreakColor, getOrgColor, setBreakColor, setOrgColor, rgbToHex, hexToRgb,
-  DEFAULT_ORG_COLOR, DEFAULT_BREAK_COLOR, type RgbColor,
+  getBreakColor,
+  getOrgColor,
+  setBreakColor,
+  setOrgColor,
+  rgbToHex,
+  hexToRgb,
+  DEFAULT_ORG_COLOR,
+  DEFAULT_BREAK_COLOR,
+  type RgbColor,
 } from "../../util/color-prefs";
+import { useForm, type FormValidateResult } from "react-hook-form";
+import { changePassword } from "../../util/management-api";
+
+type ChangePassword = {
+  newPassword: string;
+  confirmPassword: string;
+};
 
 type Tab = "general" | "work" | "security" | "account" | "appearance";
 
 // ── Preset palette ────────────────────────────────────────────────────────────
 const PALETTE_PRESETS = [
-  "#10b981", "#3b82f6", "#8b5cf6", "#ec4899",
-  "#f59e0b", "#ef4444", "#06b6d4", "#84cc16",
-  "#f97316", "#64748b", "#a78bfa", "#fb7185",
+  "#10b981",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#f59e0b",
+  "#ef4444",
+  "#06b6d4",
+  "#84cc16",
+  "#f97316",
+  "#64748b",
+  "#a78bfa",
+  "#fb7185",
 ];
 
 // ── Color picker card ─────────────────────────────────────────────────────────
@@ -61,7 +84,7 @@ const ColorPickerCard: FC<{
           color={hex}
           onChange={(h) => onChange(hexToRgb(h))}
           prefixed={false}
-          className="w-24 rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 font-mono text-xs uppercase text-slate-50 outline-none ring-emerald-400/40 focus:border-emerald-400/60 focus:ring"
+          className="w-24 rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 font-mono text-xs text-slate-50 uppercase ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
         />
         <div
           className="h-6 w-6 shrink-0 rounded border border-slate-600"
@@ -74,7 +97,9 @@ const ColorPickerCard: FC<{
 
       {/* Preset swatches */}
       <div className="mt-4">
-        <div className="mb-2 text-[10px] uppercase tracking-[0.15em] text-slate-500">Schnellauswahl</div>
+        <div className="mb-2 text-[10px] tracking-[0.15em] text-slate-500 uppercase">
+          Schnellauswahl
+        </div>
         <div className="flex flex-wrap gap-2">
           {PALETTE_PRESETS.map((p) => (
             <button
@@ -99,6 +124,19 @@ const User: FC = () => {
   const { user: userFromDb, setUser } = useUserStore();
   const { logout: authLogout, user: userFromAuth } = useAuth0();
   const navigate = useNavigate();
+  const {
+    register: registerPwChange,
+    handleSubmit: handlePwChange,
+    formState: { errors: changePwError },
+  } = useForm<ChangePassword>({
+    validate: ({ formValues }): FormValidateResult<ChangePassword> => {
+      if (formValues.newPassword !== formValues.confirmPassword) {
+        return "new and confirmationpassword must be equal";
+      }
+
+      return true;
+    },
+  });
 
   const [tab, setTab] = useState<Tab>("general");
   const [isWorkDirty, setIsWorkDirty] = useState(false);
@@ -107,11 +145,6 @@ const User: FC = () => {
   const [status, setStatus] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [pwdForm, setPwdForm] = useState({
-    current: "",
-    next: "",
-    confirm: "",
-  });
   const [profileForm, setProfileForm] = useState({
     displayName: userFromDb.displayName ?? userFromDb.username,
     email: userFromDb.email,
@@ -127,8 +160,11 @@ const User: FC = () => {
     for (const org of userFromDb.orgs ?? []) map[org.id] = getOrgColor(org.id);
     return map;
   };
-  const [orgColors, setOrgColorsState] = useState<Record<string, RgbColor>>(initOrgColors);
-  const [breakColorState, setBreakColorState] = useState<RgbColor>(() => getBreakColor());
+  const [orgColors, setOrgColorsState] =
+    useState<Record<string, RgbColor>>(initOrgColors);
+  const [breakColorState, setBreakColorState] = useState<RgbColor>(() =>
+    getBreakColor(),
+  );
 
   const updateOrgColor = (orgId: string, color: RgbColor) => {
     setOrgColor(orgId, color);
@@ -148,7 +184,9 @@ const User: FC = () => {
     breakRules: defaultUser.breakRules ?? "30m lunch",
   };
   const hasBackendUserId = (value: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    );
 
   const toTimeSpanString = (hours?: number) => {
     const safeHours = Math.max(0, hours ?? 0);
@@ -198,8 +236,10 @@ const User: FC = () => {
           ...nextUser,
           workProfile: savedWorkProfile,
           hasPersistedWorkProfile: true,
-          plannerViewStart: savedWorkProfile.plannerViewStart ?? nextUser.plannerViewStart,
-          plannerViewEnd: savedWorkProfile.plannerViewEnd ?? nextUser.plannerViewEnd,
+          plannerViewStart:
+            savedWorkProfile.plannerViewStart ?? nextUser.plannerViewStart,
+          plannerViewEnd:
+            savedWorkProfile.plannerViewEnd ?? nextUser.plannerViewEnd,
           workCapacityHours: legacyWorkSettings.workCapacityHours,
           workDays: legacyWorkSettings.workDays,
           workStart: legacyWorkSettings.workStart,
@@ -257,7 +297,11 @@ const User: FC = () => {
       });
       setStatus("Profile updated.");
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Profile could not be saved.");
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Profile could not be saved.",
+      );
     } finally {
       setIsSavingProfile(false);
     }
@@ -303,7 +347,11 @@ const User: FC = () => {
       if (deleteError instanceof TypeError) {
         setError("Backend not reachable. Start the API and try again.");
       } else {
-        setError(deleteError instanceof Error ? deleteError.message : "Work profile could not be deleted.");
+        setError(
+          deleteError instanceof Error
+            ? deleteError.message
+            : "Work profile could not be deleted.",
+        );
       }
     } finally {
       setIsDeletingWorkProfile(false);
@@ -313,25 +361,6 @@ const User: FC = () => {
   const logOut = () => {
     logout();
     authLogout();
-  };
-
-  const updatePassword = () => {
-    setError(undefined);
-    setStatus(undefined);
-    if (!pwdForm.current || !pwdForm.next || !pwdForm.confirm) {
-      setError("Pleas fill in all the fields.");
-      return;
-    }
-    if (pwdForm.next.length < 8) {
-      setError("Password needs to contain at least 8 symbols.");
-      return;
-    }
-    if (pwdForm.next !== pwdForm.confirm) {
-      setError("New passwords don't match.");
-      return;
-    }
-    setStatus("Password was succesfully changed.");
-    setPwdForm({ current: "", next: "", confirm: "" });
   };
 
   const deleteAccount = () => {
@@ -399,6 +428,26 @@ const User: FC = () => {
     }
   }, [blocker, isWorkDirty, pendingTabChange]);
 
+  const onPwChange = async (newPassword: ChangePassword) => {
+    if (!userFromAuth?.email) {
+      alert("there was an issue with changing the password");
+      return;
+    }
+    try {
+      const result = await changePassword(
+        userFromAuth?.email,
+        newPassword.newPassword,
+      );
+      alert(
+        result
+          ? "password was successfully changed"
+          : "there was an issue with changing the password",
+      );
+    } catch (error) {
+      alert(`there was an issue with changing the password: ${error}`);
+    }
+  };
+
   return (
     <div className="grid min-h-full w-full min-w-0 grid-rows-[3.5rem_auto] gap-6 p-6 text-slate-50">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -413,13 +462,9 @@ const User: FC = () => {
         </div>
         <div className="min-w-0 overflow-x-auto pb-1">
           <div className="flex min-w-max flex-nowrap gap-2 pr-1 text-sm xl:min-w-0 xl:flex-wrap">
-            {([
-            "general",
-            "work",
-            "security",
-            "account",
-            "appearance",
-          ] as Tab[]).map((t) => (
+            {(
+              ["general", "work", "security", "account", "appearance"] as Tab[]
+            ).map((t) => (
               <button
                 key={t}
                 onClick={() => handleTabClick(t)}
@@ -449,7 +494,9 @@ const User: FC = () => {
                   <div className="aspect-square w-24 rounded-full border border-slate-700">
                     {profileForm.profileImageUrl || userFromAuth?.picture ? (
                       <img
-                        src={profileForm.profileImageUrl || userFromAuth?.picture}
+                        src={
+                          profileForm.profileImageUrl || userFromAuth?.picture
+                        }
                         alt="Profile"
                         className="h-full w-full rounded-full object-cover object-center"
                       />
@@ -513,7 +560,10 @@ const User: FC = () => {
                   <input
                     value={profileForm.displayName}
                     onChange={(e) =>
-                      setProfileForm({ ...profileForm, displayName: e.target.value })
+                      setProfileForm({
+                        ...profileForm,
+                        displayName: e.target.value,
+                      })
                     }
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
@@ -584,32 +634,24 @@ const User: FC = () => {
               <div className="text-sm tracking-[0.16em] text-slate-400 uppercase">
                 Change Password
               </div>
-              <div className="mt-4 flex flex-col gap-3 text-sm text-slate-200">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                    Current password
-                  </span>
-                  <input
-                    type="password"
-                    value={pwdForm.current}
-                    onChange={(e) =>
-                      setPwdForm({ ...pwdForm, current: e.target.value })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
-                </div>
+              <form
+                className="mt-4 flex flex-col gap-3 text-sm text-slate-200"
+                onSubmit={handlePwChange(onPwChange)}
+              >
                 <div className="flex flex-col gap-1">
                   <span className="text-xs tracking-[0.14em] text-slate-500 uppercase">
                     New password
                   </span>
                   <input
                     type="password"
-                    value={pwdForm.next}
-                    onChange={(e) =>
-                      setPwdForm({ ...pwdForm, next: e.target.value })
-                    }
+                    {...registerPwChange("newPassword", { required: true })}
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
+                  {changePwError.newPassword && (
+                    <div className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30">
+                      {changePwError.newPassword.message}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-xs tracking-[0.14em] text-slate-500 uppercase">
@@ -617,21 +659,27 @@ const User: FC = () => {
                   </span>
                   <input
                     type="password"
-                    value={pwdForm.confirm}
-                    onChange={(e) =>
-                      setPwdForm({ ...pwdForm, confirm: e.target.value })
-                    }
+                    {...registerPwChange("confirmPassword", { required: true })}
                     className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
                   />
+                  {changePwError.confirmPassword && (
+                    <div className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30">
+                      {changePwError.confirmPassword.message}
+                    </div>
+                  )}
                 </div>
                 <button
-                  onClick={updatePassword}
+                  type="submit"
                   className="w-fit rounded-xl border border-emerald-300/60 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/20"
                 >
                   Passwort ändern
                 </button>
-                {/* <p className="text-xs text-slate-500">Demo: kein Backend-Call.</p> */}
-              </div>
+                {changePwError.form && (
+                  <div className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30">
+                    {changePwError.form.message}
+                  </div>
+                )}
+              </form>
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-200">
@@ -652,7 +700,9 @@ const User: FC = () => {
 
         {tab === "appearance" && (
           <div className="flex flex-col gap-6">
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Kalenderfarben</div>
+            <div className="text-xs tracking-[0.2em] text-slate-400 uppercase">
+              Kalenderfarben
+            </div>
 
             {/* Break color */}
             <ColorPickerCard
@@ -671,14 +721,17 @@ const User: FC = () => {
                   label={org.name}
                   color={c}
                   onChange={(next) => updateOrgColor(org.id, next)}
-                  onReset={() => updateOrgColor(org.id, { ...DEFAULT_ORG_COLOR })}
+                  onReset={() =>
+                    updateOrgColor(org.id, { ...DEFAULT_ORG_COLOR })
+                  }
                 />
               );
             })}
 
             {(userFromDb.orgs ?? []).length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-400">
-                Noch keine Organisationen. Tritt einer Organisation bei, um deren Farben anzupassen.
+                Noch keine Organisationen. Tritt einer Organisation bei, um
+                deren Farben anzupassen.
               </div>
             )}
           </div>
@@ -753,11 +806,16 @@ const User: FC = () => {
       {showDeleteWorkProfileDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-3xl border border-rose-400/40 bg-slate-900 p-6 shadow-2xl">
-            <div className="text-xs uppercase tracking-[0.2em] text-rose-300">Confirm deletion</div>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-50">Delete work profile?</h2>
+            <div className="text-xs tracking-[0.2em] text-rose-300 uppercase">
+              Confirm deletion
+            </div>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-50">
+              Delete work profile?
+            </h2>
             <p className="mt-3 text-sm text-slate-300">
-              This removes your work profile, load capacity, break setup and dependent planning data. A new plan will
-              need to be generated afterwards.
+              This removes your work profile, load capacity, break setup and
+              dependent planning data. A new plan will need to be generated
+              afterwards.
             </p>
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
