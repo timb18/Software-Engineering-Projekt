@@ -38,13 +38,7 @@ public class TaskBlockRepository(TeapotDbContext context) : ITaskBlockRepository
             .Where(b => taskIds.Contains(b.TaskId) && !b.IsFixed)
             .ExecuteDeleteAsync(cancellationToken);
 
-        // Insert new blocks via raw SQL (TaskBlock is a keyless entity)
-        foreach (var block in newBlocks)
-        {
-            await context.Database.ExecuteSqlAsync(
-                $"INSERT INTO task_blocks (task_id, start_date, end_date, is_fixed) VALUES ({block.TaskId}, {block.StartDate}, {block.EndDate}, {block.IsFixed})",
-                cancellationToken);
-        }
+        await context.TaskBlocks.AddRangeAsync(newBlocks, cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
     }
@@ -61,14 +55,31 @@ public class TaskBlockRepository(TeapotDbContext context) : ITaskBlockRepository
     public async Task UpsertFixedBlockAsync(
         Guid taskId, DateTime start, DateTime end, CancellationToken cancellationToken = default)
     {
-        var existing = await context.TaskBlocks
-            .Where(b => b.TaskId == taskId)
-            .ToListAsync(cancellationToken);
-        context.TaskBlocks.RemoveRange(existing);
-        await context.SaveChangesAsync(cancellationToken);
-
-        await context.Database.ExecuteSqlAsync(
-            $"INSERT INTO task_blocks (task_id, start_date, end_date, is_fixed) VALUES ({taskId}, {start}, {end}, true)",
-            cancellationToken);
+        try
+        {
+            var existing = await context.TaskBlocks
+                .Where(b => b.TaskId == taskId).FirstOrDefaultAsync(cancellationToken);
+            if (existing is not null)
+            {
+                context.TaskBlocks.Update(existing);
+            }
+            else
+            {
+                var newTaskBlock = new TaskBlock()
+                {
+                    TaskId = taskId,
+                    StartDate = start,
+                    EndDate = end,
+                    IsFixed = true
+                };
+                await context.TaskBlocks.AddAsync(newTaskBlock, cancellationToken);
+            }
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception e)
+        {
+            throw e.InnerException;
+        }
+        
     }
 }

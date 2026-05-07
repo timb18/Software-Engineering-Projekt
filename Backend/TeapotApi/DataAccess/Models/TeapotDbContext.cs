@@ -135,10 +135,10 @@ public partial class TeapotDbContext : DbContext
 
         modelBuilder.Entity<TaskBlock>(entity =>
         {
-            entity
-                .HasNoKey()
-                .ToTable("task_blocks");
-
+            entity.HasKey(e => e.Id).HasName("task_blocks_pkey");
+            
+            entity.ToTable("task_blocks");
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()").HasColumnName("Id");
             entity.Property(e => e.EndDate).HasColumnName("end_date");
             entity.Property(e => e.IsFixed).HasColumnName("is_fixed");
             entity.Property(e => e.StartDate).HasColumnName("start_date");
