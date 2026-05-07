@@ -27,19 +27,7 @@ builder.Services.AddTeapotServices();
 var jsonStringEnumConverter = new JsonStringEnumConverter(
     JsonNamingPolicy.CamelCase,
     false);
-var auth0Domain = builder.Configuration["Auth0:Domain"];
-var auth0Audience = builder.Configuration["Auth0:Audience"];
-var auth0ClientId = builder.Configuration["Auth0:ClientId"];
-var auth0ClientSecret = builder.Configuration["Auth0:ClientSecret"];
-var auth0ConnectionId = builder.Configuration["Auth0:ConnectionId"];
-var auth0ManagementAudience = builder.Configuration["Auth0:ManagementAudience"];
-var isAuth0Configured =
-    !string.IsNullOrWhiteSpace(auth0Domain) &&
-    !string.IsNullOrWhiteSpace(auth0Audience) &&
-    !string.IsNullOrWhiteSpace(auth0ClientId) &&
-    !string.IsNullOrWhiteSpace(auth0ClientSecret) &&
-    !string.IsNullOrWhiteSpace(auth0ConnectionId) &&
-    !string.IsNullOrWhiteSpace(auth0ManagementAudience);
+var auth0Config = builder.Configuration.GetSection("Auth0").Get<Auth0Config>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer()
@@ -58,7 +46,7 @@ builder.Services.AddEndpointsApiExplorer()
         o.SwaggerDoc("v1",
             new OpenApiInfo
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
-        if (isAuth0Configured)
+        if (auth0Config is not null)
         {
             o.AddSecurityDefinition("Auth0", new OpenApiSecurityScheme
             {
@@ -67,8 +55,8 @@ builder.Services.AddEndpointsApiExplorer()
                 {
                     AuthorizationCode = new OpenApiOAuthFlow
                     {
-                        AuthorizationUrl = new Uri($"https://{auth0Domain}/authorize"),
-                        TokenUrl = new Uri($"https://{auth0Domain}/oauth/token")
+                        AuthorizationUrl = new Uri($"https://{auth0Config.Domain}/authorize"),
+                        TokenUrl = new Uri($"https://{auth0Config.Domain}/oauth/token")
                     }
                 },
                 Scheme = "Auth0"
@@ -91,20 +79,20 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 // Auth
-if (isAuth0Configured)
+if (auth0Config is not null)
 {
-    builder.Services.AddAuth0ApiAuthentication(options =>
+    builder.Services.AddSingleton(auth0Config).AddAuth0ApiAuthentication(options =>
     {
-        options.Domain = auth0Domain;
+        options.Domain = auth0Config.Domain;
         options.JwtBearerOptions = new JwtBearerOptions
         {
-            Audience = auth0Audience
+            Audience = auth0Config.Audience
         };
     }).Services.AddAuth0AuthenticationClient(config =>
     {
-        config.Domain = auth0Domain;
-        config.ClientId = auth0ClientId;
-        config.ClientSecret = auth0ClientSecret;
+        config.Domain = auth0Config.Domain;
+        config.ClientId = auth0Config.ClientId;
+        config.ClientSecret = auth0Config.ClientSecret;
     }).Services.AddAuth0ManagementClient();
 }
 else

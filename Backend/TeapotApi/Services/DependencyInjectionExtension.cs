@@ -13,12 +13,14 @@ public static class DependencyInjectionExtension
     extension(IServiceCollection services)
     {
         public IServiceCollection AddTeapotServices() {
+            
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddHttpClient<ResendEmailSender>();
             services.AddScoped<SmtpEmailSender>();
             services.AddScoped<IEmailSender, ConfiguredEmailSender>();
             services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
 
+            services.AddScoped<IUserManagementService, UserManagementService>();
             services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
             services.AddScoped<IOrganizationService, OrganizationService>();
             services.AddScoped<IInvitationService, InvitationService>();

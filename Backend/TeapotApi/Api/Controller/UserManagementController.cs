@@ -11,7 +11,7 @@ namespace Api.Controller;
 /// It exposes functionality for updating user credentials specifically through password modification.
 /// </remarks>
 /// <param name="managementService">The interface for managing user data and operations.</param>
-[Route("api/user/management")]
+[Route("api/users/management")]
 public class UserManagementController(IUserManagementService managementService) : ControllerBase
 {
     
@@ -26,7 +26,7 @@ public class UserManagementController(IUserManagementService managementService) 
     /// InternalServerError if an unexpected error occurred during the password change operation.
     /// </returns>
     [HttpPatch("change-password")]
-    public async Task<Results<NoContent, NotFound<string>, InternalServerError<string>>> ChangePassword(
+    public async Task<Results<NoContent, BadRequest<string>, NotFound<string>, InternalServerError<string>>> ChangePassword(
         [FromBody] ChangePasswordRequest changePasswordRequest,
         CancellationToken cancellationToken = default)
     {
@@ -34,6 +34,10 @@ public class UserManagementController(IUserManagementService managementService) 
         {
             await managementService.ChangePasswordAsync(changePasswordRequest, cancellationToken);
             return TypedResults.NoContent();
+        }
+        catch (ArgumentNullException e)
+        {
+            return TypedResults.BadRequest(e.Message);
         }
         catch (KeyNotFoundException e)
         {

@@ -32,7 +32,7 @@ function App() {
     const extractAdminRolefromToken = async () => {
       const token = await getAccessToken();
       const decode: MyPayload = jwtDecode(token);
-      setIsAdmin(decode.permissions[0] === "write:orgs");
+      setIsAdmin(decode.permissions.includes("write:orgs"));
     };
 
     extractAdminRolefromToken();

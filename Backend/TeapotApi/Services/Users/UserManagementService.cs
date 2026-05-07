@@ -16,10 +16,15 @@ public class UserManagementService(IManagementApiClient managementClient, Auth0C
     /// </summary>
     /// <param name="changePasswordRequest">Contains e-mail and new password</param>
     /// <param name="cancellationToken"></param>
+    /// <exception cref="ArgumentNullException">changePasswordRequest is null</exception>
     /// <exception cref="KeyNotFoundException">no user with the given e-mail could be found</exception>
     public async Task ChangePasswordAsync(ChangePasswordRequest changePasswordRequest,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(changePasswordRequest);
+        ArgumentNullException.ThrowIfNull(changePasswordRequest.Email);
+        ArgumentNullException.ThrowIfNull(changePasswordRequest.Password);
+        
         var users = await managementClient.Users.ListAsync(new ListUsersRequestParameters(),
             cancellationToken: cancellationToken);
 
