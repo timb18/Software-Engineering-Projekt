@@ -218,20 +218,20 @@ public class MembershipServiceTests
         };
 
         _dbContext.Users.AddRange(initiator, member);
-        _dbContext.Organizations.Add(org);
+        _dbContext.Organizations.Add(organization);
         _dbContext.Memberships.AddRange(
-            new Membership { Id = Guid.NewGuid(), UserId = initiator.Id, OrganizationId = org.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
-            new Membership { Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = org.Id, Role = ERole.User, CreatedAt = DateTime.UtcNow }
+            new Membership { Id = Guid.NewGuid(), UserId = initiator.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
+            new Membership { Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = organization.Id, Role = ERole.User, CreatedAt = DateTime.UtcNow }
         );
+        await _dbContext.SaveChangesAsync();
 
         var membershipForMember = _dbContext.Memberships.Single(m => m.UserId == member.Id);
         var wp = new WorkProfile { Id = Guid.NewGuid(), MembershipId = membershipForMember.Id, CreatedAt = DateTime.UtcNow };
         _dbContext.WorkProfiles.Add(wp);
-        await _dbContext.SaveChangesAsync();
 
-        await _service.RemoveUserFromOrganizationAsync(initiator.Id, member.Id, org.Id);
+        await _service.RemoveUserFromOrganizationAsync(initiator.Id, member.Id, organization.Id);
 
-        Assert.That(await _dbContext.Memberships.AnyAsync(m => m.UserId == member.Id && m.OrganizationId == org.Id), Is.False);
+        Assert.That(await _dbContext.Memberships.AnyAsync(m => m.UserId == member.Id && m.OrganizationId == organization.Id), Is.False);
         Assert.That(await _dbContext.WorkProfiles.AnyAsync(w => w.MembershipId == membershipForMember.Id), Is.False);
     }
 
