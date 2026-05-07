@@ -118,10 +118,6 @@ const User: FC = () => {
     timezone: userFromDb.timezone ?? "Europe/Berlin",
     profileImageUrl: userFromDb.profileImage ?? "",
   });
-  const [notifForm, setNotifForm] = useState({
-    emailInvites: userFromDb?.notifications?.emailInvites ?? true,
-    emailDeadlines: userFromDb?.notifications?.emailDeadlines ?? true,
-  });
   const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] = useState(false);
   const [isDeletingWorkProfile, setIsDeletingWorkProfile] = useState(false);
 
@@ -167,10 +163,6 @@ const User: FC = () => {
       email: userFromDb.email,
       timezone: userFromDb.timezone ?? "Europe/Berlin",
       profileImageUrl: userFromDb.profileImage ?? userFromAuth?.picture ?? "",
-    });
-    setNotifForm({
-      emailInvites: userFromDb.notifications?.emailInvites ?? true,
-      emailDeadlines: userFromDb.notifications?.emailDeadlines ?? true,
     });
   }, [userFromAuth?.picture, userFromDb]);
 
@@ -316,18 +308,6 @@ const User: FC = () => {
     } finally {
       setIsDeletingWorkProfile(false);
     }
-  };
-
-  const saveNotifications = () => {
-    const nextUser = {
-      ...userFromDb,
-      notifications: {
-        emailInvites: notifForm.emailInvites,
-        emailDeadlines: notifForm.emailDeadlines,
-      },
-    };
-    void persist(nextUser);
-    setStatus("Notifications updated.");
   };
 
   const logOut = () => {
@@ -706,46 +686,6 @@ const User: FC = () => {
 
         {tab === "account" && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
-              <div className="text-sm font-semibold text-slate-100">
-                E-Mail-notifications
-              </div>
-              <div className="mt-3 flex flex-col gap-3 text-sm text-slate-200">
-                <label className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
-                  <span>Invitations over E-Mail</span>
-                  <input
-                    type="checkbox"
-                    checked={notifForm.emailInvites}
-                    onChange={(e) =>
-                      setNotifForm({
-                        ...notifForm,
-                        emailInvites: e.target.checked,
-                      })
-                    }
-                  />
-                </label>
-                <label className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
-                  <span>Deadline-warnings</span>
-                  <input
-                    type="checkbox"
-                    checked={notifForm.emailDeadlines}
-                    onChange={(e) =>
-                      setNotifForm({
-                        ...notifForm,
-                        emailDeadlines: e.target.checked,
-                      })
-                    }
-                  />
-                </label>
-                <button
-                  onClick={saveNotifications}
-                  className="w-fit rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-
             <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-5 text-sm text-rose-50">
               <div className="text-sm font-semibold">Danger area</div>
               {/* <p className="mt-2 text-rose-100/90">Dies entfernt dein Konto und loggt dich aus. Demo: keine Server-Operation.</p> */}
