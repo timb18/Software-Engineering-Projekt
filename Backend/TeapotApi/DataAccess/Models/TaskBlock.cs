@@ -2,6 +2,7 @@
 
 public class TaskBlock
 {
+    public Guid Id { get; set; }
     public Guid TaskId { get; set; }
 
     public DateTime StartDate { get; set; }
