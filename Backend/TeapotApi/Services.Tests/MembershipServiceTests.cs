@@ -224,7 +224,6 @@ public class MembershipServiceTests
             new Membership { Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = org.Id, Role = ERole.User, CreatedAt = DateTime.UtcNow }
         );
 
-        // optional: add work profile + tasks for member to assert deletion
         var membershipForMember = _dbContext.Memberships.Single(m => m.UserId == member.Id);
         var wp = new WorkProfile { Id = Guid.NewGuid(), MembershipId = membershipForMember.Id, CreatedAt = DateTime.UtcNow };
         _dbContext.WorkProfiles.Add(wp);
