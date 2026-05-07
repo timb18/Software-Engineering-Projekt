@@ -136,6 +136,18 @@ public class UserService(
             user.EditedAt = DateTime.UtcNow;
             await userRepository.UpdateAsync(user, cancellationToken);
         }
+        else if (!string.IsNullOrWhiteSpace(authProviderSubject) &&
+                 string.Equals(user.AuthProviderSubject, authProviderSubject, StringComparison.Ordinal) &&
+                 !string.Equals(user.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            if (await userRepository.IsEmailTakenByOtherAsync(user.Id, normalizedEmail, cancellationToken))
+                throw new ArgumentException("Email is already in use.");
+
+            user.Email = normalizedEmail;
+            user.Username = BuildUsername(normalizedEmail, user.DisplayName);
+            user.EditedAt = DateTime.UtcNow;
+            await userRepository.UpdateAsync(user, cancellationToken);
+        }
 
         return user;
     }

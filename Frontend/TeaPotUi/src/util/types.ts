@@ -45,7 +45,6 @@ export type User = {
   workStart?: string; // HH:mm
   workEnd?: string; // HH:mm
   breakRules?: string;
-  notifications?: Notifications;
   orgs: Org[];
   tasks: Task[];
   role: Role;

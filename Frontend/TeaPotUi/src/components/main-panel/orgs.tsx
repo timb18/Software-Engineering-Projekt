@@ -33,6 +33,15 @@ const mapInvitationStatus = (status: string): Invitation["status"] =>
     ? "pending"
     : (status.toLowerCase() as Invitation["status"]);
 
+const sortMembersByRole = (members: User[]) =>
+  [...members].sort((a, b) => {
+    if (a.role !== b.role) {
+      return a.role === "admin" ? -1 : 1;
+    }
+
+    return a.username.localeCompare(b.username);
+  });
+
 const Orgs: FC = () => {
   const { user, setUser, activeOrganizationId, setActiveOrganization } =
     useUserStore();
@@ -78,6 +87,19 @@ const Orgs: FC = () => {
     ) {
       void setActiveOrganization(nextOrgs[0].id);
     }
+  };
+
+  const refreshOrganizationsFromBackend = async () => {
+    const organizations = await fetchOrganizationsByUserEmail(user.email);
+    const nextOrgs = await Promise.all(
+      organizations.map(async (org) => ({
+        ...org,
+        invites: await fetchOrganizationInvites(org),
+      })),
+    );
+
+    persist({ ...user, orgs: nextOrgs });
+    return nextOrgs;
   };
 
   const fetchOrganizationInvites = async (org: Org): Promise<Invitation[]> => {
@@ -147,7 +169,7 @@ const Orgs: FC = () => {
               orgName:
                 invite.organizationName ??
                 matchingOrg?.name ??
-                "Organization invitation",
+                "Unknown organization",
               email: invite.email,
               firstName: invite.firstName,
               lastName: invite.lastName,
@@ -201,7 +223,7 @@ const Orgs: FC = () => {
       return;
     }
     try {
-      await acceptInvite(invite.id, { email: user.email });
+      await acceptInvite(invite.id, { userId: user.id });
     } catch (error) {
       alert(
         error instanceof Error
@@ -211,20 +233,21 @@ const Orgs: FC = () => {
       return;
     }
 
-    alert("invite accepted succesfully");
-
-    const newOrg: Org = {
-      id: invite.orgId,
-      name: invite.orgName,
-      users: [user],
-      adminEmails: [],
-      invites: [],
-    };
-    const nextOrg = [...orgs, newOrg];
-
-    const remainingInvites = invites.filter((i) => i.id !== invite.id);
-
-    persist({ ...user, orgs: nextOrg, invites: remainingInvites });
+    try {
+      const nextOrgs = await refreshOrganizationsFromBackend();
+      const acceptedOrg = nextOrgs.find((org) => org.id === invite.orgId);
+      if (acceptedOrg) {
+        void setActiveOrganization(acceptedOrg.id);
+      }
+      const remainingInvites = invites.filter((i) => i.id !== invite.id);
+      persist({ ...user, orgs: nextOrgs, invites: remainingInvites });
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Invite was accepted, but organizations could not be refreshed.",
+      );
+    }
   };
 
   const declineInvite = async (invite: Invitation) => {
@@ -506,12 +529,9 @@ const Orgs: FC = () => {
         payload.data?.emailSent
           ? "Invitation was created and sent by email."
           : payload.data?.invitationLink
-            ? "Invitation link was created, but email delivery could not be confirmed. Copy the link and send it manually."
+            ? "Email delivery could not be confirmed. Copy the invitation link and send it manually."
             : "Invitation was created and sent by email.",
       );
-      if (payload.data?.emailError) {
-        setInviteError(`Email delivery failed: ${payload.data.emailError}`);
-      }
     } catch (error) {
       if (error instanceof TypeError) {
         setInviteError(
@@ -684,6 +704,17 @@ const Orgs: FC = () => {
   const isSelectedAdmin = selectedOrg
     ? selectedOrg.adminEmails?.includes(user.email)
     : false;
+  const visibleTabs = isSelectedAdmin ? tabOptions : (["members"] as const);
+  const sortedSelectedMembers = useMemo(
+    () => sortMembersByRole(selectedOrg?.users ?? []),
+    [selectedOrg?.users],
+  );
+
+  useEffect(() => {
+    if (!isSelectedAdmin && activeTab !== "members") {
+      setActiveTab("members");
+    }
+  }, [activeTab, isSelectedAdmin]);
 
   useEffect(() => {
     if (activeTab !== "invites" || !selectedOrg || !isSelectedAdmin) {
@@ -717,15 +748,15 @@ const Orgs: FC = () => {
   }, [activeTab, selectedOrg?.id, isSelectedAdmin]);
 
   return (
-    <div className="grid h-full w-full min-w-0 grid-rows-[3.5rem_1fr] gap-6 p-6">
+    <div className="grid min-h-full w-full min-w-0 grid-rows-[3.5rem_auto] gap-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
-            Orgs
+            Teams
           </span>
-          <h1 className="text-4xl leading-tight font-semibold">My orgs</h1>
+          <h1 className="text-4xl leading-tight font-semibold">Organizations</h1>
           <span className="text-sm text-slate-400">
-            Manage memberships, invites, and settings.
+            Members, invitations, and organization settings.
           </span>
         </div>
       </div>
@@ -737,7 +768,7 @@ const Orgs: FC = () => {
 
       <div className="grid min-w-0 grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-          <div className="text-lg font-semibold text-slate-50">My orgs</div>
+          <div className="text-lg font-semibold text-slate-50">Organizations</div>
           {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
               You are not in any organization yet.
@@ -776,7 +807,7 @@ const Orgs: FC = () => {
                         : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700"
                     }`}
                   >
-                    {currentRole(org) === "Admin" ? "Manage" : "View"}
+                    Select
                   </button>
                   <button
                     onClick={() => leaveOrg(org.id)}
@@ -845,22 +876,18 @@ const Orgs: FC = () => {
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-xs tracking-[0.18em] text-emerald-300 uppercase">
-                    Manage organization
-                  </div>
-                  <div className="text-2xl font-semibold wrap-break-word text-slate-50">
-                    {selectedOrg.name}
-                  </div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Organization</div>
+                  <div className="break-words text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
                 </div>
                 {!isSelectedAdmin && (
                   <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
-                    Only admins can edit
+                    Member view
                   </span>
                 )}
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                {tabOptions.map((tab) => (
+                {visibleTabs.map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -880,7 +907,7 @@ const Orgs: FC = () => {
 
               {activeTab === "members" && (
                 <div className="mt-4 flex min-w-0 flex-col gap-3">
-                  {selectedOrg.users.map((member) => (
+                  {sortedSelectedMembers.map((member) => (
                     <div
                       key={member.email}
                       className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-200 md:flex-row md:items-center md:justify-between"
@@ -895,7 +922,7 @@ const Orgs: FC = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
-                          {selectedOrg.adminEmails?.includes(member.email)
+                          {member.role === "admin"
                             ? "Admin"
                             : "Member"}
                         </span>
@@ -936,7 +963,7 @@ const Orgs: FC = () => {
                       </div>
                     </div>
                   ))}
-                  {selectedOrg.users.length === 0 && (
+                  {sortedSelectedMembers.length === 0 && (
                     <div className="text-sm text-slate-500">
                       No members in this organization.
                     </div>

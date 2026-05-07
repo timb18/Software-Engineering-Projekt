@@ -1,1 +1,160 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+body {
+  background: #020617;
+}
+
+:root[data-theme="light"] body {
+  background: #f8fafc;
+}
+
+.theme-toggle {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.28rem 0.65rem 0.28rem 0.28rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  box-shadow: 0 18px 45px rgba(2, 6, 23, 0.32);
+  backdrop-filter: blur(18px);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(52, 211, 153, 0.7);
+}
+
+:root[data-theme-page="login"] .theme-toggle {
+  right: 1rem;
+  left: auto;
+}
+
+.theme-toggle__track {
+  position: relative;
+  width: 2.6rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0f172a, #064e3b);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.theme-toggle__thumb {
+  position: absolute;
+  top: 0.22rem;
+  left: 0.22rem;
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0f172a;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.28);
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.theme-toggle__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+:root[data-theme="light"] .theme-toggle {
+  border-color: rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.86);
+  color: #0f172a;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+}
+
+:root[data-theme="light"] .theme-toggle__track {
+  background: linear-gradient(135deg, #d1fae5, #bae6fd);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme="light"] .theme-toggle__thumb {
+  transform: translateX(0.9rem);
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+:root[data-theme="light"] [class*="from-slate-950"],
+:root[data-theme="light"] [class*="via-slate-900"],
+:root[data-theme="light"] [class*="to-slate-950"],
+:root[data-theme="light"] [class*="bg-gradient-to-br"],
+:root[data-theme="light"] [class*="bg-linear-to-br"] {
+  background-image: linear-gradient(135deg, #f8fafc, #eef6ff, #f8fafc) !important;
+}
+
+:root[data-theme="light"] [class*="bg-[#070b14]"],
+:root[data-theme="light"] [class*="bg-[#0b1220]"],
+:root[data-theme="light"] [class*="bg-slate-950"],
+:root[data-theme="light"] [class*="bg-slate-900"],
+:root[data-theme="light"] [class*="bg-slate-800"] {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+}
+
+:root[data-theme="light"] [class*="border-slate-800"],
+:root[data-theme="light"] [class*="border-slate-700"],
+:root[data-theme="light"] [class*="border-slate-600"] {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+:root[data-theme="light"] [class*="text-slate-50"],
+:root[data-theme="light"] [class*="text-slate-100"],
+:root[data-theme="light"] [class*="text-slate-200"] {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] [class*="text-slate-300"],
+:root[data-theme="light"] [class*="text-slate-400"],
+:root[data-theme="light"] [class*="text-slate-500"] {
+  color: #475569 !important;
+}
+
+:root[data-theme="light"] [class*="text-emerald-100"],
+:root[data-theme="light"] [class*="text-emerald-200"],
+:root[data-theme="light"] [class*="text-emerald-300"] {
+  color: #047857 !important;
+}
+
+:root[data-theme="light"] [class*="bg-emerald-400/"],
+:root[data-theme="light"] [class*="bg-emerald-500/"] {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+}
+
+:root[data-theme="light"] [class*="bg-rose-500/"],
+:root[data-theme="light"] [class*="bg-rose-900/"] {
+  background-color: rgba(244, 63, 94, 0.1) !important;
+}
+
+:root[data-theme="light"] [class*="text-rose-50"],
+:root[data-theme="light"] [class*="text-rose-100"],
+:root[data-theme="light"] [class*="text-rose-200"],
+:root[data-theme="light"] [class*="text-rose-300"] {
+  color: #be123c !important;
+}

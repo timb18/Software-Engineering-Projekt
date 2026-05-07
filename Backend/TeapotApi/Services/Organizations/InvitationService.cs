@@ -58,6 +58,7 @@ public class InvitationService(
         var invitation = new Invitation
         {
             OrganizationId = organizationId,
+            Organization = organization,
             CreatedBy = creator.Id,
             Email = normalizedEmail,
             FirstName = firstName,
@@ -67,22 +68,21 @@ public class InvitationService(
         };
 
         await invitationRepository.AddAsync(invitation, cancellationToken);
-        string? emailError = null;
         var emailSent = false;
         try
         {
             await SendInvitationEmailAsync(invitation, organization, expiryDays, cancellationToken);
             emailSent = true;
         }
-        catch (Exception ex)
+        catch
         {
-            emailError = $"{ex.GetType().Name}: {ex.GetBaseException().Message}";
+            emailSent = false;
         }
 
         return MapToDto(invitation) with
         {
             EmailSent = emailSent,
-            EmailError = emailError
+            EmailError = null
         };
     }
 
@@ -247,6 +247,7 @@ public class InvitationService(
     {
         Id = invitation.Id,
         OrganizationId = invitation.OrganizationId,
+        OrganizationName = invitation.Organization?.Name,
         Email = invitation.Email,
         FirstName = invitation.FirstName,
         LastName = invitation.LastName,

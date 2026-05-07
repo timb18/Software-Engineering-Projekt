@@ -49,7 +49,6 @@ const useLoginStore = () => {
       workStart: "09:00",
       workEnd: "17:00",
       breakRules: "30m lunch",
-      notifications: { emailInvites: true, emailDeadlines: true },
     };
 
     loginStore.setState({ email, password: "" });
@@ -78,7 +77,6 @@ const useLoginStore = () => {
         workStart: "09:00",
         workEnd: "17:00",
         breakRules: "30m lunch",
-        notifications: { emailInvites: true, emailDeadlines: true },
       };
 
     loginStore.setState({ email: account.email, password: "" });

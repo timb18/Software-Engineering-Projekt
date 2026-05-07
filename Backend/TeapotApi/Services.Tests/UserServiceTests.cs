@@ -159,7 +159,7 @@ public class UserServiceTests
         {
             Assert.That(secondUserId, Is.EqualTo(firstUserId));
             Assert.That(secondProfileId, Is.EqualTo(firstProfileId));
-            Assert.That(user!.Email, Is.EqualTo("before@example.com"));
+            Assert.That(user!.Email, Is.EqualTo("after@example.com"));
             Assert.That(user.DisplayName, Is.EqualTo("Anna Before"));
             Assert.That(user.ProfileImageUrl, Is.EqualTo("https://example.com/a.png"));
             Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
