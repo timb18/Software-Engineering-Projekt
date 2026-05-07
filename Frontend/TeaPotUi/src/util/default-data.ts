@@ -106,7 +106,6 @@ const adminA: User = {
   workStart: "09:00",
   workEnd: "17:00",
   breakRules: "30m lunch + 10m after 90m focus",
-  notifications: { emailInvites: true, emailDeadlines: true },
 };
 const userA1: User = {
   id: "22222222-2222-2222-2222-222222222222",
@@ -130,7 +129,6 @@ const userA1: User = {
   workStart: "08:30",
   workEnd: "16:00",
   breakRules: "15m every 90m, 30m lunch",
-  notifications: { emailInvites: true, emailDeadlines: false },
 };
 
 const adminB: User = {
@@ -148,7 +146,6 @@ const adminB: User = {
   workStart: "09:00",
   workEnd: "17:00",
   breakRules: "30m lunch",
-  notifications: { emailInvites: true, emailDeadlines: true },
 };
 const userB1: User = {
   id: "44444444-4444-4444-4444-444444444444",
@@ -165,7 +162,6 @@ const userB1: User = {
   workStart: "10:00",
   workEnd: "18:00",
   breakRules: "10m after 60m, 45m lunch",
-  notifications: { emailInvites: true, emailDeadlines: true },
 };
 
 const adminATasks: Task[] = [
@@ -253,5 +249,4 @@ export const defaultUser: User = {
   workStart: "09:00",
   workEnd: "17:00",
   breakRules: "30m lunch",
-  notifications: { emailInvites: true, emailDeadlines: true },
 };
