@@ -191,6 +191,61 @@ public class MembershipServiceTests
         Assert.That(updatedMembership.Role, Is.EqualTo(ERole.Organizer));
     }
 
+    [Test]
+    public async Task RemoveUserFromOrganizationAsync_Removes_Membership_When_InitiatorIsOrganizer()
+    {
+        var initiator = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@example.com",
+            Username = "organizer",
+            CreatedAt = DateTime.UtcNow
+        };
+        var member = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@example.com",
+            Username = "member",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Org",
+            Description = "Test org",
+            MaxUsers = 10,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.AddRange(initiator, member);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.AddRange(
+            new Membership { Id = Guid.NewGuid(), UserId = initiator.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
+            new Membership { Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = organization.Id, Role = ERole.User, CreatedAt = DateTime.UtcNow }
+        );
+        await _dbContext.SaveChangesAsync();
+
+        var membershipForMember = _dbContext.Memberships.Single(m => m.UserId == member.Id);
+        var wp = new WorkProfile { Id = Guid.NewGuid(), MembershipId = membershipForMember.Id, CreatedAt = DateTime.UtcNow };
+        _dbContext.WorkProfiles.Add(wp);
+
+        await _service.RemoveUserFromOrganizationAsync(initiator.Id, member.Id, organization.Id);
+
+        Assert.That(await _dbContext.Memberships.AnyAsync(m => m.UserId == member.Id && m.OrganizationId == organization.Id), Is.False);
+        Assert.That(await _dbContext.WorkProfiles.AnyAsync(w => w.MembershipId == membershipForMember.Id), Is.False);
+    }
+
+    [Test]
+    public void RemoveUserFromOrganizationAsync_Throws_When_InitiatorIsNotOrganizer()
+    {
+        var nonOrganizer = Guid.NewGuid();
+        var member = Guid.NewGuid();
+        var org = Guid.NewGuid();
+
+        Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await _service.RemoveUserFromOrganizationAsync(nonOrganizer, member, org));
+    }
+
     [TearDown]
     public async Task TearDown()
     {
