@@ -457,7 +457,7 @@ const User: FC = () => {
           </span>
           <h1 className="text-4xl leading-tight font-semibold">My Profile</h1>
           <span className="text-sm text-slate-400">
-            Manage account, work profile and security
+            Manage account, work profile, security and appearance
           </span>
         </div>
         <div className="min-w-0 overflow-x-auto pb-1">
