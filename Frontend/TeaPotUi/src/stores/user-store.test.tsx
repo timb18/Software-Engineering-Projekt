@@ -187,4 +187,69 @@ describe("user-store initForUser", () => {
     expect(fetchTasks).not.toHaveBeenCalled();
     expect(fetchWorkProfile).not.toHaveBeenCalled();
   });
+
+  it("loads tasks when switching to a new organization", async () => {
+    const { result } = renderHook(() => useUserStore());
+
+    const orgA = {
+      id: "org-a",
+      name: "A",
+      workProfileId: "wp-a",
+      users: [],
+      invites: [],
+    };
+
+    const orgB = {
+      id: "org-b",
+      name: "B",
+      workProfileId: "wp-b",
+      users: [],
+      invites: [],
+    };
+
+    const user: User = {
+      id: "u1",
+      email: "u@x.test",
+      username: "u",
+      orgs: [orgA, orgB],
+      tasks: [],
+      role: "user",
+      invites: [],
+    };
+
+    const loadedTasks = [
+      {
+        id: "t1",
+        name: "Task 1",
+        description: "",
+        startDate: new Date(),
+        endDate: new Date(),
+        org: "org-b",
+        dependencies: [],
+      },
+      {
+        id: "t2",
+        name: "Task 2",
+        description: "",
+        startDate: new Date(),
+        endDate: new Date(),
+        org: "org-b",
+        dependencies: [],
+      },
+    ];
+
+    vi.mocked(fetchTasks).mockResolvedValue(loadedTasks as any);
+    vi.mocked(fetchWorkProfile).mockResolvedValue(undefined as any);
+
+    act(() => {
+      result.current.setUser(user);
+    });
+
+    await act(async () => {
+      await result.current.setActiveOrganization("org-b");
+    });
+
+    expect(fetchTasks).toHaveBeenCalled();
+    expect(result.current.user.tasks).toEqual(loadedTasks);
+  });
 });
