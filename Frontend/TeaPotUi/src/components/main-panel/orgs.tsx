@@ -16,6 +16,9 @@ const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
 const guidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const emailPattern = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+const invisibleEmailCharacters = /[\u200B-\u200D\uFEFF]/g;
+const normalizeEmailInput = (email: string) =>
+  email.trim().replace(invisibleEmailCharacters, "").toLowerCase();
 
 type InvitationResponse = {
   id: string;
@@ -439,7 +442,7 @@ const Orgs: FC = () => {
   const sendInvite = async (org: Org) => {
     if (!newInviteEmail.trim()) return;
 
-    const email = newInviteEmail.trim();
+    const email = normalizeEmailInput(newInviteEmail);
 
     setInviteError(null);
     setInviteSuccess(null);
@@ -529,7 +532,7 @@ const Orgs: FC = () => {
         payload.data?.emailSent
           ? "Invitation was created and sent by email."
           : payload.data?.invitationLink
-            ? "Email delivery could not be confirmed. Copy the invitation link and send it manually."
+            ? "Invitation was created, but email delivery is not available for this recipient yet. Copy the invitation link and send it manually."
             : "Invitation was created and sent by email.",
       );
     } catch (error) {
