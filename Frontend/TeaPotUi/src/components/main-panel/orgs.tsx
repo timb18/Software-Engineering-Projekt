@@ -898,7 +898,7 @@ const Orgs: FC = () => {
                     }`}
                   >
                     {tab === "members" && "Active members"}
-                    {tab === "invites" && "Invited"}
+                    {tab === "invites" && "Invitations"}
                     {tab === "invite" && "Invite"}
                     {tab === "settings" && "Settings"}
                   </button>

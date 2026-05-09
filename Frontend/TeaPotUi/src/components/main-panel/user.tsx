@@ -66,7 +66,7 @@ const ColorPickerCard: FC<{
           onClick={onReset}
           className="ml-auto rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100"
         >
-          Zurücksetzen
+          Reset
         </button>
       </div>
 
@@ -98,7 +98,7 @@ const ColorPickerCard: FC<{
       {/* Preset swatches */}
       <div className="mt-4">
         <div className="mb-2 text-[10px] tracking-[0.15em] text-slate-500 uppercase">
-          Schnellauswahl
+          Presets
         </div>
         <div className="flex flex-wrap gap-2">
           {PALETTE_PRESETS.map((p) => (
@@ -457,7 +457,7 @@ const User: FC = () => {
           </span>
           <h1 className="text-4xl leading-tight font-semibold">My Profile</h1>
           <span className="text-sm text-slate-400">
-            Manage account, work profile and security
+            Manage account, work profile, security and appearance
           </span>
         </div>
         <div className="min-w-0 overflow-x-auto pb-1">
@@ -688,12 +688,12 @@ const User: FC = () => {
         {tab === "appearance" && (
           <div className="flex flex-col gap-6">
             <div className="text-xs tracking-[0.2em] text-slate-400 uppercase">
-              Kalenderfarben
+              Calendar colors
             </div>
 
             {/* Break color */}
             <ColorPickerCard
-              label="Pausen"
+              label="Breaks"
               color={breakColorState}
               onChange={updateBreakColorState}
               onReset={() => updateBreakColorState({ ...DEFAULT_BREAK_COLOR })}
@@ -717,8 +717,8 @@ const User: FC = () => {
 
             {(userFromDb.orgs ?? []).length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-400">
-                Noch keine Organisationen. Tritt einer Organisation bei, um
-                deren Farben anzupassen.
+                No organizations yet. Join an organization to customize its
+                colors.
               </div>
             )}
           </div>
