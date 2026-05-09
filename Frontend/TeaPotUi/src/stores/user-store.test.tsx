@@ -2,7 +2,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import useUserStore, { initForUser } from "./user-store";
 import { defaultUser } from "../util/default-data";
-import type { User } from "../util/types";
+import type { Task, User } from "../util/types";
 
 vi.mock("../util/user-api", () => ({
   ensureUser: vi.fn(),
@@ -151,7 +151,7 @@ describe("user-store initForUser", () => {
 
   it("does not reload data when the selected organization is already active", async () => {
     const { result } = renderHook(() => useUserStore());
-    
+
     const orgB = {
       id: "org-b",
       name: "B",
@@ -159,7 +159,7 @@ describe("user-store initForUser", () => {
       users: [],
       invites: [],
     };
-  
+
     const user: User = {
       id: "u1",
       email: "u@x.test",
@@ -185,7 +185,6 @@ describe("user-store initForUser", () => {
     });
   
     expect(fetchTasks).not.toHaveBeenCalled();
-    expect(fetchWorkProfile).not.toHaveBeenCalled();
   });
 
   it("loads tasks when switching to a new organization", async () => {
@@ -227,19 +226,9 @@ describe("user-store initForUser", () => {
         org: "org-b",
         dependencies: [],
       },
-      {
-        id: "t2",
-        name: "Task 2",
-        description: "",
-        startDate: new Date(),
-        endDate: new Date(),
-        org: "org-b",
-        dependencies: [],
-      },
-    ];
+    ] satisfies Task[];
 
-    vi.mocked(fetchTasks).mockResolvedValue(loadedTasks as any);
-    vi.mocked(fetchWorkProfile).mockResolvedValue(undefined as any);
+    vi.mocked(fetchTasks).mockResolvedValue(loadedTasks);
 
     act(() => {
       result.current.setUser(user);
@@ -249,12 +238,22 @@ describe("user-store initForUser", () => {
       await result.current.setActiveOrganization("org-b");
     });
 
-    expect(fetchTasks).toHaveBeenCalled();
+    expect(fetchTasks).toHaveBeenCalledWith("wp-b");
+    expect(result.current.activeOrganizationId).toBe("org-b");
+    expect(result.current.workProfileId).toBe("wp-b");
     expect(result.current.user.tasks).toEqual(loadedTasks);
   });
 
-  it("loads work profile data when switching to a new organization", async () => {
+  it("does not switch when selected organization is missing", async () => {
     const { result } = renderHook(() => useUserStore());
+
+    const orgA = {
+      id: "org-a",
+      name: "A",
+      workProfileId: "wp-a",
+      users: [],
+      invites: [],
+    };
 
     const orgB = {
       id: "org-b",
@@ -268,35 +267,67 @@ describe("user-store initForUser", () => {
       id: "u1",
       email: "u@x.test",
       username: "u",
-      orgs: [orgB],
+      orgs: [orgA, orgB],
       tasks: [],
       role: "user",
       invites: [],
     };
 
-    const workProfile = {
-      plannerViewStart: "08:00",
-      plannerViewEnd: "18:00",
-      maxDailyLoad: "04:00:00",
-      days: [],
-    };
-
     vi.mocked(fetchTasks).mockResolvedValue([]);
-    vi.mocked(fetchWorkProfile).mockResolvedValue(workProfile as any);
 
     act(() => {
       result.current.setUser(user);
     });
 
     await act(async () => {
-      await result.current.setActiveOrganization("org-b");
+      await result.current.setActiveOrganization("missing-org");
     });
 
-    expect(fetchWorkProfile).toHaveBeenCalled();
-    expect(result.current.workProfileId).toBe("wp-b");
-    expect(result.current.user.workProfile).toEqual(workProfile);
-    expect(result.current.user.plannerViewStart).toBe("08:00");
-    expect(result.current.user.plannerViewEnd).toBe("18:00");
-    expect(result.current.user.workCapacityHours).toBe(4);
+    expect(fetchTasks).not.toHaveBeenCalled();
+    expect(result.current.activeOrganizationId).toBe("org-a");
+    expect(result.current.workProfileId).toBe("wp-a");
+  });
+
+  it("rejects when loading tasks for new organization fails", async () => {
+    const { result } = renderHook(() => useUserStore());
+
+    const orgA = {
+      id: "org-a",
+      name: "A",
+      workProfileId: "wp-a",
+      users: [],
+      invites: [],
+    };
+
+    const orgB = {
+      id: "org-b",
+      name: "B",
+      workProfileId: "wp-b",
+      users: [],
+      invites: [],
+    };
+
+    const user: User = {
+      id: "u1",
+      email: "u@x.test",
+      username: "u",
+      orgs: [orgA, orgB],
+      tasks: [],
+      role: "user",
+      invites: [],
+    };
+
+    vi.mocked(fetchTasks).mockRejectedValue(new Error("network down"));
+
+    act(() => {
+      result.current.setUser(user);
+    });
+
+    await expect(result.current.setActiveOrganization("org-b")).rejects.toThrow(
+      "network down",
+    );
+
+    expect(result.current.activeOrganizationId).toBe("org-a");
+    expect(result.current.workProfileId).toBe("wp-a");
   });
 });
