@@ -252,4 +252,51 @@ describe("user-store initForUser", () => {
     expect(fetchTasks).toHaveBeenCalled();
     expect(result.current.user.tasks).toEqual(loadedTasks);
   });
+
+  it("loads work profile data when switching to a new organization", async () => {
+    const { result } = renderHook(() => useUserStore());
+
+    const orgB = {
+      id: "org-b",
+      name: "B",
+      workProfileId: "wp-b",
+      users: [],
+      invites: [],
+    };
+
+    const user: User = {
+      id: "u1",
+      email: "u@x.test",
+      username: "u",
+      orgs: [orgB],
+      tasks: [],
+      role: "user",
+      invites: [],
+    };
+
+    const workProfile = {
+      plannerViewStart: "08:00",
+      plannerViewEnd: "18:00",
+      maxDailyLoad: "04:00:00",
+      days: [],
+    };
+
+    vi.mocked(fetchTasks).mockResolvedValue([]);
+    vi.mocked(fetchWorkProfile).mockResolvedValue(workProfile as any);
+
+    act(() => {
+      result.current.setUser(user);
+    });
+
+    await act(async () => {
+      await result.current.setActiveOrganization("org-b");
+    });
+
+    expect(fetchWorkProfile).toHaveBeenCalled();
+    expect(result.current.workProfileId).toBe("wp-b");
+    expect(result.current.user.workProfile).toEqual(workProfile);
+    expect(result.current.user.plannerViewStart).toBe("08:00");
+    expect(result.current.user.plannerViewEnd).toBe("18:00");
+    expect(result.current.user.workCapacityHours).toBe(4);
+  });
 });
