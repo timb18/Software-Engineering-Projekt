@@ -49,6 +49,14 @@ body {
   left: auto;
 }
 
+.login-hero-title {
+  color: #f8fafc;
+}
+
+:root[data-theme="light"] .login-hero-title {
+  color: #0f172a;
+}
+
 .theme-toggle__track {
   position: relative;
   width: 2.6rem;
