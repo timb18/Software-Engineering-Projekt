@@ -148,4 +148,43 @@ describe("user-store initForUser", () => {
     expect(result.current.activeOrganizationId).toBe("org-b");
     expect(result.current.workProfileId).toBe("wp-b");
   });
+
+  it("does not reload data when the selected organization is already active", async () => {
+    const { result } = renderHook(() => useUserStore());
+    
+    const orgB = {
+      id: "org-b",
+      name: "B",
+      workProfileId: "wp-b",
+      users: [],
+      invites: [],
+    };
+  
+    const user: User = {
+      id: "u1",
+      email: "u@x.test",
+      username: "u",
+      orgs: [orgB],
+      tasks: [],
+      role: "user",
+      invites: [],
+    };
+  
+    act(() => {
+      result.current.setUser(user);
+    });
+  
+    await act(async () => {
+      await result.current.setActiveOrganization("org-b");
+    });
+  
+    vi.clearAllMocks();
+  
+    await act(async () => {
+      await result.current.setActiveOrganization("org-b");
+    });
+  
+    expect(fetchTasks).not.toHaveBeenCalled();
+    expect(fetchWorkProfile).not.toHaveBeenCalled();
+  });
 });
