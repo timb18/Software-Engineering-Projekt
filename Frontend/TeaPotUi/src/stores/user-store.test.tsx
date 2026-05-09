@@ -330,4 +330,133 @@ describe("user-store initForUser", () => {
     expect(result.current.activeOrganizationId).toBe("org-a");
     expect(result.current.workProfileId).toBe("wp-a");
   });
+
+  it("clears active context and tasks when organization is set to null", async () => {
+    const { result } = renderHook(() => useUserStore());
+
+    const orgA = {
+      id: "org-a",
+      name: "A",
+      workProfileId: "wp-a",
+      users: [],
+      invites: [],
+    };
+
+    const user: User = {
+      id: "u1",
+      email: "u@x.test",
+      username: "u",
+      orgs: [orgA],
+      tasks: [
+        {
+          id: "t1",
+          name: "Task 1",
+          description: "",
+          startDate: new Date(),
+          endDate: new Date(),
+          org: "org-a",
+          dependencies: [],
+        },
+      ],
+      role: "user",
+      invites: [],
+    };
+
+    act(() => {
+      result.current.setUser(user);
+    });
+
+    await act(async () => {
+      await result.current.setActiveOrganization(null);
+    });
+
+    expect(fetchTasks).not.toHaveBeenCalled();
+    expect(result.current.activeOrganizationId).toBeNull();
+    expect(result.current.workProfileId).toBeNull();
+    expect(result.current.user.tasks).toEqual([]);
+  });
+
+  it("switches active organization without loading tasks when workProfileId is missing", async () => {
+    const { result } = renderHook(() => useUserStore());
+
+    const orgA = {
+      id: "org-a",
+      name: "A",
+      workProfileId: "wp-a",
+      users: [],
+      invites: [],
+    };
+
+    const orgB = {
+      id: "org-b",
+      name: "B",
+      workProfileId: null,
+      users: [],
+      invites: [],
+    };
+
+    const user: User = {
+      id: "u1",
+      email: "u@x.test",
+      username: "u",
+      orgs: [orgA, orgB],
+      tasks: [],
+      role: "user",
+      invites: [],
+    };
+
+    act(() => {
+      result.current.setUser(user);
+    });
+
+    await act(async () => {
+      await result.current.setActiveOrganization("org-b");
+    });
+
+    expect(fetchTasks).not.toHaveBeenCalled();
+    expect(result.current.activeOrganizationId).toBe("org-b");
+    expect(result.current.workProfileId).toBe("wp-a");
+  });
+
+  it("switches organization without reloading when both organizations share the same workProfileId", async () => {
+    const { result } = renderHook(() => useUserStore());
+
+    const orgA = {
+      id: "org-a",
+      name: "A",
+      workProfileId: "wp-shared",
+      users: [],
+      invites: [],
+    };
+
+    const orgB = {
+      id: "org-b",
+      name: "B",
+      workProfileId: "wp-shared",
+      users: [],
+      invites: [],
+    };
+
+    const user: User = {
+      id: "u1",
+      email: "u@x.test",
+      username: "u",
+      orgs: [orgA, orgB],
+      tasks: [],
+      role: "user",
+      invites: [],
+    };
+
+    act(() => {
+      result.current.setUser(user);
+    });
+
+    await act(async () => {
+      await result.current.setActiveOrganization("org-b");
+    });
+
+    expect(fetchTasks).not.toHaveBeenCalled();
+    expect(result.current.activeOrganizationId).toBe("org-b");
+    expect(result.current.workProfileId).toBe("wp-shared");
+  });
 });
