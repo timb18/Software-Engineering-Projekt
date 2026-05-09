@@ -591,19 +591,6 @@ const User: FC = () => {
                 {isSavingProfile ? "Saving..." : "Save changes"}
               </button>
             </div>
-
-            <div className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-              <div className="text-sm font-semibold text-slate-100">
-                Account & Security
-              </div>
-              <div className="text-sm text-slate-300">
-                Role: {userFromDb.role}
-              </div>
-              <div className="text-sm text-slate-300">
-                Username: {userFromDb.username}
-              </div>
-              {/* <div className="text-xs text-slate-500">Weitere Details in den Tabs Sicherheit/Konto.</div> */}
-            </div>
           </div>
         )}
 
