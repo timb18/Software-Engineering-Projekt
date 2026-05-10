@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import type { Task } from "../util/types";
 import useUserStore from "../stores/user-store";
-import { updateTask } from "../util/task-api";
+import { updateTask, deleteTask } from "../util/task-api";
 
 interface EditTaskModalProps {
   task: Task;
@@ -78,6 +78,18 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       onClose();
     } catch (e) {
       setError("Failed to save task.");
+    }
+  };
+
+  const handleDelete = async () => {
+    setError(undefined);
+    try {
+      await deleteTask(workProfileId!, task.id!);
+      const updatedTasks = user.tasks?.filter((t) => t.id !== task.id) ?? [];
+      setUser({ ...user, tasks: updatedTasks });
+      onClose();
+    } catch (e) {
+      setError("Failed to delete task.");
     }
   };
 
@@ -188,6 +200,12 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
             className="rounded-xl border border-rose-300/60 bg-rose-500/10 py-1 font-semibold text-rose-100 hover:bg-rose-500/20"
           >
             Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            className="rounded-xl border border-red-300/60 bg-red-500/10 py-1 font-semibold text-red-100 hover:bg-red-500/20"
+          >
+            Delete
           </button>
           <button
             onClick={submit}
