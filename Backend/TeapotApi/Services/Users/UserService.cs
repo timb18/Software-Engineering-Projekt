@@ -8,14 +8,12 @@ namespace Services.Users;
 
 public class UserService(
     IUserRepository userRepository,
-    IOrganizationRepository organizationRepository,
-    IMembershipRepository membershipRepository,
     IWorkProfileRepository workProfileRepository,
     IUnitOfWork unitOfWork) : IUserService
 {
     private static readonly EmailAddressAttribute EmailValidator = new();
 
-    public async Task<(Guid UserId, Guid WorkProfileId)> EnsureUserAsync(
+    public async Task<(Guid UserId, Guid? WorkProfileId)> EnsureUserAsync(
         string email,
         string? authProviderSubject = null,
         string? displayName = null,
@@ -39,35 +37,8 @@ public class UserService(
             return (user.Id, existingProfile.Id);
         }
 
-        // No work profile yet — create a personal org + membership + work profile
-        var personalOrg = new DataAccess.Models.Organization
-        {
-            Name = $"Personal ({normalizedEmail})",
-            Description = "Auto-created personal workspace",
-            MaxUsers = 1,
-            CreatedAt = DateTime.UtcNow,
-        };
-        await organizationRepository.AddAsync(personalOrg, cancellationToken);
-
-        var membership = new Membership
-        {
-            UserId = user.Id,
-            OrganizationId = personalOrg.Id,
-            Role = ERole.Organizer,
-            CreatedAt = DateTime.UtcNow,
-        };
-        await membershipRepository.AddAsync(membership, cancellationToken);
-
-        var workProfile = new WorkProfile
-        {
-            MembershipId = membership.Id,
-            MaxDailyLoad = TimeSpan.FromHours(8),
-            CreatedAt = DateTime.UtcNow,
-        };
-        await workProfileRepository.AddAsync(workProfile, cancellationToken);
-
         await tx.CommitAsync(cancellationToken);
-        return (user.Id, workProfile.Id);
+        return (user.Id, null);
     }
 
     public async Task<UserProfileDto> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)

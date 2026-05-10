@@ -23,8 +23,6 @@ public class UserControllerTests
         _dbContext = new TeapotDbContext(options);
         var userService = new UserService(
             new UserRepository(_dbContext),
-            new OrganizationRepository(_dbContext),
-            new MembershipRepository(_dbContext),
             new WorkProfileRepository(_dbContext),
             new UnitOfWork(_dbContext));
 

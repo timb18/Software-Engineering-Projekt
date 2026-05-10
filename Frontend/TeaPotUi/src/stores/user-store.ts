@@ -61,7 +61,7 @@ export const initForUser = async (
     const profile = await fetchUserProfile(userId);
 
     const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
-      fetchTasks(workProfileId),
+      workProfileId ? fetchTasks(workProfileId) : Promise.resolve([]),
       fetchWorkProfile(userId),
       fetchOrganizationsByUserEmail(email),
     ]);
@@ -77,10 +77,10 @@ export const initForUser = async (
           : [];
     const activeOrganization =
       orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
-    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId;
+    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId ?? null;
 
     let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
-    if (activeWorkProfileId !== workProfileId) {
+    if (activeWorkProfileId && activeWorkProfileId !== workProfileId) {
       try {
         tasks = assignTasksToOrganization(
           await fetchTasks(activeWorkProfileId),
