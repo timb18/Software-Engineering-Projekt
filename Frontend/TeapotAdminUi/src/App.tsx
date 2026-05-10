@@ -7,8 +7,13 @@ import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
 
 interface MyPayload extends JwtPayload {
-  permissions: string[];
+  permissions?: string[];
 }
+
+const authParams = {
+  audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+  scope: "openid profile email write:orgs",
+};
 
 function App() {
   const {
@@ -22,21 +27,31 @@ function App() {
 
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
-  client.interceptors.request.use(async (request) => {
-    const token = await getAccessToken();
-    request.headers.append("Authorization", `Bearer ${token}`);
-    return request;
-  });
+  useEffect(() => {
+    const interceptorId = client.interceptors.request.use(async (request) => {
+      const token = await getAccessToken({ authorizationParams: authParams });
+      request.headers.set("Authorization", `Bearer ${token}`);
+      return request;
+    });
+
+    return () => {
+      client.interceptors.request.eject(interceptorId);
+    };
+  }, [getAccessToken]);
 
   useEffect(() => {
-    const extractAdminRolefromToken = async () => {
-      const token = await getAccessToken();
+    const extractAdminRoleFromToken = async () => {
+      const token = await getAccessToken({ authorizationParams: authParams });
       const decode: MyPayload = jwtDecode(token);
-      setIsAdmin(decode.permissions.includes("write:orgs"));
+      setIsAdmin(decode.permissions?.includes("write:orgs") ?? false);
     };
 
-    extractAdminRolefromToken();
-  }, [getAccessToken]);
+    if (isAuthenticated) {
+      void extractAdminRoleFromToken();
+    } else {
+      setIsAdmin(false);
+    }
+  }, [getAccessToken, isAuthenticated]);
 
   const onCreateOrg = async (createOrgRequest: CreateOrganizationRequest) => {
     const { data, error } = await postApiOrganization({
