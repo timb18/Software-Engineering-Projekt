@@ -186,6 +186,112 @@ public class OrganizationServiceTests
     }
 
     [Test]
+    public async Task GetOrganizationsForUserAsync_Normalizes_Email_For_Lookup_And_WorkProfile_Mapping()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@example.com",
+            Username = "member",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Team Org",
+            Description = "Test",
+            MaxUsers = 5,
+            CreatedAt = DateTime.UtcNow
+        };
+        var membership = new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            OrganizationId = organization.Id,
+            Role = ERole.User,
+            CreatedAt = DateTime.UtcNow,
+            User = user,
+            Organization = organization
+        };
+        var workProfile = new WorkProfile
+        {
+            Id = Guid.NewGuid(),
+            MembershipId = membership.Id,
+            Membership = membership,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(user);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.Add(membership);
+        _dbContext.WorkProfiles.Add(workProfile);
+        await _dbContext.SaveChangesAsync();
+
+        var result = (await _service.GetOrganizationsForUserAsync("  MEMBER@example.COM  ")).ToList();
+
+        Assert.That(result, Has.Count.EqualTo(1));
+        Assert.That(result[0].WorkProfileId, Is.EqualTo(workProfile.Id));
+    }
+
+    [Test]
+    public async Task GetOrganizationsForUserAsync_Returns_All_Organizations_For_Membership_User()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "member@example.com",
+            Username = "member",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var orgA = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Org A",
+            Description = "A",
+            MaxUsers = 5,
+            CreatedAt = DateTime.UtcNow
+        };
+        var orgB = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Org B",
+            Description = "B",
+            MaxUsers = 5,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(user);
+        _dbContext.Organizations.AddRange(orgA, orgB);
+        _dbContext.Memberships.AddRange(
+            new Membership
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                OrganizationId = orgA.Id,
+                Role = ERole.User,
+                CreatedAt = DateTime.UtcNow,
+                User = user,
+                Organization = orgA
+            },
+            new Membership
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                OrganizationId = orgB.Id,
+                Role = ERole.Organizer,
+                CreatedAt = DateTime.UtcNow,
+                User = user,
+                Organization = orgB
+            });
+        await _dbContext.SaveChangesAsync();
+
+        var result = (await _service.GetOrganizationsForUserAsync(user.Email)).ToList();
+
+        Assert.That(result.Select(x => x.Name), Is.EquivalentTo(new[] { "Org A", "Org B" }));
+    }
+
+    [Test]
     public async Task GetOrganizationsForUserAsync_Includes_Invitation_Link_For_Open_Invites()
     {
         var organizer = new User
