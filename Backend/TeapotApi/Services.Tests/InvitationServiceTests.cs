@@ -87,6 +87,47 @@ public class InvitationServiceTests
     }
 
     [Test]
+    public async Task SendInvitationAsync_AcceptsDhbwSubdomainEmail()
+    {
+        var organizer = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@test.com",
+            Username = "Organizer",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "TeaPot GmbH",
+            Description = "Test",
+            MaxUsers = 10,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(organizer);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.Add(new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = organizer.Id,
+            OrganizationId = organization.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var result = await _service.SendInvitationAsync(
+            "i24017\u200B@hb.dhbw-stuttgart.de",
+            organization.Id,
+            7,
+            createdByEmail: organizer.Email);
+
+        Assert.That(result.Email, Is.EqualTo("i24017@hb.dhbw-stuttgart.de"));
+        Assert.That(result.InvitationLink, Does.Contain("i24017%40hb.dhbw-stuttgart.de"));
+    }
+
+    [Test]
     public async Task SendInvitationAsync_Throws_AndDoesNotCreateInvitation_WhenEmailIsInvalid()
     {
         var organizer = new User
@@ -182,7 +223,7 @@ public class InvitationServiceTests
         {
             Assert.That(result.InvitationLink, Does.Contain($"/api/Invitation/{result.Id}/accept-link"));
             Assert.That(result.EmailSent, Is.False);
-            Assert.That(result.EmailError, Is.Null);
+            Assert.That(result.EmailError, Is.EqualTo("SMTP failed"));
             Assert.That(_dbContext.Invitations.Any(i => i.Id == result.Id), Is.True);
         });
     }

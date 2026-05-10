@@ -69,20 +69,22 @@ public class InvitationService(
 
         await invitationRepository.AddAsync(invitation, cancellationToken);
         var emailSent = false;
+        string? emailError = null;
         try
         {
             await SendInvitationEmailAsync(invitation, organization, expiryDays, cancellationToken);
             emailSent = true;
         }
-        catch
+        catch (Exception ex)
         {
             emailSent = false;
+            emailError = ex.Message;
         }
 
         return MapToDto(invitation) with
         {
             EmailSent = emailSent,
-            EmailError = null
+            EmailError = emailError
         };
     }
 
@@ -262,7 +264,7 @@ public class InvitationService(
 
     private static string NormalizeEmail(string email)
     {
-        var normalized = email.Trim().ToLowerInvariant();
+        var normalized = RemoveInvisibleEmailCharacters(email).Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(normalized))
             throw new ArgumentException("Email is required.");
 
@@ -271,6 +273,13 @@ public class InvitationService(
 
         return normalized;
     }
+
+    private static string RemoveInvisibleEmailCharacters(string email) =>
+        email
+            .Replace("\u200B", string.Empty, StringComparison.Ordinal)
+            .Replace("\u200C", string.Empty, StringComparison.Ordinal)
+            .Replace("\u200D", string.Empty, StringComparison.Ordinal)
+            .Replace("\uFEFF", string.Empty, StringComparison.Ordinal);
 
     private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 }

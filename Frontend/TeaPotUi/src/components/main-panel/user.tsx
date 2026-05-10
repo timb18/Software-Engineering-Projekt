@@ -470,8 +470,8 @@ const User: FC = () => {
                 onClick={() => handleTabClick(t)}
                 className={`shrink-0 rounded-full px-4 py-2 font-semibold transition ${
                   tab === t
-                    ? "border border-emerald-300/60 bg-emerald-400/15 text-emerald-100"
-                    : "border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
+                    ? "border border-emerald-300/70 bg-emerald-400/15 text-emerald-100 shadow-[0_0_0_1px_rgba(52,211,153,0.18),0_12px_28px_rgba(16,185,129,0.12)]"
+                    : "border border-slate-800 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:bg-emerald-400/5 hover:text-emerald-100"
                 }`}
               >
                 {t === "general" && "General"}
@@ -591,6 +591,7 @@ const User: FC = () => {
                 {isSavingProfile ? "Saving..." : "Save changes"}
               </button>
             </div>
+
           </div>
         )}
 

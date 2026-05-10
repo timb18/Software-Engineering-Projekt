@@ -101,7 +101,7 @@ const Login: FC = () => {
               <div className="mb-5 inline-flex rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-sm font-medium text-emerald-100">
                 {invitationId ? "Invitation ready" : "Welcome back"}
               </div>
-              <h1 className="text-5xl leading-tight font-semibold tracking-tight text-white">
+              <h1 className="login-hero-title text-5xl leading-tight font-semibold tracking-tight">
                 Plan work where your team already is.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-slate-300">
