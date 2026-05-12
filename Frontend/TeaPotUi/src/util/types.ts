@@ -31,8 +31,6 @@ export type WorkProfile = {
 
 export type User = {
   id: string;
-  username: string;
-  displayName?: string;
   email: string;
   profileImage?: string;
   timezone?: string;
@@ -47,7 +45,6 @@ export type User = {
   breakRules?: string;
   orgs: Org[];
   tasks: Task[];
-  role: Role;
   invites?: Invitation[];
 };
 

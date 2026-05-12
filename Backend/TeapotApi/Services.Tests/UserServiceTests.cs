@@ -1,10 +1,10 @@
+using Auth0.ManagementApi;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Storage;
-using Services.Users;
+using Services.Tests.Fakes;
 
 namespace Services.Tests;
 
@@ -34,7 +34,22 @@ public class UserServiceTests
         new OrganizationRepository(db),
         new MembershipRepository(db),
         new WorkProfileRepository(db),
-        new UnitOfWork(db));
+        new UnitOfWork(db),
+        new FakeManagementApiClient([
+            new UserResponseSchema { UserId = "a", Email = "new@example.com" },
+            new UserResponseSchema { UserId = "b", Email = "created@example.com" },
+            new UserResponseSchema { UserId = "c", Email = "profile@example.com" },
+            new UserResponseSchema { UserId = "d", Email = "organizer@example.com" },
+            new UserResponseSchema { UserId = "e", Email = "returning@example.com" },
+            new UserResponseSchema { UserId = "f", Email = "dup@example.com" },
+            new UserResponseSchema { UserId = "g", Email = "dup-wp@example.com" },
+            new UserResponseSchema { UserId = "h", Email = "a@example.com" },
+            new UserResponseSchema { UserId = "i", Email = "b@example.com" },
+            new UserResponseSchema { UserId = "j", Email = "profile-update@example.com" },
+            new UserResponseSchema { UserId = "k", Email = "empty-name@example.com" },
+            new UserResponseSchema { UserId = "l", Email = "invalid-email-start@example.com" }
+        ]),
+        new Auth0Config("", "", "", "", "", ""));
 
     // ── EnsureUserAsync – new user ────────────────────────────────────────────
 
@@ -43,8 +58,11 @@ public class UserServiceTests
     {
         var (userId, workProfileId) = await _service.EnsureUserAsync("new@example.com");
 
-        Assert.That(userId, Is.Not.EqualTo(Guid.Empty));
-        Assert.That(workProfileId, Is.Not.EqualTo(Guid.Empty));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(userId, Is.Not.EqualTo(Guid.Empty));
+            Assert.That(workProfileId, Is.Not.EqualTo(Guid.Empty));
+        }
     }
 
     [Test]
@@ -143,15 +161,11 @@ public class UserServiceTests
     {
         var (firstUserId, firstProfileId) = await _service.EnsureUserAsync(
             "before@example.com",
-            "auth0|abc",
-            "Anna Before",
-            "https://example.com/a.png");
+            "auth0|abc");
 
         var (secondUserId, secondProfileId) = await _service.EnsureUserAsync(
             "after@example.com",
-            "auth0|abc",
-            "Anna After",
-            "https://example.com/b.png");
+            "auth0|abc");
 
         var user = await _dbContext.Users.FindAsync(secondUserId);
 
@@ -160,8 +174,6 @@ public class UserServiceTests
             Assert.That(secondUserId, Is.EqualTo(firstUserId));
             Assert.That(secondProfileId, Is.EqualTo(firstProfileId));
             Assert.That(user!.Email, Is.EqualTo("after@example.com"));
-            Assert.That(user.DisplayName, Is.EqualTo("Anna Before"));
-            Assert.That(user.ProfileImageUrl, Is.EqualTo("https://example.com/a.png"));
             Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
         });
     }
@@ -183,50 +195,16 @@ public class UserServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(updated.DisplayName, Is.EqualTo("Updated Name"));
             Assert.That(updated.Email, Is.EqualTo("updated@example.com"));
-            Assert.That(updated.ProfileImageUrl, Is.EqualTo("https://example.com/avatar.png"));
             Assert.That(updated.Timezone, Is.EqualTo("Europe/Paris"));
             Assert.That(user!.EditedAt, Is.Not.Null);
         });
     }
 
     [Test]
-    public async Task EnsureUserAsync_Does_Not_Overwrite_Existing_Profile_Customizations()
+    public async Task UpdateProfileAsync_Rejects_Empty_Display_Name()
     {
-        var (userId, _) = await _service.EnsureUserAsync(
-            "custom@example.com",
-            "auth0|custom",
-            "Auth Name",
-            "https://example.com/auth.png");
-
-        await _service.UpdateProfileAsync(
-            userId,
-            new UpdateUserProfileCommand(
-                "Custom Name",
-                "custom@example.com",
-                "https://example.com/custom.png",
-                "Europe/Berlin"));
-
-        await _service.EnsureUserAsync(
-            "custom@example.com",
-            "auth0|custom",
-            "Auth Name Reloaded",
-            "https://example.com/auth-reloaded.png");
-
-        var user = await _dbContext.Users.FindAsync(userId);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(user!.DisplayName, Is.EqualTo("Custom Name"));
-            Assert.That(user.ProfileImageUrl, Is.EqualTo("https://example.com/custom.png"));
-        });
-    }
-
-    [Test]
-    public void UpdateProfileAsync_Rejects_Empty_Display_Name()
-    {
-        var (userId, _) = _service.EnsureUserAsync("empty-name@example.com").GetAwaiter().GetResult();
+        var (userId, _) = await _service.EnsureUserAsync("empty-name@example.com");
 
         Assert.ThrowsAsync<ArgumentException>(async () =>
             await _service.UpdateProfileAsync(
@@ -235,9 +213,9 @@ public class UserServiceTests
     }
 
     [Test]
-    public void UpdateProfileAsync_Rejects_Invalid_Email()
+    public async Task UpdateProfileAsync_Rejects_Invalid_Email()
     {
-        var (userId, _) = _service.EnsureUserAsync("invalid-email-start@example.com").GetAwaiter().GetResult();
+        var (userId, _) = await _service.EnsureUserAsync("invalid-email-start@example.com");
 
         Assert.ThrowsAsync<ArgumentException>(async () =>
             await _service.UpdateProfileAsync(

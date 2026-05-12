@@ -1,8 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useWorkProfile } from "./use-work-profile";
-import { blocksOverlap, breaksOverlap, sortBlocks, sortBreaks } from "./use-work-profile";
-import { createWorkBlock, createWorkBreak, createEmptyWorkProfile } from "./work-profile";
+import {
+  blocksOverlap,
+  breaksOverlap,
+  sortBlocks,
+  sortBreaks,
+} from "./use-work-profile";
+import {
+  createWorkBlock,
+  createWorkBreak,
+  createEmptyWorkProfile,
+} from "./work-profile";
 import type { User, WorkProfile } from "./types";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -12,11 +21,9 @@ const company2 = { id: "co-2", name: "Globex" };
 
 const userWithEmptyProfile = (): User => ({
   id: "tester",
-  username: "tester",
   email: "tester@example.com",
   orgs: [{ id: "co-1", name: "Acme", users: [] }],
   tasks: [],
-  role: "user",
   workProfile: createEmptyWorkProfile(),
 });
 
@@ -136,7 +143,11 @@ describe("useWorkProfile – initial state", () => {
   it("showEncouragement is false when profile has at least one block", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -156,7 +167,11 @@ describe("useWorkProfile – initial state", () => {
     const emptyUser = userWithEmptyProfile();
     const loadedProfile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company2, "10:00", "14:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company2, "10:00", "14:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -222,7 +237,11 @@ describe("useWorkProfile – addShift", () => {
   it("calls onErrorChange when a new shift overlaps an existing one", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "13:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "13:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -293,7 +312,11 @@ describe("useWorkProfile – moveBlock", () => {
   const buildProfileWithMonBlock = () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -310,7 +333,8 @@ describe("useWorkProfile – moveBlock", () => {
     const { result } = renderHook(() =>
       useWorkProfile(userWithProfile(profile), callbacks),
     );
-    const blockId = result.current.workForm.days.find((d) => d.day === "Mon")!.blocks[0].id;
+    const blockId = result.current.workForm.days.find((d) => d.day === "Mon")!
+      .blocks[0].id;
 
     act(() => {
       result.current.moveBlock(blockId, "Mon", "10:00", "18:00");
@@ -327,7 +351,8 @@ describe("useWorkProfile – moveBlock", () => {
     const { result } = renderHook(() =>
       useWorkProfile(userWithProfile(profile), callbacks),
     );
-    const blockId = result.current.workForm.days.find((d) => d.day === "Mon")!.blocks[0].id;
+    const blockId = result.current.workForm.days.find((d) => d.day === "Mon")!
+      .blocks[0].id;
 
     act(() => {
       result.current.moveBlock(blockId, "Tue", "09:00", "17:00");
@@ -343,8 +368,16 @@ describe("useWorkProfile – moveBlock", () => {
   it("returns false and calls onErrorChange when target day already has an overlapping block", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "13:00")], breaks: [] },
-        { day: "Tue", blocks: [createWorkBlock(company2, "10:00", "14:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "13:00")],
+          breaks: [],
+        },
+        {
+          day: "Tue",
+          blocks: [createWorkBlock(company2, "10:00", "14:00")],
+          breaks: [],
+        },
         ...["Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -356,7 +389,9 @@ describe("useWorkProfile – moveBlock", () => {
     const { result } = renderHook(() =>
       useWorkProfile(userWithProfile(profile), callbacks),
     );
-    const monBlockId = result.current.workForm.days.find((d) => d.day === "Mon")!.blocks[0].id;
+    const monBlockId = result.current.workForm.days.find(
+      (d) => d.day === "Mon",
+    )!.blocks[0].id;
 
     let success: boolean;
     act(() => {
@@ -389,7 +424,8 @@ describe("useWorkProfile – moveBreak", () => {
     const { result } = renderHook(() =>
       useWorkProfile(userWithProfile(profile), callbacks),
     );
-    const breakId = result.current.workForm.days.find((d) => d.day === "Mon")!.breaks[0].id;
+    const breakId = result.current.workForm.days.find((d) => d.day === "Mon")!
+      .breaks[0].id;
 
     act(() => {
       result.current.moveBreak(breakId, "Mon", "15:00", "15:30");
@@ -414,7 +450,8 @@ describe("useWorkProfile – moveBreak", () => {
     const { result } = renderHook(() =>
       useWorkProfile(userWithProfile(profile), callbacks),
     );
-    const breakId = result.current.workForm.days.find((d) => d.day === "Mon")!.breaks[0].id;
+    const breakId = result.current.workForm.days.find((d) => d.day === "Mon")!
+      .breaks[0].id;
 
     act(() => {
       result.current.moveBreak(breakId, "Wed", "13:00", "13:30");
@@ -433,7 +470,11 @@ describe("useWorkProfile – removeWorkBlock", () => {
   it("removes the block and marks as dirty", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -445,7 +486,8 @@ describe("useWorkProfile – removeWorkBlock", () => {
     const { result } = renderHook(() =>
       useWorkProfile(userWithProfile(profile), callbacks),
     );
-    const blockId = result.current.workForm.days.find((d) => d.day === "Mon")!.blocks[0].id;
+    const blockId = result.current.workForm.days.find((d) => d.day === "Mon")!
+      .blocks[0].id;
 
     act(() => {
       result.current.removeWorkBlock("Mon", blockId);
@@ -494,7 +536,11 @@ describe("useWorkProfile – selectRange", () => {
   it("defaults to 'break' when a shift already occupies the range", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -521,7 +567,11 @@ describe("useWorkProfile – saveWork", () => {
   it("calls onSaveUser and onStatusChange when profile is valid", async () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
           day: d as never,
           blocks: [],
@@ -539,7 +589,9 @@ describe("useWorkProfile – saveWork", () => {
     });
 
     expect(callbacks.onSaveUser).toHaveBeenCalledOnce();
-    expect(callbacks.onStatusChange).toHaveBeenCalledWith("Work profile saved.");
+    expect(callbacks.onStatusChange).toHaveBeenCalledWith(
+      "Work profile saved.",
+    );
   });
 
   it("calls onErrorChange when there is a plannerView validation error", () => {
@@ -549,11 +601,17 @@ describe("useWorkProfile – saveWork", () => {
     );
 
     act(() => {
-      result.current.saveWork("06:00", "22:00", "Visible end must be after start.");
+      result.current.saveWork(
+        "06:00",
+        "22:00",
+        "Visible end must be after start.",
+      );
     });
 
     expect(callbacks.onSaveUser).not.toHaveBeenCalled();
-    expect(callbacks.onErrorChange).toHaveBeenCalledWith("Visible end must be after start.");
+    expect(callbacks.onErrorChange).toHaveBeenCalledWith(
+      "Visible end must be after start.",
+    );
   });
 
   it("calls onErrorChange when pendingSelection exists (user hasn't confirmed it)", () => {

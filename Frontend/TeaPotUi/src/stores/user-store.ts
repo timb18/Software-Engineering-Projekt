@@ -4,7 +4,12 @@ import { useStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { defaultUser } from "../util/default-data";
 import { getLegacyWorkSettings } from "../util/work-profile";
-import { fetchTasks, createTask, updateTask, deleteTask } from "../util/task-api";
+import {
+  fetchTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+} from "../util/task-api";
 import { fetchWorkProfile } from "../util/work-profile-api";
 import { ensureUser, fetchUserProfile } from "../util/user-api";
 import { fetchOrganizationsByUserEmail } from "../util/org-api";
@@ -21,8 +26,13 @@ const initialState: UserStore = {
   activeOrganizationId: null,
 };
 
-const assignTasksToOrganization = (tasks: Task[], organizationId: string | null | undefined) =>
-  organizationId ? tasks.map((task) => ({ ...task, org: organizationId })) : tasks;
+const assignTasksToOrganization = (
+  tasks: Task[],
+  organizationId: string | null | undefined,
+) =>
+  organizationId
+    ? tasks.map((task) => ({ ...task, org: organizationId }))
+    : tasks;
 
 const memoryStorage = {
   getItem: () => null,
@@ -34,9 +44,12 @@ const userStore = createStore<UserStore>()(
   persist(() => initialState, {
     name: "teapot-user-store",
     storage: createJSONStorage(() => {
-      const browserStorage = typeof window !== "undefined" ? window.localStorage : null;
+      const browserStorage =
+        typeof window !== "undefined" ? window.localStorage : null;
 
-      return browserStorage && typeof browserStorage.setItem === "function" && typeof browserStorage.getItem === "function"
+      return browserStorage &&
+        typeof browserStorage.setItem === "function" &&
+        typeof browserStorage.getItem === "function"
         ? browserStorage
         : memoryStorage;
     }),
@@ -60,15 +73,20 @@ export const initForUser = async (
     });
     const profile = await fetchUserProfile(userId);
 
-    const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
-      fetchTasks(workProfileId),
-      fetchWorkProfile(userId),
-      fetchOrganizationsByUserEmail(email),
-    ]);
+    const [tasksResult, workProfileResult, organizationsResult] =
+      await Promise.allSettled([
+        fetchTasks(workProfileId),
+        fetchWorkProfile(userId),
+        fetchOrganizationsByUserEmail(email),
+      ]);
 
-    const initialTasks = tasksResult.status === "fulfilled" ? tasksResult.value : [];
-    const workProfile = workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
-    const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
+    const initialTasks =
+      tasksResult.status === "fulfilled" ? tasksResult.value : [];
+    const workProfile =
+      workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
+    const legacyWorkSettings = workProfile
+      ? getLegacyWorkSettings(workProfile)
+      : undefined;
     const orgs =
       organizationsResult.status === "fulfilled"
         ? organizationsResult.value
@@ -76,8 +94,11 @@ export const initForUser = async (
           ? previousState.user.orgs
           : [];
     const activeOrganization =
-      orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
-    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId;
+      orgs.find((org) => org.id === previousState.activeOrganizationId) ??
+      orgs[0] ??
+      null;
+    const activeWorkProfileId =
+      activeOrganization?.workProfileId ?? workProfileId;
 
     let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
     if (activeWorkProfileId !== workProfileId) {
@@ -87,7 +108,10 @@ export const initForUser = async (
           activeOrganization?.id,
         );
       } catch (error) {
-        console.error("fetchTasks failed for active organization during initForUser", error);
+        console.error(
+          "fetchTasks failed for active organization during initForUser",
+          error,
+        );
         tasks = [];
       }
     }
@@ -96,15 +120,16 @@ export const initForUser = async (
       console.error("fetchTasks failed during initForUser", tasksResult.reason);
     }
     if (workProfileResult.status === "rejected") {
-      console.error("fetchWorkProfile failed during initForUser", workProfileResult.reason);
+      console.error(
+        "fetchWorkProfile failed during initForUser",
+        workProfileResult.reason,
+      );
     }
 
     userStore.setState({
       user: {
         ...defaultUser,
         id: userId,
-        username: profile.username,
-        displayName: profile.displayName,
         email: profile.email,
         profileImage: profile.profileImageUrl,
         timezone: profile.timezone,
@@ -133,15 +158,16 @@ export const initForUser = async (
       (currentState.user.email === email || currentState.user.id === sub);
 
     if (hasPersistedUser) {
-      return { userId: currentState.user.id, workProfileId: currentState.workProfileId };
+      return {
+        userId: currentState.user.id,
+        workProfileId: currentState.workProfileId,
+      };
     }
 
     userStore.setState({
       user: {
         ...defaultUser,
         id: sub,
-        username: email.split("@")[0],
-        displayName: displayName ?? email.split("@")[0],
         email,
         profileImage: profileImageUrl,
         tasks: [],
@@ -168,11 +194,13 @@ const useUserStore = () => {
       activeOrganizationId:
         newUser.id === defaultUser.id || newUser.orgs.length === 0
           ? null
-          : activeOrganization?.id ?? newUser.orgs[0]?.id ?? null,
+          : (activeOrganization?.id ?? newUser.orgs[0]?.id ?? null),
       workProfileId:
         newUser.id === defaultUser.id || newUser.orgs.length === 0
           ? null
-          : activeOrganization?.workProfileId ?? newUser.orgs[0]?.workProfileId ?? currentState.workProfileId,
+          : (activeOrganization?.workProfileId ??
+            newUser.orgs[0]?.workProfileId ??
+            currentState.workProfileId),
     });
   };
 
@@ -192,7 +220,9 @@ const useUserStore = () => {
       return;
     }
 
-    const selectedOrganization = state.user.orgs.find((org) => org.id === organizationId);
+    const selectedOrganization = state.user.orgs.find(
+      (org) => org.id === organizationId,
+    );
     if (!selectedOrganization) {
       return;
     }
@@ -228,7 +258,10 @@ const useUserStore = () => {
         org: task.org || activeOrganizationId || saved.org,
       };
       userStore.setState((s) => ({
-        user: { ...s.user, tasks: [...(s.user.tasks ?? []), taskForActiveOrganization] },
+        user: {
+          ...s.user,
+          tasks: [...(s.user.tasks ?? []), taskForActiveOrganization],
+        },
       }));
       return taskForActiveOrganization;
     }
@@ -275,7 +308,14 @@ const useUserStore = () => {
     }));
   };
 
-  return { ...state, setUser, setActiveOrganization, addTask, saveTask, removeTask };
+  return {
+    ...state,
+    setUser,
+    setActiveOrganization,
+    addTask,
+    saveTask,
+    removeTask,
+  };
 };
 
 export default useUserStore;

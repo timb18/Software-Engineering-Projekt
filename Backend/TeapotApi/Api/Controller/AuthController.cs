@@ -35,14 +35,21 @@ public class AuthController : ControllerBase
         var (userId, workProfileId) = await _userService.EnsureUserAsync(
             request.Email,
             request.AuthProviderSubject,
-            request.DisplayName,
-            request.ProfileImageUrl,
             cancellationToken);
         return Ok(new EnsureUserResponse(userId, workProfileId));
     }
 
+    /// <summary>
+    /// Registers a new user by email or returns existing user if email already registered.
+    /// Validates email presence and creates user in database if not found.
+    /// </summary>
+    /// <param name="request">Registration request containing the user's email address.</param>
+    /// <param name="cancellationToken">Token to allow operation cancellation by caller.</param>
+    /// <returns>Task representing registration result. Contains Ok result with user data including Id and Email.
+    /// Success flag indicates operation completed. Created flag indicates whether new user was created or existing user was returned.</returns>
     [HttpPost("register")]
-    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
             return BadRequest(new { success = false, message = "E-Mail ist erforderlich." });
@@ -61,7 +68,6 @@ public class AuthController : ControllerBase
                 {
                     Id = existingUser.Id,
                     Email = existingUser.Email,
-                    Username = existingUser.Username ?? normalizedEmail.Split('@')[0]
                 }
             });
         }
@@ -70,7 +76,6 @@ public class AuthController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Email = normalizedEmail,
-            Username = string.IsNullOrWhiteSpace(request.Username) ? normalizedEmail.Split('@')[0] : request.Username.Trim(),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -84,7 +89,6 @@ public class AuthController : ControllerBase
             {
                 Id = user.Id,
                 Email = user.Email,
-                Username = user.Username ?? normalizedEmail.Split('@')[0]
             }
         });
     }
@@ -92,20 +96,17 @@ public class AuthController : ControllerBase
 
 public record EnsureUserRequest(
     string Email,
-    string? AuthProviderSubject = null,
-    string? DisplayName = null,
-    string? ProfileImageUrl = null);
+    string? AuthProviderSubject = null);
+
 public record EnsureUserResponse(Guid UserId, Guid WorkProfileId);
 
-public class RegisterRequest
+public record RegisterRequest
 {
-    public string Email { get; set; } = string.Empty;
-    public string? Username { get; set; }
+    public string Email { get; init; } = string.Empty;
 }
 
 public class RegisterResponse
 {
     public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
 }

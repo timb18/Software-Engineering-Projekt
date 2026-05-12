@@ -1,9 +1,9 @@
 import { useMemo, type FC } from "react";
 import { useLocation, useNavigate } from "react-router";
-import useUserStore from "../stores/user-store";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const Sidebar: FC = () => {
-  const { user } = useUserStore();
+  const { user } = useAuth0();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -77,18 +77,15 @@ const Sidebar: FC = () => {
               Signed in
             </div>
             <div className="text-lg leading-tight font-bold text-emerald-100">
-              {user.displayName ?? user.username}
+              {user?.nickname}
             </div>
-            <div className="text-[11px] text-slate-500">{user.email}</div>
+            <div className="text-[11px] text-slate-500">{user?.email}</div>
           </div>
         </div>
       </button>
 
       <div className="flex flex-col gap-3 text-sm font-semibold">
-        <button
-          onClick={goToHome}
-          className={navButtonClass(isActive("/"))}
-        >
+        <button onClick={goToHome} className={navButtonClass(isActive("/"))}>
           Overview
         </button>
         <button

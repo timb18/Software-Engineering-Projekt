@@ -146,12 +146,13 @@ const User: FC = () => {
   const [error, setError] = useState<string | undefined>();
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    displayName: userFromDb.displayName ?? userFromDb.username,
-    email: userFromDb.email,
+    displayName: userFromAuth?.nickname ?? "",
+    email: userFromAuth?.email ?? "",
     timezone: userFromDb.timezone ?? "Europe/Berlin",
     profileImageUrl: userFromDb.profileImage ?? "",
   });
-  const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] = useState(false);
+  const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] =
+    useState(false);
   const [isDeletingWorkProfile, setIsDeletingWorkProfile] = useState(false);
 
   // ── Appearance / color state ──────────────────────────────────────────
@@ -197,29 +198,17 @@ const User: FC = () => {
 
   useEffect(() => {
     setProfileForm({
-      displayName: userFromDb.displayName ?? userFromDb.username,
-      email: userFromDb.email,
+      displayName: userFromAuth?.nickname ?? "",
+      email: userFromAuth?.email ?? "",
       timezone: userFromDb.timezone ?? "Europe/Berlin",
-      profileImageUrl: userFromDb.profileImage ?? userFromAuth?.picture ?? "",
+      profileImageUrl: userFromAuth?.picture ?? "",
     });
-  }, [userFromAuth?.picture, userFromDb]);
-
-  /* const avatarStyle = useMemo(() => {
-    if (profileForm.profileImage?.startsWith("http")) {
-      return {
-        backgroundImage: `url(${profileForm.profileImage})`,
-        backgroundSize: "cover",
-      };
-    }
-    const gradients: Record<string, string> = {
-      "gradient-1": "linear-gradient(135deg, #34d399, #2563eb)",
-      "gradient-2": "linear-gradient(135deg, #ec4899, #8b5cf6)",
-      "gradient-3": "linear-gradient(135deg, #f59e0b, #ef4444)",
-    };
-    return {
-      backgroundImage: gradients[profileForm.profileImage ?? "gradient-1"],
-    };
-  }, [profileForm.profileImage]); */
+  }, [
+    userFromAuth?.nickname,
+    userFromAuth?.email,
+    userFromAuth?.picture,
+    userFromDb,
+  ]);
 
   const persist = async (nextUser = userFromDb) => {
     if (nextUser.workProfile && nextUser.id && hasBackendUserId(nextUser.id)) {
@@ -266,7 +255,7 @@ const User: FC = () => {
     setStatus(undefined);
     setError(undefined);
 
-    if (!profileForm.displayName.trim()) {
+    if (!profileForm.displayName?.trim()) {
       setError("Name is required.");
       return;
     }
@@ -591,7 +580,6 @@ const User: FC = () => {
                 {isSavingProfile ? "Saving..." : "Save changes"}
               </button>
             </div>
-
           </div>
         )}
 
