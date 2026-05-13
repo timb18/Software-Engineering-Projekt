@@ -12,7 +12,7 @@ public class OrganizationController(
 {
     [HttpPost]
     [Authorize(AuthenticationSchemes = "Auth0", Policy = AdminAuthRequirement.PolicyName)]
-    [ProducesResponseType(typeof(CreateOrganizationResult), StatusCodes.Status201Created)]
+    [ProducesResponseType<CreateOrganizationResult>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create(
@@ -38,6 +38,9 @@ public class OrganizationController(
     }
 
     [HttpGet("by-user-email")]
+    [ProducesResponseType<IEnumerable<OrganizationDetailsDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByUserEmail([FromQuery] string email, CancellationToken cancellationToken)
     {
         try
@@ -69,7 +72,8 @@ public class OrganizationController(
     {
         if (!Guid.TryParse(organizationId, out var parsedOrganizationId))
         {
-            return BadRequest("OrganizationId must be a valid GUID. Reload organizations from the backend before editing.");
+            return BadRequest(
+                "OrganizationId must be a valid GUID. Reload organizations from the backend before editing.");
         }
 
         try
@@ -141,4 +145,5 @@ public class OrganizationController(
 }
 
 public sealed record RenameOrganizationRequest(Guid InitiatorUserId, string Name);
+
 public sealed record DeleteOrganizationRequest(Guid InitiatorUserId, string ConfirmationText);

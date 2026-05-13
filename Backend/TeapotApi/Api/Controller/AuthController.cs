@@ -1,10 +1,16 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Services.Users;
 
 namespace Api.Controller;
 
+/// <summary>
+/// Handles user authentication and registration operations for the API.
+/// </summary>
+/// <remarks>
+/// This controller provides endpoints for ensuring users have work profiles after authentication,
+/// and registering new users to the system.
+/// </remarks>
 [Route("api/[controller]")]
 [ApiController]
 public class AuthController : ControllerBase
@@ -40,19 +46,21 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Registers a new user by email or returns existing user if email already registered.
-    /// Validates email presence and creates user in database if not found.
+    /// Registers a new user account using the provided email address.
+    /// Checks for existing users with the same email and returns the existing account if found.
+    /// Otherwise, creates a new user record in the repository and returns the new account details.
     /// </summary>
-    /// <param name="request">Registration request containing the user's email address.</param>
-    /// <param name="cancellationToken">Token to allow operation cancellation by caller.</param>
-    /// <returns>Task representing registration result. Contains Ok result with user data including Id and Email.
-    /// Success flag indicates operation completed. Created flag indicates whether new user was created or existing user was returned.</returns>
+    /// <param name="request">The HTTP request body containing the user's email address.</param>
+    /// <param name="cancellationToken">The cancellation token to observe the execution of the asynchronous operation.</param>
+    /// <returns>A task representing the HTTP response containing the user's unique ID and email address on success.</returns>
     [HttpPost("register")]
+    [ProducesResponseType<RegisterResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
-            return BadRequest(new { success = false, message = "E-Mail ist erforderlich." });
+            return BadRequest("E-Mail ist erforderlich.");
 
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
@@ -81,16 +89,12 @@ public class AuthController : ControllerBase
 
         await _userRepository.AddAsync(user, cancellationToken);
 
-        return Ok(new
-        {
-            success = true,
-            created = true,
-            data = new RegisterResponse
+        return Ok(new RegisterResponse
             {
                 Id = user.Id,
                 Email = user.Email,
             }
-        });
+        );
     }
 }
 
