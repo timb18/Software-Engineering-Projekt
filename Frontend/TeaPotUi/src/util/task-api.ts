@@ -151,10 +151,12 @@ export async function fetchBlocks(workProfileId: string): Promise<TaskBlock[]> {
 /** Converts a millisecond duration to a PostgreSQL interval string (HH:MM:SS). */
 function msToInterval(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  const days = Math.floor(totalSeconds / 86400);
+  const timePart = totalSeconds % 86400;
+  const hours = Math.floor(timePart / 3600);
+  const minutes = Math.floor((timePart % 3600) / 60);
+  const seconds = timePart % 60;
+  return `${days > 0 ? `${days}.` : ""}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 /** Converts a PostgreSQL interval string (HH:MM:SS or D.HH:MM:SS) to milliseconds. */

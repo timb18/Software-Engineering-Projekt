@@ -410,9 +410,9 @@ const Tasks: FC = () => {
     const updatedDays = user.workProfile.days.map((day) =>
       day.day === editingBreak.weekDay
         ? {
-            ...day,
-            breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
-          }
+          ...day,
+          breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
+        }
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
@@ -714,31 +714,28 @@ const Tasks: FC = () => {
           </div>
           <button
             onClick={() => setView("day")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "day"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "day"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Day
           </button>
           <button
             onClick={() => setView("week")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "week"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "week"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Week
           </button>
           <button
             onClick={() => setView("month")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "month"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "month"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Month
           </button>
@@ -805,7 +802,7 @@ const Tasks: FC = () => {
               customButtons={{
                 visibleRange: {
                   text: "",
-                  click: () => {},
+                  click: () => { },
                 },
               }}
               slotMinTime={`${plannerViewForm.startTime}:00`}
