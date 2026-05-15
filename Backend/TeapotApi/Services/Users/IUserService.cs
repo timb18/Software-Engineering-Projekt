@@ -2,7 +2,7 @@ namespace Services.Users;
 
 public interface IUserService
 {
-    Task<(Guid UserId, Guid WorkProfileId)> EnsureUserAsync(
+    Task<(Guid UserId, Guid? WorkProfileId)> EnsureUserAsync(
         string email,
         string? authProviderSubject = null,
         string? displayName = null,
