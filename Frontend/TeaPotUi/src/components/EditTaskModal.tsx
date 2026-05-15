@@ -209,7 +209,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
           </button>
           <button
             onClick={submit}
-            className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
+            className="rounded-xl border border-emerald-300 bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-emerald-300"
           >
             Save
           </button>

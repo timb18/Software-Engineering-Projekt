@@ -200,6 +200,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       endTime: user.plannerViewEnd ?? DEFAULT_PLANNER_VIEW_END,
     }),
   );
+  const [saveFeedback, setSaveFeedback] = useState<
+    { kind: "success" | "error"; text: string } | null
+  >(null);
+  const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
 
   const [colorVersion, setColorVersion] = useState(0);
   useEffect(() => {
@@ -364,12 +368,25 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     calendarRef.current?.getApi().unselect();
   };
 
-  const saveWork = () => {
-    saveWorkAction(
-      plannerViewForm.startTime,
-      plannerViewForm.endTime,
-      plannerViewWindow.validationError,
-    );
+  const saveWork = async () => {
+    setIsSavingWorkProfile(true);
+    setSaveFeedback(null);
+
+    try {
+      const saved = await saveWorkAction(
+        plannerViewForm.startTime,
+        plannerViewForm.endTime,
+        plannerViewWindow.validationError,
+      );
+
+      setSaveFeedback(
+        saved
+          ? { kind: "success", text: "Work profile saved." }
+          : { kind: "error", text: "Work profile could not be saved." },
+      );
+    } finally {
+      setIsSavingWorkProfile(false);
+    }
   };
 
   const handleCalendarSelect = (selectionInfo: DateSelectArg) => {
@@ -509,11 +526,24 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
           <button
             type="button"
             onClick={saveWork}
-            className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
+            disabled={isSavingWorkProfile}
+            className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Save work profile
+            {isSavingWorkProfile ? "Saving..." : "Save work profile"}
           </button>
         </div>
+        {saveFeedback && (
+          <div
+            className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+              saveFeedback.kind === "success"
+                ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-100"
+                : "border-rose-300/40 bg-rose-500/10 text-rose-100"
+            }`}
+            role="status"
+          >
+            {saveFeedback.text}
+          </div>
+        )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">

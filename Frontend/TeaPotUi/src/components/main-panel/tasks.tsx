@@ -1442,7 +1442,7 @@ const Tasks: FC = () => {
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="rounded-full border border-emerald-300/60 bg-emerald-400/20 px-5 py-2 text-sm font-semibold text-emerald-50 shadow-sm transition hover:bg-emerald-400/30"
+                  className="rounded-full border border-emerald-300 bg-emerald-400 px-5 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-emerald-300"
                 >
                   Save changes
                 </button>

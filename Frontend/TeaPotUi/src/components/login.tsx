@@ -40,7 +40,10 @@ const Login: FC = () => {
 
       void login({
         appState: { returnTo: `/login${location.search}` },
-        authorizationParams: screenHint ? { screen_hint: screenHint } : undefined,
+        authorizationParams: {
+          ...(screenHint ? { screen_hint: screenHint } : {}),
+          ...(invitedEmail ? { login_hint: invitedEmail } : {}),
+        },
       });
     },
     [invitationId, invitedEmail, location.search, login],

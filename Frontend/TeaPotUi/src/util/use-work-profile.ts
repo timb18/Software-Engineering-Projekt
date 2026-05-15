@@ -736,26 +736,26 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
     plannerViewStart: string,
     plannerViewEnd: string,
     plannerViewValidationError?: string,
-  ) => {
+  ): Promise<boolean> => {
     clearMessages();
 
     if (pendingSelection) {
       onErrorChange(
         "Create or cancel the selected calendar entry before saving the work profile.",
       );
-      return;
+      return false;
     }
 
     if (plannerViewValidationError) {
       onErrorChange(plannerViewValidationError);
-      return;
+      return false;
     }
 
     const normalizedWorkProfile = normalizeWorkProfile(workForm);
     const validationError = validateWorkProfile(normalizedWorkProfile);
     if (validationError) {
       onErrorChange(validationError);
-      return;
+      return false;
     }
 
     const nextUser = {
@@ -772,10 +772,12 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
       setSavedWorkProfile(normalizedWorkProfile);
       onDirtyChange?.(false);
       onStatusChange("Work profile saved.");
+      return true;
     } catch (error) {
       onErrorChange(
         error instanceof Error ? error.message : "Work profile could not be saved.",
       );
+      return false;
     }
   };
 

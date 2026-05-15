@@ -75,12 +75,14 @@ public class InvitationServiceTests
             7,
             createdByEmail: organizer.Email,
             firstName: "Member",
-            lastName: "Test");
+            lastName: "Test",
+            publicApiBaseUrl: "https://api.example.test/");
 
         Assert.That(result.Email, Is.EqualTo("member@test.com"));
         Assert.That(result.OrganizationId, Is.EqualTo(organization.Id));
         Assert.That(result.OrganizationName, Is.EqualTo(organization.Name));
         Assert.That(result.Status, Is.EqualTo("Open"));
+        Assert.That(result.InvitationLink, Does.StartWith("https://api.example.test/api/Invitation/"));
         Assert.That(result.InvitationLink, Does.Contain($"/api/Invitation/{result.Id}/accept-link"));
         Assert.That(result.EmailSent, Is.True);
         Assert.That(result.EmailError, Is.Null);
