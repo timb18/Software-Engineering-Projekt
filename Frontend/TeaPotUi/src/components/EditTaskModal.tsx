@@ -102,7 +102,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
       <div
-        className="bg-slate-900 rounded-3xl p-6 shadow-xl w-full max-w-lg"
+        className="bg-slate-900 rounded-3xl p-6 shadow-xl w-full max-w-lg max-h-[100vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-semibold text-slate-50 mb-4">Edit Task</h2>
