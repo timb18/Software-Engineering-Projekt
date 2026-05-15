@@ -816,11 +816,10 @@ const Tasks: FC = () => {
               locale="de"
               firstDay={1}
             />
-            {/* Visible range controls overlaid on the calendar toolbar */}
-            <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-end">
-              <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-slate-700/60 bg-slate-900/90 px-3 py-1 text-xs backdrop-blur">
-                <span className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                  Visible
+            <div className="mt-3 flex justify-end">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-900/80 px-3 py-1.5 text-xs">
+                <span className="text-[10px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
+                  Visible range
                 </span>
                 <input
                   type="time"
@@ -831,9 +830,9 @@ const Tasks: FC = () => {
                     setPlannerViewForm((f) => ({ ...f, startTime }));
                     savePlannerView(startTime, plannerViewForm.endTime);
                   }}
-                  className="w-20 bg-transparent text-xs text-slate-100 outline-none"
+                  className="w-16 bg-transparent text-xs font-medium text-slate-100 outline-none"
                 />
-                <span className="text-slate-600">–</span>
+                <span className="text-slate-600">to</span>
                 <input
                   type="time"
                   step={900}
@@ -843,7 +842,7 @@ const Tasks: FC = () => {
                     setPlannerViewForm((f) => ({ ...f, endTime }));
                     savePlannerView(plannerViewForm.startTime, endTime);
                   }}
-                  className="w-20 bg-transparent text-xs text-slate-100 outline-none"
+                  className="w-16 bg-transparent text-xs font-medium text-slate-100 outline-none"
                 />
               </div>
             </div>
