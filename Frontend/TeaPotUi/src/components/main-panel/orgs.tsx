@@ -196,6 +196,11 @@ const Orgs: FC = () => {
   const currentRole = (org: Org): "Admin" | "Member" =>
     org.adminEmails?.includes(user.email) ? "Admin" : "Member";
 
+  const memberCapacityText = (org: Org) =>
+    typeof org.maxUsers === "number" && org.maxUsers > 0
+      ? `${org.users.length}/${org.maxUsers}`
+      : `${org.users.length}`;
+
   const copyInvitationLink = async (link: string, inviteId: string) => {
     try {
       await navigator.clipboard.writeText(link);
@@ -797,7 +802,7 @@ const Orgs: FC = () => {
                       {currentRole(org)}
                     </span>
                     <span className="text-xs text-slate-400">
-                      {org.users.length} members
+                      {memberCapacityText(org)} members
                     </span>
                   </div>
                 </div>
@@ -887,6 +892,9 @@ const Orgs: FC = () => {
                     Member view
                   </span>
                 )}
+                <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
+                  {memberCapacityText(selectedOrg)} members
+                </span>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2 text-sm">

@@ -24,6 +24,7 @@ type UpdateMembershipRoleRequest = {
 type OrganizationApiResponse = {
   id: string;
   name: string;
+  maxUsers?: number;
   workProfileId?: string | null;
   users: Array<{
     id: string;
@@ -83,6 +84,7 @@ const sortMembers = (members: User[]) =>
 const mapOrganization = (org: OrganizationApiResponse): Org => ({
   id: org.id,
   name: org.name,
+  maxUsers: org.maxUsers,
   workProfileId: org.workProfileId ?? null,
   users: sortMembers(org.users.map(mapMember)),
   adminEmails: org.users
