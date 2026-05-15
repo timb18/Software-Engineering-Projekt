@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import type { Task } from "../util/types";
 import useUserStore from "../stores/user-store";
-import { updateTask, deleteTask } from "../util/task-api";
+import { updateTask, deleteTask, fetchTasks } from "../util/task-api";
 
 interface EditTaskModalProps {
   task: Task;
@@ -13,18 +13,35 @@ interface EditTaskModalProps {
 const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
   const { user, setUser, workProfileId } = useUserStore();
   const [form, setForm] = useState({
+    name: "",
+  description: "",
+  durationMinutes: 0,
+  priority: "medium" as Task["priority"],
+  status: "todo" as Task["status"],
+  intensity: "normal" as Task["intensity"],
+  deadline: "",
+  dependencies: [] as string[],
+  isFixed: false,
+  startDate: "",
+  endDate: "",
+  });
+  useEffect(() => {
+  setForm({
     name: task.name,
     description: task.description,
     durationMinutes: task.timeEstimateMinutes ?? 0,
     priority: (task.priority ?? "medium") as Task["priority"],
     status: (task.status ?? "todo") as Task["status"],
     intensity: (task.intensity ?? "normal") as Task["intensity"],
-    deadline: task.deadline ? dayjs(task.deadline).format("YYYY-MM-DDTHH:mm") : "",
-    dependencies: task.dependencies.map((d: { name: string }) => d.name),
+    deadline: task.deadline
+      ? dayjs(task.deadline).format("YYYY-MM-DDTHH:mm")
+      : "",
+    dependencies: task.dependencies.map((d) => d.id!),
     isFixed: task.isFixed ?? false,
     startDate: dayjs(task.startDate).format("YYYY-MM-DDTHH:mm"),
     endDate: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
   });
+}, [task]);
   const [error, setError] = useState<string | undefined>();
 
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -74,14 +91,15 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       priority: form.priority,
       status: form.status,
       deadline: dayjs(form.deadline).toDate(),
-      dependencies: dependencyOptions.filter((t) => form.dependencies.includes(t.name)),
+      dependencies: dependencyOptions.filter((t) => form.dependencies.includes(t.id!)),
       timeEstimateMinutes: form.durationMinutes,
       intensity: form.intensity,
     };
     try {
       const updated = await updateTask(workProfileId!, task.id!, newTask);
-      const updatedTasks = user.tasks?.map((t) => (t.id === updated.id ? updated : t)) ?? [];
-      setUser({ ...user, tasks: updatedTasks });
+      await fetchTasks(workProfileId!).then((fresh) => {
+        setUser({ ...user, tasks: fresh });
+      });
       onClose();
     } catch (e) {
       setError("Failed to save task.");
@@ -190,16 +208,16 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
           <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Dependencies</label>
           <div className="flex max-h-44 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/60 p-3">
             {dependencyOptions.map((dep) => {
-              const checked = form.dependencies.includes(dep.name);
+              const checked = form.dependencies.includes(dep.id!);
               return (
-                <label key={dep.name} className="flex items-center gap-2 text-sm text-slate-200">
+                <label key={dep.id} className="flex items-center gap-2 text-sm text-slate-200">
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={(e) => {
                       const next = e.target.checked
-                        ? [...form.dependencies, dep.name]
-                        : form.dependencies.filter((n) => n !== dep.name);
+                        ? [...form.dependencies, dep.id!]
+                        : form.dependencies.filter((n) => n !== dep.id!);
                       setForm({ ...form, dependencies: next });
                     }}
                   />
