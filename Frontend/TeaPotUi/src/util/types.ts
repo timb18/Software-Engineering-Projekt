@@ -54,6 +54,7 @@ export type User = {
 export type Org = {
   id: string;
   name: string;
+  description?: string;
   maxUsers?: number;
   auth0OrganizationId?: string;
   workProfileId?: string | null;

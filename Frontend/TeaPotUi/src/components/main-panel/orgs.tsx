@@ -17,6 +17,7 @@ const guidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const emailPattern = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 const invisibleEmailCharacters = /[\u200B-\u200D\uFEFF]/g;
+const personalWorkspaceDescription = "Auto-created personal workspace";
 const normalizeEmailInput = (email: string) =>
   email.trim().replace(invisibleEmailCharacters, "").toLowerCase();
 
@@ -200,6 +201,9 @@ const Orgs: FC = () => {
     typeof org.maxUsers === "number" && org.maxUsers > 0
       ? `${org.users.length}/${org.maxUsers}`
       : `${org.users.length}`;
+
+  const isPersonalWorkspace = (org: Org) =>
+    org.maxUsers === 1 && org.description === personalWorkspaceDescription;
 
   const copyInvitationLink = async (link: string, inviteId: string) => {
     try {
@@ -654,6 +658,13 @@ const Orgs: FC = () => {
     setDeleteError(null);
     setDeleteSuccess(null);
 
+    if (isPersonalWorkspace(org)) {
+      setDeleteError(
+        "Personal workspaces are required for your account and cannot be deleted here.",
+      );
+      return;
+    }
+
     if (!guidPattern.test(org.id)) {
       setDeleteError(
         "This organization is not loaded from the database yet. Reload after the backend is running, then try again.",
@@ -717,6 +728,9 @@ const Orgs: FC = () => {
     () => sortMembersByRole(selectedOrg?.users ?? []),
     [selectedOrg?.users],
   );
+  const selectedOrgIsPersonalWorkspace = selectedOrg
+    ? isPersonalWorkspace(selectedOrg)
+    : false;
 
   useEffect(() => {
     if (!isSelectedAdmin && activeTab !== "members") {
@@ -1139,9 +1153,9 @@ const Orgs: FC = () => {
                       Delete organization
                     </div>
                     <div className="mt-1 text-xs text-rose-100/80">
-                      All related data will be permanently deleted. The
-                      organization must be empty before it can be deleted. Enter
-                      the exact organization name to confirm.
+                      {selectedOrgIsPersonalWorkspace
+                        ? "This is your personal workspace. It is required for your account and cannot be deleted here."
+                        : "All related data will be permanently deleted. Enter the exact organization name to confirm."}
                     </div>
                     <div className="mt-2 flex gap-2 max-sm:flex-col">
                       <input
@@ -1154,6 +1168,7 @@ const Orgs: FC = () => {
                         onClick={() => void deleteOrg(selectedOrg)}
                         disabled={
                           !isSelectedAdmin ||
+                          selectedOrgIsPersonalWorkspace ||
                           deleteConfirm !== selectedOrg.name ||
                           isDeletingOrg
                         }
@@ -1175,6 +1190,12 @@ const Orgs: FC = () => {
                     {!isSelectedAdmin && (
                       <div className="text-xs text-rose-100/80">
                         Only admins can delete the organization.
+                      </div>
+                    )}
+                    {selectedOrgIsPersonalWorkspace && (
+                      <div className="mt-2 text-xs text-rose-100/80">
+                        Delete your work profile or account from Settings if you
+                        want to remove personal data.
                       </div>
                     )}
                   </div>

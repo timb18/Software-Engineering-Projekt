@@ -9,6 +9,7 @@ public class OrganizationService(
     IOrganizationRepository organizationRepository,
     IOptions<EmailOptions> emailOptions) : IOrganizationService
 {
+    private const string PersonalWorkspaceDescription = "Auto-created personal workspace";
     private readonly EmailOptions _emailOptions = emailOptions.Value;
 
     public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default)
@@ -105,6 +106,10 @@ public class OrganizationService(
 
         var organization = await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId, cancellationToken)
             ?? throw new KeyNotFoundException("Organization not found.");
+
+        if (organization.MaxUsers == 1 &&
+            string.Equals(organization.Description, PersonalWorkspaceDescription, StringComparison.Ordinal))
+            throw new InvalidOperationException("Personal workspaces cannot be deleted.");
 
         var initiatorMembership = organization.Memberships
             .FirstOrDefault(m => m.UserId == command.InitiatorUserId)

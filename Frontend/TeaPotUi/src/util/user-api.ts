@@ -18,7 +18,7 @@ export type EnsureUserPayload = {
 
 export type EnsureUserResponse = {
   userId: string;
-  workProfileId: string;
+  workProfileId: string | null;
 };
 
 export async function ensureUser(payload: EnsureUserPayload): Promise<EnsureUserResponse> {
