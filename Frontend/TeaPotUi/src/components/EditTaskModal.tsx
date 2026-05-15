@@ -15,7 +15,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
   const [form, setForm] = useState({
     name: task.name,
     description: task.description,
-    durationMinutes: dayjs(task.endDate).diff(dayjs(task.startDate), "minute"),
+    durationMinutes: task.timeEstimateMinutes ?? 0,
     priority: (task.priority ?? "medium") as Task["priority"],
     status: (task.status ?? "todo") as Task["status"],
     deadline: task.deadline ? dayjs(task.deadline).format("YYYY-MM-DDTHH:mm") : "",
@@ -70,6 +70,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       status: form.status,
       deadline: dayjs(form.deadline).toDate(),
       dependencies: dependencyOptions.filter((t) => form.dependencies.includes(t.name)),
+      timeEstimateMinutes: form.durationMinutes,
     };
     try {
       const updated = await updateTask(workProfileId!, task.id!, newTask);
@@ -98,7 +99,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
-      <div data-modal-backdrop="static"
+      <div
         className="bg-slate-900 rounded-3xl p-6 shadow-xl w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
@@ -158,6 +159,13 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
             type="datetime-local"
             value={form.deadline}
             onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+            className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+          />
+          <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Duration</label>
+          <input
+            type="number"
+            value={form.durationMinutes}
+            onChange={(e) => setForm({ ...form, durationMinutes: parseInt(e.target.value) })}
             className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
           />
           <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Dependencies</label>
