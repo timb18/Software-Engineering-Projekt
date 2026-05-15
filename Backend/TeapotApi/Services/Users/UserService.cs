@@ -8,8 +8,6 @@ namespace Services.Users;
 
 public class UserService(
     IUserRepository userRepository,
-    IOrganizationRepository organizationRepository,
-    IMembershipRepository membershipRepository,
     IWorkProfileRepository workProfileRepository,
     IUnitOfWork unitOfWork) : IUserService
 {

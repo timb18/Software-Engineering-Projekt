@@ -31,8 +31,6 @@ public class UserServiceTests
 
     private static UserService BuildService(TeapotDbContext db) => new(
         new UserRepository(db),
-        new OrganizationRepository(db),
-        new MembershipRepository(db),
         new WorkProfileRepository(db),
         new UnitOfWork(db));
 
@@ -95,6 +93,7 @@ public class UserServiceTests
 
         Assert.That(userId2, Is.EqualTo(userId1));
         Assert.That(workProfileId2, Is.EqualTo(workProfileId1));
+        Assert.That(workProfileId2, Is.Null);
     }
 
     [Test]

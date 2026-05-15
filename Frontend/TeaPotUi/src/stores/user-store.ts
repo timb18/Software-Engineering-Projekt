@@ -79,7 +79,7 @@ export const initForUser = async (
           : [];
     const activeOrganization =
       orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
-    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId;
+    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId ?? null;
 
     let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
     if (activeWorkProfileId && activeWorkProfileId !== workProfileId) {
