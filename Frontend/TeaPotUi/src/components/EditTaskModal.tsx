@@ -54,6 +54,10 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       setError("Duration must be greater than 0 minutes.");
       return;
     }
+    if (form.durationMinutes > 10000) {
+      setError("Duration is too long.");
+      return;
+    }
     const start = dayjs(form.startDate);
     const end = dayjs(form.endDate);
     if (!start.isValid() || !end.isValid() || end.isBefore(start)) {

@@ -115,6 +115,10 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
       setError("Duration must be greater than 0 minutes.");
       return;
     }
+    if (form.durationMinutes > 10000) {
+      setError("Duration is too long.");
+      return;
+    }
 
     const deadline = dayjs(form.deadline);
     if (!deadline.isValid()) {
