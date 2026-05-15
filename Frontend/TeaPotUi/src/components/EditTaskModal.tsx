@@ -18,6 +18,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
     durationMinutes: task.timeEstimateMinutes ?? 0,
     priority: (task.priority ?? "medium") as Task["priority"],
     status: (task.status ?? "todo") as Task["status"],
+    intensity: (task.intensity ?? "normal") as Task["intensity"],
     deadline: task.deadline ? dayjs(task.deadline).format("YYYY-MM-DDTHH:mm") : "",
     dependencies: task.dependencies.map((d: { name: string }) => d.name),
     isFixed: task.isFixed ?? false,
@@ -71,6 +72,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       deadline: dayjs(form.deadline).toDate(),
       dependencies: dependencyOptions.filter((t) => form.dependencies.includes(t.name)),
       timeEstimateMinutes: form.durationMinutes,
+      intensity: form.intensity,
     };
     try {
       const updated = await updateTask(workProfileId!, task.id!, newTask);
@@ -143,6 +145,16 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
             <option value="low">Low</option>
             <option value="medium">Medium</option>
             <option value="high">High</option>
+          </select>
+          <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Intensity</label>
+          <select
+            value={form.intensity}
+            onChange={(e) => setForm({ ...form, intensity: e.target.value as Task["intensity"] })}
+            className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+          >
+            <option value="light">Light</option>
+            <option value="normal">Normal</option>
+            <option value="intensive">Intensive</option>
           </select>
           <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Status</label>
           <select
