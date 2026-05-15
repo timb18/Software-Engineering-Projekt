@@ -196,16 +196,16 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button
+            onClick={handleDelete}
+            className="rounded-xl border border-red-300/60 bg-red-500/10 py-1 font-semibold text-red-100 hover:bg-red-500/20 mr-auto"
+          >
+            Delete
+          </button>
+          <button
             onClick={onClose}
             className="rounded-xl border border-rose-300/60 bg-rose-500/10 py-1 font-semibold text-rose-100 hover:bg-rose-500/20"
           >
             Cancel
-          </button>
-          <button
-            onClick={handleDelete}
-            className="rounded-xl border border-red-300/60 bg-red-500/10 py-1 font-semibold text-red-100 hover:bg-red-500/20"
-          >
-            Delete
           </button>
           <button
             onClick={submit}
