@@ -37,7 +37,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
+  const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]).filter((t) => t.id !== task.id);
 
 
   const submit = async () => {
