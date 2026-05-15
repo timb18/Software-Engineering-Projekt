@@ -236,8 +236,6 @@ public class InvitationService(
         sb.AppendLine();
         sb.AppendLine($"You have been invited to join the organization '{organization.Name}'!");
         sb.AppendLine();
-        sb.AppendLine($"Description: {organization.Description}");
-        sb.AppendLine();
         sb.AppendLine("Click the link below to sign in or create an account and then join the organization:");
         sb.AppendLine(acceptUrl);
         sb.AppendLine();
