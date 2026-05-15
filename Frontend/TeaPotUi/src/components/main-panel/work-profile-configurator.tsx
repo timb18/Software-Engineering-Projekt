@@ -401,6 +401,14 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveAfterCopyDay, isDirty, isSavingWorkProfile]);
 
+  useEffect(
+    () => () => {
+      onStatusChange(undefined);
+      onErrorChange(undefined);
+    },
+    [onErrorChange, onStatusChange],
+  );
+
   const handleCalendarSelect = (selectionInfo: DateSelectArg) => {
     const dayKey = getSingleDayFromRange(
       selectionInfo.start,
