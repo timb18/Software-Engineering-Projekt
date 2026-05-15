@@ -529,6 +529,10 @@ const Tasks: FC = () => {
       setError("Duration must be greater than 0 minutes.");
       return;
     }
+    if (form.durationMinutes > 10000){
+      setError("Duration is too long.");
+      return;
+    }
 
     const deadline = dayjs(form.deadline);
     if (!deadline.isValid()) {
@@ -945,12 +949,11 @@ const Tasks: FC = () => {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
           onClick={() => {
-            setCalendarDialogOpen(false);
             setError(undefined);
             setStatus(undefined);
           }}
         >
-          <div
+          <div data-modal-backdrop="static"
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
