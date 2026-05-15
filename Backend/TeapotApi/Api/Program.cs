@@ -22,7 +22,7 @@ if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
-// Add services to the container.
+// Register application services.
 builder.Services.AddTeapotServices();
 
 var jsonStringEnumConverter = new JsonStringEnumConverter(
