@@ -22,6 +22,8 @@ public static class SchemaUpgradeService
             ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name character varying(120);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url character varying(500);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone character varying(100);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS break_color text;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS org_colors text;
             UPDATE users
             SET display_name = COALESCE(NULLIF(display_name, ''), username),
                 timezone = COALESCE(NULLIF(timezone, ''), 'Europe/Berlin')

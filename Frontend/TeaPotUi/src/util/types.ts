@@ -36,6 +36,8 @@ export type User = {
   email: string;
   profileImage?: string;
   timezone?: string;
+  appearanceBreakColor?: string | null;
+  appearanceOrgColors?: string | null;
   plannerViewStart?: string; // HH:mm
   plannerViewEnd?: string; // HH:mm
   workProfile?: WorkProfile;

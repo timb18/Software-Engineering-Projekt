@@ -40,7 +40,9 @@ public class UserController(IUserService userService) : ControllerBase
                     request.DisplayName,
                     request.Email,
                     request.ProfileImageUrl,
-                    request.Timezone),
+                    request.Timezone,
+                    request.BreakColor,
+                    request.OrgColors),
                 cancellationToken);
 
             return Ok(ToResponse(profile));
@@ -61,14 +63,18 @@ public class UserController(IUserService userService) : ControllerBase
         profile.DisplayName,
         profile.Email,
         profile.ProfileImageUrl,
-        profile.Timezone);
+        profile.Timezone,
+        profile.BreakColor,
+        profile.OrgColors);
 }
 
 public sealed record UpdateUserProfileRequest(
     string DisplayName,
     string Email,
     string? ProfileImageUrl,
-    string? Timezone);
+    string? Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);
 
 public sealed record UserProfileResponse(
     Guid Id,
@@ -76,4 +82,6 @@ public sealed record UserProfileResponse(
     string DisplayName,
     string Email,
     string? ProfileImageUrl,
-    string Timezone);
+    string Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);

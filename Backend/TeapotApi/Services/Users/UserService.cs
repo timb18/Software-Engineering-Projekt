@@ -71,6 +71,10 @@ public class UserService(
         user.Email = normalizedEmail;
         user.ProfileImageUrl = normalizedProfileImageUrl;
         user.Timezone = normalizedTimezone;
+        if (command.BreakColor is not null)
+            user.BreakColor = NormalizeOptional(command.BreakColor);
+        if (command.OrgColors is not null)
+            user.OrgColors = NormalizeOptional(command.OrgColors);
         user.Username = BuildUsername(normalizedEmail, normalizedDisplayName);
         user.EditedAt = DateTime.UtcNow;
 
@@ -131,7 +135,9 @@ public class UserService(
         user.DisplayName ?? user.Username ?? BuildUsername(user.Email, user.DisplayName),
         user.Email,
         user.ProfileImageUrl,
-        user.Timezone ?? "Europe/Berlin");
+        user.Timezone ?? "Europe/Berlin",
+        user.BreakColor,
+        user.OrgColors);
 
     private static string BuildUsername(string email, string? displayName)
     {

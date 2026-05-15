@@ -12,10 +12,14 @@ import { HexColorPicker, HexColorInput } from "react-colorful";
 import {
   getBreakColor,
   getOrgColor,
+  parseColorPreference,
+  parseOrgColorPreferences,
   setBreakColor,
   setOrgColor,
   rgbToHex,
   hexToRgb,
+  serializeColorPreference,
+  serializeOrgColorPreferences,
   DEFAULT_ORG_COLOR,
   DEFAULT_BREAK_COLOR,
   type RgbColor,
@@ -145,6 +149,8 @@ const User: FC = () => {
   const [status, setStatus] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingAppearance, setIsSavingAppearance] = useState(false);
+  const [isAppearanceDirty, setIsAppearanceDirty] = useState(false);
   const [profileForm, setProfileForm] = useState({
     displayName: userFromDb.displayName ?? userFromDb.username,
     email: userFromDb.email,
@@ -156,23 +162,26 @@ const User: FC = () => {
 
   // ── Appearance / color state ──────────────────────────────────────────
   const initOrgColors = () => {
+    const savedOrgColors = parseOrgColorPreferences(userFromDb.appearanceOrgColors);
     const map: Record<string, RgbColor> = {};
-    for (const org of userFromDb.orgs ?? []) map[org.id] = getOrgColor(org.id);
+    for (const org of userFromDb.orgs ?? []) {
+      map[org.id] = savedOrgColors[org.id] ?? getOrgColor(org.id);
+    }
     return map;
   };
   const [orgColors, setOrgColorsState] =
     useState<Record<string, RgbColor>>(initOrgColors);
   const [breakColorState, setBreakColorState] = useState<RgbColor>(() =>
-    getBreakColor(),
+    parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()),
   );
 
   const updateOrgColor = (orgId: string, color: RgbColor) => {
-    setOrgColor(orgId, color);
     setOrgColorsState((prev) => ({ ...prev, [orgId]: color }));
+    setIsAppearanceDirty(true);
   };
   const updateBreakColorState = (color: RgbColor) => {
-    setBreakColor(color);
     setBreakColorState(color);
+    setIsAppearanceDirty(true);
   };
   // ─────────────────────────────────────────────────────────────────────
 
@@ -203,6 +212,12 @@ const User: FC = () => {
       profileImageUrl: userFromDb.profileImage ?? userFromAuth?.picture ?? "",
     });
   }, [userFromAuth?.picture, userFromDb]);
+
+  useEffect(() => {
+    setOrgColorsState(initOrgColors());
+    setBreakColorState(parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()));
+    setIsAppearanceDirty(false);
+  }, [userFromDb.appearanceBreakColor, userFromDb.appearanceOrgColors, userFromDb.orgs]);
 
   /* const avatarStyle = useMemo(() => {
     if (profileForm.profileImage?.startsWith("http")) {
@@ -276,6 +291,11 @@ const User: FC = () => {
       return;
     }
 
+    if (!profileForm.displayName.trim()) {
+      setError("Name is required.");
+      return;
+    }
+
     setIsSavingProfile(true);
 
     try {
@@ -304,6 +324,64 @@ const User: FC = () => {
       );
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const saveAppearance = async () => {
+    setStatus(undefined);
+    setError(undefined);
+
+    if (!hasBackendUserId(userFromDb.id)) {
+      setError("User profile is not initialized yet.");
+      return;
+    }
+
+    if (!profileForm.displayName.trim()) {
+      setError("Name is required.");
+      return;
+    }
+
+    const breakColor = serializeColorPreference(breakColorState);
+    const orgColorPrefs = serializeOrgColorPreferences(orgColors);
+
+    setIsSavingAppearance(true);
+
+    try {
+      const savedProfile = await updateUserProfile(userFromDb.id, {
+        displayName: profileForm.displayName.trim(),
+        email: profileForm.email.trim(),
+        profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
+        timezone: profileForm.timezone.trim() || "Europe/Berlin",
+        breakColor,
+        orgColors: orgColorPrefs,
+      });
+
+      setBreakColor(breakColorState);
+      for (const [orgId, color] of Object.entries(orgColors)) {
+        setOrgColor(orgId, color);
+      }
+
+      setUser({
+        ...userFromDb,
+        id: savedProfile.id,
+        username: savedProfile.username,
+        displayName: savedProfile.displayName,
+        email: savedProfile.email,
+        profileImage: savedProfile.profileImageUrl,
+        timezone: savedProfile.timezone,
+        appearanceBreakColor: savedProfile.breakColor,
+        appearanceOrgColors: savedProfile.orgColors,
+      });
+      setIsAppearanceDirty(false);
+      setStatus("Appearance saved.");
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Appearance could not be saved.",
+      );
+    } finally {
+      setIsSavingAppearance(false);
     }
   };
 
@@ -688,8 +766,18 @@ const User: FC = () => {
 
         {tab === "appearance" && (
           <div className="flex flex-col gap-6">
-            <div className="text-xs tracking-[0.2em] text-slate-400 uppercase">
-              Calendar colors
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs tracking-[0.2em] text-slate-400 uppercase">
+                Calendar colors
+              </div>
+              <button
+                type="button"
+                onClick={saveAppearance}
+                disabled={isSavingAppearance || !isAppearanceDirty}
+                className="w-fit rounded-xl border border-emerald-300/60 bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400"
+              >
+                {isSavingAppearance ? "Saving..." : "Save appearance"}
+              </button>
             </div>
 
             {/* Break color */}

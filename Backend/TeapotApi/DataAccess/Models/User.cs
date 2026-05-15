@@ -16,6 +16,10 @@ public class User
 
     public string? Timezone { get; set; }
 
+    public string? BreakColor { get; set; }
+
+    public string? OrgColors { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? EditedAt { get; set; }

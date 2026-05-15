@@ -20,6 +20,8 @@ import { saveWorkProfile } from "../../util/work-profile-api";
 import {
   getBreakColor,
   getOrgColor,
+  isDarkColor,
+  readableTextColor,
   rgbToCss,
   type RgbColor,
 } from "../../util/color-prefs";
@@ -224,6 +226,7 @@ const Tasks: FC = () => {
         while (date.day() !== targetDow) date = date.add(1, "day");
         while (date.isBefore(windowEnd)) {
           const breakC = getBreakColor();
+          const isDarkBreak = isDarkColor(breakC);
           void colorVersion;
           breakEvents.push({
             id: `break-${workBreak.id}-${date.format("YYYY-MM-DD")}`,
@@ -232,8 +235,8 @@ const Tasks: FC = () => {
             end: date.hour(eh).minute(em).second(0).toDate(),
             backgroundColor: rgbToCss(breakC, 0.15),
             borderColor: rgbToCss(breakC, 0.45),
-            textColor: rgbToCss(breakC, 1),
-            classNames: ["break-event"],
+            textColor: readableTextColor(breakC),
+            classNames: ["break-event", isDarkBreak ? "is-dark-event-color" : "is-light-event-color"],
             editable: true,
             extendedProps: {
               type: "break",
@@ -252,6 +255,7 @@ const Tasks: FC = () => {
     .map((t) => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
+      const isDarkTask = isDarkColor(c);
       void colorVersion; // reactive dependency
       return {
         id: t.id ?? `task-${t.name}`,
@@ -260,9 +264,10 @@ const Tasks: FC = () => {
         end: t.endDate,
         backgroundColor: rgbToCss(c, 0.22),
         borderColor: t.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
-        textColor: "#f0fdf4",
+        textColor: readableTextColor(c),
         classNames: [
           "task-event",
+          isDarkTask ? "is-dark-event-color" : "is-light-event-color",
           t.isFixed ? "task-fixed" : "",
           (t.status ?? "todo") === "done" ? "task-done" : "",
         ].filter(Boolean),
