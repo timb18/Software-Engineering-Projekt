@@ -204,6 +204,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     { kind: "success" | "error"; text: string } | null
   >(null);
   const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
+  const [saveAfterCopyDay, setSaveAfterCopyDay] = useState(false);
 
   const [colorVersion, setColorVersion] = useState(0);
   useEffect(() => {
@@ -214,6 +215,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
   const {
     workForm,
+    isDirty,
     companyOptions,
     workSummary,
     showEncouragement,
@@ -388,6 +390,16 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       setIsSavingWorkProfile(false);
     }
   };
+
+  useEffect(() => {
+    if (!saveAfterCopyDay || !isDirty || isSavingWorkProfile) {
+      return;
+    }
+
+    setSaveAfterCopyDay(false);
+    void saveWork();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveAfterCopyDay, isDirty, isSavingWorkProfile]);
 
   const handleCalendarSelect = (selectionInfo: DateSelectArg) => {
     const dayKey = getSingleDayFromRange(
@@ -724,9 +736,15 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     <button
                       type="button"
                       disabled={copyDayTargets.length === 0}
-                      onClick={() =>
-                        copyDayScheduleTo(copyDaySource, copyDayTargets)
-                      }
+                      onClick={() => {
+                        const copied = copyDayScheduleTo(
+                          copyDaySource,
+                          copyDayTargets,
+                        );
+                        if (copied) {
+                          setSaveAfterCopyDay(true);
+                        }
+                      }}
                       className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Apply copy
