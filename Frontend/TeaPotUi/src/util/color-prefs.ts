@@ -6,6 +6,70 @@ export const DEFAULT_BREAK_COLOR: RgbColor = { r: 245, g: 158, b: 11 }; // amber
 const orgKey = (orgId: string) => `teapot-color-org-${orgId}`;
 const BREAK_KEY = "teapot-color-breaks";
 
+const isRgbColor = (value: unknown): value is RgbColor => {
+  const color = value as Partial<RgbColor> | undefined;
+  return (
+    typeof color?.r === "number" &&
+    typeof color.g === "number" &&
+    typeof color.b === "number"
+  );
+};
+
+export function parseColorPreference(
+  raw: string | null | undefined,
+  fallback: RgbColor,
+): RgbColor {
+  if (!raw) return { ...fallback };
+
+  try {
+    const parsed = JSON.parse(raw);
+    return isRgbColor(parsed) ? parsed : { ...fallback };
+  } catch {
+    return { ...fallback };
+  }
+}
+
+export function parseOrgColorPreferences(
+  raw: string | null | undefined,
+): Record<string, RgbColor> {
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+    return Object.entries(parsed).reduce<Record<string, RgbColor>>(
+      (colors, [orgId, color]) => {
+        if (isRgbColor(color)) colors[orgId] = color;
+        return colors;
+      },
+      {},
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function serializeColorPreference(color: RgbColor): string {
+  return JSON.stringify(color);
+}
+
+export function serializeOrgColorPreferences(
+  colors: Record<string, RgbColor>,
+): string {
+  return JSON.stringify(colors);
+}
+
+export function applyStoredColorPreferences(
+  breakColor: string | null | undefined,
+  orgColors: string | null | undefined,
+): void {
+  setBreakColor(parseColorPreference(breakColor, DEFAULT_BREAK_COLOR));
+  for (const [orgId, color] of Object.entries(parseOrgColorPreferences(orgColors))) {
+    setOrgColor(orgId, color);
+  }
+}
+
 export function getOrgColor(orgId: string): RgbColor {
   try {
     const raw = localStorage.getItem(orgKey(orgId));
@@ -34,6 +98,15 @@ export function setBreakColor(color: RgbColor): void {
 
 export function rgbToCss(c: RgbColor, alpha = 1): string {
   return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+}
+
+export function isDarkColor(c: RgbColor): boolean {
+  const luminance = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return luminance < 88;
+}
+
+export function readableTextColor(c: RgbColor): string {
+  return isDarkColor(c) ? "#f8fafc" : "#0f172a";
 }
 
 export function rgbToHex(c: RgbColor): string {

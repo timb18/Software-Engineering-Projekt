@@ -73,7 +73,7 @@ public class AuthControllerTests
     }
 
     [Test]
-    public async Task EnsureUser_CreatesMissingUserWithoutOrganizationOrWorkProfile()
+    public async Task EnsureUser_CreatesMissingUserWithoutPersonalWorkspace()
     {
         var result = await _controller.EnsureUser(
             new EnsureUserRequest("ensure-user@test.com", "auth0|ensure", "Ensure User", "https://example.com/u.png"),

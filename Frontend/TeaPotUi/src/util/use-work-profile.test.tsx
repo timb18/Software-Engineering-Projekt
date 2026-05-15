@@ -613,6 +613,51 @@ describe("useWorkProfile – saveWork", () => {
     expect(result.current.isDirty).toBe(true);
     expect(callbacks.onErrorChange).toHaveBeenCalledWith("save failed");
   });
+
+  it("saves copied day entries in the work profile payload", async () => {
+    const profile: WorkProfile = {
+      days: [
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [createWorkBreak("12:00", "12:30")],
+        },
+        ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
+          day: d as never,
+          blocks: [],
+          breaks: [],
+        })),
+      ],
+    };
+    const callbacks = makeCallbacks();
+    const { result } = renderHook(() =>
+      useWorkProfile(userWithProfile(profile), callbacks),
+    );
+
+    act(() => {
+      expect(result.current.copyDayScheduleTo("Mon", ["Tue"])).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.saveWork("06:00", "22:00");
+    });
+
+    const savedUser = callbacks.onSaveUser.mock.calls[0][0] as User;
+    const tuesday = savedUser.workProfile?.days.find((day) => day.day === "Tue");
+
+    expect(tuesday?.blocks).toHaveLength(1);
+    expect(tuesday?.blocks[0]).toMatchObject({
+      companyId: company.id,
+      companyName: company.name,
+      startTime: "09:00",
+      endTime: "17:00",
+    });
+    expect(tuesday?.breaks).toHaveLength(1);
+    expect(tuesday?.breaks[0]).toMatchObject({
+      startTime: "12:00",
+      endTime: "12:30",
+    });
+  });
 });
 
 // ── useWorkProfile – onDirtyChange callback ───────────────────────────────────

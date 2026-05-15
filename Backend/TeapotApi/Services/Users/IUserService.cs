@@ -21,10 +21,14 @@ public sealed record UserProfileDto(
     string DisplayName,
     string Email,
     string? ProfileImageUrl,
-    string Timezone);
+    string Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);
 
 public sealed record UpdateUserProfileCommand(
     string DisplayName,
     string Email,
     string? ProfileImageUrl,
-    string? Timezone);
+    string? Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);

@@ -401,4 +401,41 @@ public class OrganizationServiceTests
         Assert.ThrowsAsync<ArgumentException>(async () =>
             await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, "wrong name")));
     }
+
+    [Test]
+    public void DeleteOrganizationAsync_Throws_When_Organization_Is_Personal_Workspace()
+    {
+        var organizer = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "organizer@example.com",
+            Username = "org",
+            CreatedAt = DateTime.UtcNow
+        };
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = "Personal (organizer@example.com)",
+            Description = "Auto-created personal workspace",
+            MaxUsers = 1,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(organizer);
+        _dbContext.Organizations.Add(organization);
+        _dbContext.Memberships.Add(new Membership
+        {
+            Id = Guid.NewGuid(),
+            UserId = organizer.Id,
+            OrganizationId = organization.Id,
+            Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow
+        });
+        _dbContext.SaveChanges();
+
+        var exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, organization.Name)));
+
+        Assert.That(exception!.Message, Is.EqualTo("Personal workspaces cannot be deleted."));
+    }
 }

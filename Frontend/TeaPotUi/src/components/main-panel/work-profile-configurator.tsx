@@ -27,7 +27,13 @@ import {
   timeToMinutes,
 } from "../../util/work-profile";
 import { useWorkProfile } from "../../util/use-work-profile";
-import { getBreakColor, getOrgColor, rgbToCss } from "../../util/color-prefs";
+import {
+  getBreakColor,
+  getOrgColor,
+  isDarkColor,
+  readableTextColor,
+  rgbToCss,
+} from "../../util/color-prefs";
 import "./work-profile-configurator.css";
 
 type WorkProfileConfiguratorProps = {
@@ -200,6 +206,11 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       endTime: user.plannerViewEnd ?? DEFAULT_PLANNER_VIEW_END,
     }),
   );
+  const [saveFeedback, setSaveFeedback] = useState<
+    { kind: "success" | "error"; text: string } | null
+  >(null);
+  const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
+  const [saveAfterCopyDay, setSaveAfterCopyDay] = useState(false);
 
   const [colorVersion, setColorVersion] = useState(0);
   useEffect(() => {
@@ -210,6 +221,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
   const {
     workForm,
+    isDirty,
     companyOptions,
     workSummary,
     showEncouragement,
@@ -312,6 +324,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       ...workForm.days.flatMap((day) =>
         day.blocks.map((block) => {
           const c = getOrgColor(block.companyId);
+          const isDarkShift = isDarkColor(c);
           return {
             id: block.id,
             title: "",
@@ -319,8 +332,11 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
             end: getDateForShiftTime(day.day, block.endTime),
             backgroundColor: rgbToCss(c, 0.22),
             borderColor: rgbToCss(c, 0.55),
-            textColor: "#f0fdf4",
-            classNames: ["work-shift-event"],
+            textColor: readableTextColor(c),
+            classNames: [
+              "work-shift-event",
+              isDarkShift ? "is-dark-event-color" : "is-light-event-color",
+            ],
             extendedProps: {
               label:
                 companyOptions.find((c) => c.id === block.companyId)?.name ??
@@ -335,6 +351,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       ),
       ...workForm.days.flatMap((day) => {
         const bc = getBreakColor();
+        const isDarkBreak = isDarkColor(bc);
         return day.breaks.map((workBreak) => ({
           id: `break-${workBreak.id}`,
           title: "",
@@ -342,8 +359,11 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
           end: getDateForShiftTime(day.day, workBreak.endTime),
           backgroundColor: rgbToCss(bc, 0.15),
           borderColor: rgbToCss(bc, 0.45),
-          textColor: rgbToCss(bc, 1),
-          classNames: ["work-break-event"],
+          textColor: readableTextColor(bc),
+          classNames: [
+            "work-break-event",
+            isDarkBreak ? "is-dark-event-color" : "is-light-event-color",
+          ],
           extendedProps: { label: "Break" },
         }));
       }),
@@ -364,13 +384,44 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     calendarRef.current?.getApi().unselect();
   };
 
-  const saveWork = () => {
-    saveWorkAction(
-      plannerViewForm.startTime,
-      plannerViewForm.endTime,
-      plannerViewWindow.validationError,
-    );
+  const saveWork = async () => {
+    setIsSavingWorkProfile(true);
+    setSaveFeedback(null);
+
+    try {
+      const saved = await saveWorkAction(
+        plannerViewForm.startTime,
+        plannerViewForm.endTime,
+        plannerViewWindow.validationError,
+      );
+
+      setSaveFeedback(
+        saved
+          ? { kind: "success", text: "Work profile saved." }
+          : { kind: "error", text: "Work profile could not be saved." },
+      );
+    } finally {
+      setIsSavingWorkProfile(false);
+    }
   };
+
+  useEffect(() => {
+    if (!saveAfterCopyDay || !isDirty || isSavingWorkProfile) {
+      return;
+    }
+
+    setSaveAfterCopyDay(false);
+    void saveWork();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveAfterCopyDay, isDirty, isSavingWorkProfile]);
+
+  useEffect(
+    () => () => {
+      onStatusChange(undefined);
+      onErrorChange(undefined);
+    },
+    [onErrorChange, onStatusChange],
+  );
 
   const handleCalendarSelect = (selectionInfo: DateSelectArg) => {
     const dayKey = getSingleDayFromRange(
@@ -509,11 +560,24 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
           <button
             type="button"
             onClick={saveWork}
-            className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
+            disabled={isSavingWorkProfile}
+            className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Save work profile
+            {isSavingWorkProfile ? "Saving..." : "Save work profile"}
           </button>
         </div>
+        {saveFeedback && (
+          <div
+            className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+              saveFeedback.kind === "success"
+                ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-100"
+                : "border-rose-300/40 bg-rose-500/10 text-rose-100"
+            }`}
+            role="status"
+          >
+            {saveFeedback.text}
+          </div>
+        )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
@@ -694,9 +758,15 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                     <button
                       type="button"
                       disabled={copyDayTargets.length === 0}
-                      onClick={() =>
-                        copyDayScheduleTo(copyDaySource, copyDayTargets)
-                      }
+                      onClick={() => {
+                        const copied = copyDayScheduleTo(
+                          copyDaySource,
+                          copyDayTargets,
+                        );
+                        if (copied) {
+                          setSaveAfterCopyDay(true);
+                        }
+                      }}
                       className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Apply copy
@@ -804,7 +874,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
           onClick={closeEntryDialog}
         >
           <div
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
+            className="work-profile-entry-dialog max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -852,11 +922,11 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
               (!pendingSelection && selectedShiftDetails)) && (
               <div className="mt-5 flex flex-col gap-4">
                 {/* Entry type toggle */}
-                <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 p-1">
+                <div className="work-profile-entry-toggle flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 p-1">
                   <button
                     type="button"
                     disabled
-                    className="flex-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100"
+                    className="work-profile-entry-active-shift flex-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100"
                   >
                     Shift
                   </button>
@@ -876,7 +946,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                         );
                       }
                     }}
-                    className="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+                    className="work-profile-entry-option flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
                   >
                     Break
                   </button>
@@ -1084,7 +1154,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
               (!pendingSelection && selectedBreakDetails)) && (
               <div className="mt-5 flex flex-col gap-4">
                 {/* Entry type toggle */}
-                <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 p-1">
+                <div className="work-profile-entry-toggle flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 p-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -1101,14 +1171,14 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
                         );
                       }
                     }}
-                    className="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+                    className="work-profile-entry-option flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
                   >
                     Shift
                   </button>
                   <button
                     type="button"
                     disabled
-                    className="flex-1 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-100"
+                    className="work-profile-entry-active-break flex-1 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-100"
                   >
                     Break
                   </button>

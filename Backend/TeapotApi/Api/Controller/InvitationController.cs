@@ -33,6 +33,7 @@ public class InvitationController : ControllerBase
                 request.CreatedByEmail,
                 request.FirstName,
                 request.LastName,
+                ResolvePublicApiBaseUrl(),
                 cancellationToken);
 
             return Ok(new { success = true, message = "Invite sent:", data = result });
@@ -178,6 +179,44 @@ public class InvitationController : ControllerBase
 
         return url;
     }
+
+    private string ResolvePublicApiBaseUrl()
+    {
+        var configuredBaseUrl = TrimTrailingSlash(_emailOptions.ApiBaseUrl);
+        var requestBaseUrl = BuildRequestBaseUrl();
+
+        return !string.IsNullOrWhiteSpace(requestBaseUrl) &&
+               (string.IsNullOrWhiteSpace(configuredBaseUrl) || IsLocalBaseUrl(configuredBaseUrl))
+            ? requestBaseUrl
+            : configuredBaseUrl;
+    }
+
+    private string BuildRequestBaseUrl()
+    {
+        var forwardedProto = Request.Headers["X-Forwarded-Proto"]
+            .FirstOrDefault()?
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+        var forwardedHost = Request.Headers["X-Forwarded-Host"]
+            .FirstOrDefault()?
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+
+        var scheme = string.IsNullOrWhiteSpace(forwardedProto) ? Request.Scheme : forwardedProto;
+        var host = string.IsNullOrWhiteSpace(forwardedHost) ? Request.Host.Value : forwardedHost;
+
+        return string.IsNullOrWhiteSpace(host)
+            ? string.Empty
+            : TrimTrailingSlash($"{scheme}://{host}{Request.PathBase}");
+    }
+
+    private static bool IsLocalBaseUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.Equals("[::1]", StringComparison.OrdinalIgnoreCase));
+
+    private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 }
 
 public class SendInvitationRequest

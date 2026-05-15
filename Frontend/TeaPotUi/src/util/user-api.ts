@@ -7,6 +7,8 @@ export type UserProfile = {
   email: string;
   profileImageUrl?: string;
   timezone: string;
+  breakColor?: string | null;
+  orgColors?: string | null;
 };
 
 export type EnsureUserPayload = {

@@ -36,6 +36,8 @@ export type User = {
   email: string;
   profileImage?: string;
   timezone?: string;
+  appearanceBreakColor?: string | null;
+  appearanceOrgColors?: string | null;
   plannerViewStart?: string; // HH:mm
   plannerViewEnd?: string; // HH:mm
   workProfile?: WorkProfile;
@@ -54,6 +56,8 @@ export type User = {
 export type Org = {
   id: string;
   name: string;
+  description?: string;
+  maxUsers?: number;
   auth0OrganizationId?: string;
   workProfileId?: string | null;
   users: User[];

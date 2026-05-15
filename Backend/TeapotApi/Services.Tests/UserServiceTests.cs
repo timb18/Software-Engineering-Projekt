@@ -37,7 +37,7 @@ public class UserServiceTests
     // ── EnsureUserAsync – new user ────────────────────────────────────────────
 
     [Test]
-    public async Task EnsureUserAsync_Returns_Non_Empty_Ids_For_New_Email()
+    public async Task EnsureUserAsync_Returns_UserId_And_No_WorkProfile_For_New_Email()
     {
         var (userId, workProfileId) = await _service.EnsureUserAsync("new@example.com");
 
@@ -56,7 +56,7 @@ public class UserServiceTests
     }
 
     [Test]
-    public async Task EnsureUserAsync_Does_Not_Create_WorkProfile_Row_In_Database()
+    public async Task EnsureUserAsync_Does_Not_Create_WorkProfile_Row_For_New_User()
     {
         var (_, workProfileId) = await _service.EnsureUserAsync("profile@example.com");
 
@@ -76,7 +76,7 @@ public class UserServiceTests
     }
 
     [Test]
-    public async Task EnsureUserAsync_Does_Not_Create_Personal_Membership()
+    public async Task EnsureUserAsync_Does_Not_Create_Membership_For_New_User()
     {
         await _service.EnsureUserAsync("organizer@example.com");
 
@@ -107,12 +107,17 @@ public class UserServiceTests
     }
 
     [Test]
-    public async Task EnsureUserAsync_Does_Not_Create_WorkProfile_Rows_On_Repeated_Calls()
+    public async Task EnsureUserAsync_Does_Not_Create_WorkProfiles_On_Repeated_Login()
     {
         await _service.EnsureUserAsync("dup-wp@example.com");
         await _service.EnsureUserAsync("dup-wp@example.com");
 
-        Assert.That(_dbContext.Set<WorkProfile>().Any(), Is.False);
+        var userId = _dbContext.Set<User>().First(u => u.Email == "dup-wp@example.com").Id;
+        var profileCount = _dbContext.Set<WorkProfile>()
+            .Include(wp => wp.Membership)
+            .Count(wp => wp.Membership.UserId == userId);
+
+        Assert.That(profileCount, Is.EqualTo(0));
     }
 
     // ── EnsureUserAsync – different users are independent ────────────────────

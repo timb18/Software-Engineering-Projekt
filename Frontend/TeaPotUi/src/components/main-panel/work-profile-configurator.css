@@ -272,70 +272,23 @@
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-0 {
-  border-color: rgba(5, 150, 105, 0.48) !important;
-  background: rgba(16, 185, 129, 0.15) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-0.is-selected-shift {
-  border-color: rgba(5, 150, 105, 0.75) !important;
-  background: rgba(16, 185, 129, 0.24) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-1 {
-  border-color: rgba(2, 132, 199, 0.48) !important;
-  background: rgba(14, 165, 233, 0.15) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-1.is-selected-shift {
-  border-color: rgba(2, 132, 199, 0.75) !important;
-  background: rgba(14, 165, 233, 0.24) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-2 {
-  border-color: rgba(124, 58, 237, 0.45) !important;
-  background: rgba(139, 92, 246, 0.14) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-2.is-selected-shift {
-  border-color: rgba(124, 58, 237, 0.72) !important;
-  background: rgba(139, 92, 246, 0.22) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-3 {
-  border-color: rgba(225, 29, 72, 0.42) !important;
-  background: rgba(244, 63, 94, 0.13) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-3.is-selected-shift {
-  border-color: rgba(225, 29, 72, 0.68) !important;
-  background: rgba(244, 63, 94, 0.2) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-4 {
-  border-color: rgba(217, 119, 6, 0.45) !important;
-  background: rgba(245, 158, 11, 0.14) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.work-shift-company-4.is-selected-shift {
-  border-color: rgba(217, 119, 6, 0.72) !important;
-  background: rgba(245, 158, 11, 0.22) !important;
-}
-
-:root[data-theme="light"] .work-planner-calendar .fc .work-break-event {
-  border-color: rgba(217, 119, 6, 0.48) !important;
-  background: rgba(245, 158, 11, 0.14) !important;
-}
-
+:root[data-theme="light"] .work-planner-calendar .fc .work-shift-event.is-selected-shift,
 :root[data-theme="light"] .work-planner-calendar .fc .work-break-event.is-selected-shift {
-  border-color: rgba(217, 119, 6, 0.75) !important;
-  background: rgba(245, 158, 11, 0.23) !important;
+  box-shadow:
+    0 0 0 2px rgba(15, 23, 42, 0.16),
+    0 10px 22px rgba(15, 23, 42, 0.1);
 }
 
 :root[data-theme="light"] .work-planner-calendar .fc .work-shift-time,
 :root[data-theme="light"] .work-planner-calendar .fc .work-shift-label,
 :root[data-theme="light"] .work-planner-calendar .fc .fc-event-main {
   color: #0f172a !important;
+}
+
+:root[data-theme="light"] .work-planner-calendar .fc .is-dark-event-color .work-shift-time,
+:root[data-theme="light"] .work-planner-calendar .fc .is-dark-event-color .work-shift-label,
+:root[data-theme="light"] .work-planner-calendar .fc .is-dark-event-color .fc-event-main {
+  color: #f8fafc !important;
 }
 
 :root[data-theme="light"] .work-planner-calendar .fc .work-shift-label {
@@ -349,6 +302,57 @@
     rgba(16, 185, 129, 0.06) 55%,
     rgba(16, 185, 129, 0.01) 100%
   ) !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .text-slate-100,
+:root[data-theme="light"] .work-profile-entry-dialog .text-slate-50 {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .text-slate-400,
+:root[data-theme="light"] .work-profile-entry-dialog .text-slate-500 {
+  color: #475569 !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .text-emerald-100 {
+  color: #065f46 !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .text-amber-100 {
+  color: #92400e !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog input,
+:root[data-theme="light"] .work-profile-entry-dialog select {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .work-profile-entry-toggle,
+:root[data-theme="light"] .work-profile-entry-dialog .bg-slate-950\/70 {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .work-profile-entry-option {
+  color: #475569 !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .work-profile-entry-active-shift {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #065f46 !important;
+}
+
+:root[data-theme="light"] .work-profile-entry-dialog .work-profile-entry-active-break {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #92400e !important;
 }
 
 :root[data-theme="light"] .work-planner-calendar .fc-scroller::-webkit-scrollbar {

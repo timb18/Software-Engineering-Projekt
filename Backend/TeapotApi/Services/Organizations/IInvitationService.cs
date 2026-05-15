@@ -13,6 +13,7 @@ public interface IInvitationService
         string? createdByEmail = null,
         string? firstName = null,
         string? lastName = null,
+        string? publicApiBaseUrl = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

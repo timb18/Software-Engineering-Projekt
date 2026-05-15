@@ -8,6 +8,7 @@ import { fetchTasks, createTask, updateTask, deleteTask } from "../util/task-api
 import { fetchWorkProfile } from "../util/work-profile-api";
 import { ensureUser, fetchUserProfile } from "../util/user-api";
 import { fetchOrganizationsByUserEmail } from "../util/org-api";
+import { applyStoredColorPreferences } from "../util/color-prefs";
 
 type UserStore = {
   user: User;
@@ -59,6 +60,7 @@ export const initForUser = async (
       profileImageUrl,
     });
     const profile = await fetchUserProfile(userId);
+    applyStoredColorPreferences(profile.breakColor, profile.orgColors);
 
     const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
       workProfileId ? fetchTasks(workProfileId) : Promise.resolve([]),
@@ -108,6 +110,8 @@ export const initForUser = async (
         email: profile.email,
         profileImage: profile.profileImageUrl,
         timezone: profile.timezone,
+        appearanceBreakColor: profile.breakColor,
+        appearanceOrgColors: profile.orgColors,
         tasks,
         workProfile: workProfile ?? undefined,
         hasPersistedWorkProfile: workProfile !== null,
