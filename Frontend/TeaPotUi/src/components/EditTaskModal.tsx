@@ -97,9 +97,8 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
     >
-      <div
+      <div data-modal-backdrop="static"
         className="bg-slate-900 rounded-3xl p-6 shadow-xl w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
