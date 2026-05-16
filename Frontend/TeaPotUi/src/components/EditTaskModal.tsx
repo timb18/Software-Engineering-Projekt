@@ -96,7 +96,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       intensity: form.intensity,
     };
     try {
-      const updated = await updateTask(workProfileId!, task.id!, newTask);
+      await updateTask(workProfileId!, task.id!, newTask);
       await fetchTasks(workProfileId!).then((fresh) => {
         setUser({ ...user, tasks: fresh });
       });
