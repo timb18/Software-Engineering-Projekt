@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import type { Task } from "../util/types";
 import useUserStore from "../stores/user-store";
-import { updateTask, deleteTask } from "../util/task-api";
+import { updateTask, deleteTask, fetchTasks } from "../util/task-api";
 
 interface EditTaskModalProps {
   task: Task;
@@ -13,17 +13,35 @@ interface EditTaskModalProps {
 const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
   const { user, setUser, workProfileId } = useUserStore();
   const [form, setForm] = useState({
+    name: "",
+  description: "",
+  durationMinutes: 0,
+  priority: "medium" as Task["priority"],
+  status: "todo" as Task["status"],
+  intensity: "normal" as Task["intensity"],
+  deadline: "",
+  dependencies: [] as string[],
+  isFixed: false,
+  startDate: "",
+  endDate: "",
+  });
+  useEffect(() => {
+  setForm({
     name: task.name,
     description: task.description,
-    durationMinutes: dayjs(task.endDate).diff(dayjs(task.startDate), "minute"),
+    durationMinutes: task.timeEstimateMinutes ?? 0,
     priority: (task.priority ?? "medium") as Task["priority"],
     status: (task.status ?? "todo") as Task["status"],
-    deadline: task.deadline ? dayjs(task.deadline).format("YYYY-MM-DDTHH:mm") : "",
-    dependencies: task.dependencies.map((d: { name: string }) => d.name),
+    intensity: (task.intensity ?? "normal") as Task["intensity"],
+    deadline: task.deadline
+      ? dayjs(task.deadline).format("YYYY-MM-DDTHH:mm")
+      : "",
+    dependencies: task.dependencies.map((d) => d.id!),
     isFixed: task.isFixed ?? false,
     startDate: dayjs(task.startDate).format("YYYY-MM-DDTHH:mm"),
     endDate: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
   });
+}, [task]);
   const [error, setError] = useState<string | undefined>();
 
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -36,7 +54,7 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
+  const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]).filter((t) => t.id !== task.id);
 
 
   const submit = async () => {
@@ -51,6 +69,10 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
     }
     if (form.durationMinutes <= 0) {
       setError("Duration must be greater than 0 minutes.");
+      return;
+    }
+    if (form.durationMinutes > 10000) {
+      setError("Duration is too long.");
       return;
     }
     const start = dayjs(form.startDate);
@@ -69,12 +91,15 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
       priority: form.priority,
       status: form.status,
       deadline: dayjs(form.deadline).toDate(),
-      dependencies: dependencyOptions.filter((t) => form.dependencies.includes(t.name)),
+      dependencies: dependencyOptions.filter((t) => form.dependencies.includes(t.id!)),
+      timeEstimateMinutes: form.durationMinutes,
+      intensity: form.intensity,
     };
     try {
-      const updated = await updateTask(workProfileId!, task.id!, newTask);
-      const updatedTasks = user.tasks?.map((t) => (t.id === updated.id ? updated : t)) ?? [];
-      setUser({ ...user, tasks: updatedTasks });
+      await updateTask(workProfileId!, task.id!, newTask);
+      await fetchTasks(workProfileId!).then((fresh) => {
+        setUser({ ...user, tasks: fresh });
+      });
       onClose();
     } catch (e) {
       setError("Failed to save task.");
@@ -97,15 +122,17 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
     >
       <div
-        className="bg-slate-900 rounded-3xl p-6 shadow-xl w-full max-w-lg"
+        className="bg-slate-900 rounded-3xl p-6 shadow-xl w-full max-w-lg max-h-[100vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-semibold text-slate-50 mb-4">Edit Task</h2>
+        <div className= "p-1">
+          <h2 className="text-xl font-semibold text-slate-50 mb-4">Edit Task</h2>
         {error && <div className="text-sm text-rose-300 mb-2">{error}</div>}
-        <div className="grid grid-cols-1 gap-3">
+        </div>
+        <div className="p-4 overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 gap-3">
           <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Title</label>
           <input
             value={form.name}
@@ -144,6 +171,16 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
             <option value="medium">Medium</option>
             <option value="high">High</option>
           </select>
+          <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Intensity</label>
+          <select
+            value={form.intensity}
+            onChange={(e) => setForm({ ...form, intensity: e.target.value as Task["intensity"] })}
+            className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+          >
+            <option value="light">Light</option>
+            <option value="normal">Normal</option>
+            <option value="intensive">Intensive</option>
+          </select>
           <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Status</label>
           <select
             value={form.status}
@@ -161,19 +198,26 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
             onChange={(e) => setForm({ ...form, deadline: e.target.value })}
             className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
           />
+          <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Duration</label>
+          <input
+            type="number"
+            value={form.durationMinutes}
+            onChange={(e) => setForm({ ...form, durationMinutes: parseInt(e.target.value) })}
+            className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+          />
           <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Dependencies</label>
           <div className="flex max-h-44 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/60 p-3">
             {dependencyOptions.map((dep) => {
-              const checked = form.dependencies.includes(dep.name);
+              const checked = form.dependencies.includes(dep.id!);
               return (
-                <label key={dep.name} className="flex items-center gap-2 text-sm text-slate-200">
+                <label key={dep.id} className="flex items-center gap-2 text-sm text-slate-200">
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={(e) => {
                       const next = e.target.checked
-                        ? [...form.dependencies, dep.name]
-                        : form.dependencies.filter((n) => n !== dep.name);
+                        ? [...form.dependencies, dep.id!]
+                        : form.dependencies.filter((n) => n !== dep.id!);
                       setForm({ ...form, dependencies: next });
                     }}
                   />
@@ -194,7 +238,15 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
             </div>
           </label>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
+        </div>
+        <div className="p-1">
+            <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={handleDelete}
+            className="rounded-xl border border-red-300/60 bg-red-500/10 py-1 font-semibold text-red-100 hover:bg-red-500/20 mr-auto"
+          >
+            Delete
+          </button>
           <button
             onClick={onClose}
             className="rounded-xl border border-rose-300/60 bg-rose-500/10 py-1 font-semibold text-rose-100 hover:bg-rose-500/20"
@@ -202,17 +254,12 @@ const EditTaskModal: FC<EditTaskModalProps> = ({ task, onClose }) => {
             Cancel
           </button>
           <button
-            onClick={handleDelete}
-            className="rounded-xl border border-red-300/60 bg-red-500/10 py-1 font-semibold text-red-100 hover:bg-red-500/20"
-          >
-            Delete
-          </button>
-          <button
             onClick={submit}
             className="rounded-xl border border-emerald-300 bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-emerald-300"
           >
             Save
           </button>
+        </div>
         </div>
       </div>
     </div>,

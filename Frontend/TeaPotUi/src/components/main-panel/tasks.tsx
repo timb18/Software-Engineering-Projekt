@@ -415,9 +415,9 @@ const Tasks: FC = () => {
     const updatedDays = user.workProfile.days.map((day) =>
       day.day === editingBreak.weekDay
         ? {
-            ...day,
-            breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
-          }
+          ...day,
+          breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
+        }
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
@@ -532,6 +532,10 @@ const Tasks: FC = () => {
     }
     if (!form.isFixed && form.durationMinutes <= 0) {
       setError("Duration must be greater than 0 minutes.");
+      return;
+    }
+    if (form.durationMinutes > 10000){
+      setError("Duration is too long.");
       return;
     }
 
@@ -719,31 +723,28 @@ const Tasks: FC = () => {
           </div>
           <button
             onClick={() => setView("day")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "day"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "day"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Day
           </button>
           <button
             onClick={() => setView("week")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "week"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "week"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Week
           </button>
           <button
             onClick={() => setView("month")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "month"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "month"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Month
           </button>
@@ -810,7 +811,7 @@ const Tasks: FC = () => {
               customButtons={{
                 visibleRange: {
                   text: "",
-                  click: () => {},
+                  click: () => { },
                 },
               }}
               slotMinTime={`${plannerViewForm.startTime}:00`}
@@ -952,12 +953,11 @@ const Tasks: FC = () => {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
           onClick={() => {
-            setCalendarDialogOpen(false);
             setError(undefined);
             setStatus(undefined);
           }}
         >
-          <div
+          <div data-modal-backdrop="static"
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
