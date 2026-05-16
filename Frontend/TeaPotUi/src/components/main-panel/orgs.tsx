@@ -541,7 +541,7 @@ const Orgs: FC = () => {
         payload.data?.emailSent
           ? "Invitation was created and sent by email."
           : payload.data?.invitationLink
-            ? "Invitation was created, but email delivery is not available for this recipient yet. Copy the invitation link and send it manually."
+            ? `Invitation was created, but the email could not be delivered${payload.data?.emailError ? `: ${payload.data.emailError}` : "."} Copy the invitation link and send it manually.`
             : "Invitation was created and sent by email.",
       );
     } catch (error) {
