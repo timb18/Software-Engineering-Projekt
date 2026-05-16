@@ -72,22 +72,24 @@ public class ResendEmailSender(
 
     public async Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_resendOptions.ApiKey))
+        var apiKey = ResolveResendApiKey(_resendOptions);
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
-            throw new InvalidOperationException("Resend API key is missing. Set Resend__ApiKey.");
+            throw new InvalidOperationException("Resend API key is missing. Set Resend__ApiKey or RESEND_API_KEY.");
         }
 
-        if (string.IsNullOrWhiteSpace(_emailOptions.FromEmail))
+        var fromEmail = ResolveResendFromEmail(_resendOptions, _emailOptions);
+        if (string.IsNullOrWhiteSpace(fromEmail))
         {
-            throw new InvalidOperationException("Email sender is missing. Set EMailOptions__FromEmail.");
+            throw new InvalidOperationException("Email sender is missing. Set Resend__FromEmail, RESEND_FROM_EMAIL, or EMailOptions__FromEmail.");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _resendOptions.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = new StringContent(
             JsonSerializer.Serialize(new
             {
-                from = _emailOptions.FromEmail,
+                from = fromEmail,
                 to = new[] { to },
                 subject,
                 text = body
@@ -104,6 +106,18 @@ public class ResendEmailSender(
 
         logger.LogInformation("Email sent to {To} via Resend.", to);
     }
+
+    public static string ResolveResendApiKey(ResendOptions resendOptions) =>
+        FirstConfigured(resendOptions.ApiKey, Environment.GetEnvironmentVariable("RESEND_API_KEY"));
+
+    public static string ResolveResendFromEmail(ResendOptions resendOptions, EmailOptions emailOptions) =>
+        FirstConfigured(
+            resendOptions.FromEmail,
+            Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL"),
+            emailOptions.FromEmail);
+
+    private static string FirstConfigured(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? string.Empty;
 }
 
 public class ConfiguredEmailSender(
@@ -114,7 +128,7 @@ public class ConfiguredEmailSender(
 
     public Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
-        var senderType = string.IsNullOrWhiteSpace(_resendOptions.ApiKey)
+        var senderType = string.IsNullOrWhiteSpace(ResendEmailSender.ResolveResendApiKey(_resendOptions))
             ? typeof(SmtpEmailSender)
             : typeof(ResendEmailSender);
         var sender = (IEmailSender)serviceProvider.GetRequiredService(senderType);
