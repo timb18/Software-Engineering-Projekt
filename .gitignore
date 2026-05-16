@@ -43,4 +43,4 @@ TestResults
 appsettings.Development.json
 testsettings.Development.json
 .kiota
-*.lscache
+
