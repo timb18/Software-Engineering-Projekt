@@ -157,12 +157,15 @@ const User: FC = () => {
     timezone: userFromDb.timezone ?? "Europe/Berlin",
     profileImageUrl: userFromDb.profileImage ?? "",
   });
-  const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] = useState(false);
+  const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] =
+    useState(false);
   const [isDeletingWorkProfile, setIsDeletingWorkProfile] = useState(false);
 
   // ── Appearance / color state ──────────────────────────────────────────
   const initOrgColors = () => {
-    const savedOrgColors = parseOrgColorPreferences(userFromDb.appearanceOrgColors);
+    const savedOrgColors = parseOrgColorPreferences(
+      userFromDb.appearanceOrgColors,
+    );
     const map: Record<string, RgbColor> = {};
     for (const org of userFromDb.orgs ?? []) {
       map[org.id] = savedOrgColors[org.id] ?? getOrgColor(org.id);
@@ -215,9 +218,15 @@ const User: FC = () => {
 
   useEffect(() => {
     setOrgColorsState(initOrgColors());
-    setBreakColorState(parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()));
+    setBreakColorState(
+      parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()),
+    );
     setIsAppearanceDirty(false);
-  }, [userFromDb.appearanceBreakColor, userFromDb.appearanceOrgColors, userFromDb.orgs]);
+  }, [
+    userFromDb.appearanceBreakColor,
+    userFromDb.appearanceOrgColors,
+    userFromDb.orgs,
+  ]);
 
   /* const avatarStyle = useMemo(() => {
     if (profileForm.profileImage?.startsWith("http")) {
@@ -669,7 +678,6 @@ const User: FC = () => {
                 {isSavingProfile ? "Saving..." : "Save changes"}
               </button>
             </div>
-
           </div>
         )}
 
@@ -686,7 +694,8 @@ const User: FC = () => {
             <div className="flex justify-end">
               <button
                 onClick={() => setShowDeleteWorkProfileDialog(true)}
-                className="rounded-xl border border-rose-300/60 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-100 shadow-sm transition hover:bg-rose-500/25"
+                disabled={userFromDb.orgs.length < 1}
+                className="cursor-pointer rounded-xl border border-rose-300/60 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-100 shadow-sm transition hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-rose-500/15"
               >
                 Delete work profile
               </button>
