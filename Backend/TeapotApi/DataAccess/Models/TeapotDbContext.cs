@@ -197,6 +197,10 @@ public partial class TeapotDbContext : DbContext
             entity.Property(e => e.Timezone)
                 .HasMaxLength(100)
                 .HasColumnName("timezone");
+            entity.Property(e => e.BreakColor)
+                .HasColumnName("break_color");
+            entity.Property(e => e.OrgColors)
+                .HasColumnName("org_colors");
         });
 
         modelBuilder.Entity<UserTask>(entity =>

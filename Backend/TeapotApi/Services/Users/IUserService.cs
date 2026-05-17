@@ -4,7 +4,7 @@ namespace Services.Users;
 
 public interface IUserService
 {
-    Task<(Guid UserId, Guid WorkProfileId)> EnsureUserAsync(
+    Task<(Guid UserId, Guid? WorkProfileId)> EnsureUserAsync(
         string email,
         string? authProviderSubject = null,
         CancellationToken cancellationToken = default);
@@ -37,10 +37,14 @@ public record ChangePasswordRequest
 public sealed record UserProfileDto(
     Guid Id,
     string Email,
-    string Timezone);
+    string Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);
 
 public sealed record UpdateUserProfileCommand(
     string? DisplayName,
     string? Email,
     string? ProfileImageUrl,
-    string? Timezone);
+    string? Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);

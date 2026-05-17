@@ -20,6 +20,8 @@ import { saveWorkProfile } from "../../util/work-profile-api";
 import {
   getBreakColor,
   getOrgColor,
+  isDarkColor,
+  readableTextColor,
   rgbToCss,
   type RgbColor,
 } from "../../util/color-prefs";
@@ -224,6 +226,7 @@ const Tasks: FC = () => {
         while (date.day() !== targetDow) date = date.add(1, "day");
         while (date.isBefore(windowEnd)) {
           const breakC = getBreakColor();
+          const isDarkBreak = isDarkColor(breakC);
           void colorVersion;
           breakEvents.push({
             id: `break-${workBreak.id}-${date.format("YYYY-MM-DD")}`,
@@ -232,8 +235,8 @@ const Tasks: FC = () => {
             end: date.hour(eh).minute(em).second(0).toDate(),
             backgroundColor: rgbToCss(breakC, 0.15),
             borderColor: rgbToCss(breakC, 0.45),
-            textColor: rgbToCss(breakC, 1),
-            classNames: ["break-event"],
+            textColor: readableTextColor(breakC),
+            classNames: ["break-event", isDarkBreak ? "is-dark-event-color" : "is-light-event-color"],
             editable: true,
             extendedProps: {
               type: "break",
@@ -252,6 +255,7 @@ const Tasks: FC = () => {
     .map((t) => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
+      const isDarkTask = isDarkColor(c);
       void colorVersion; // reactive dependency
       return {
         id: t.id ?? `task-${t.name}`,
@@ -260,9 +264,10 @@ const Tasks: FC = () => {
         end: t.endDate,
         backgroundColor: rgbToCss(c, 0.22),
         borderColor: t.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
-        textColor: "#f0fdf4",
+        textColor: readableTextColor(c),
         classNames: [
           "task-event",
+          isDarkTask ? "is-dark-event-color" : "is-light-event-color",
           t.isFixed ? "task-fixed" : "",
           (t.status ?? "todo") === "done" ? "task-done" : "",
         ].filter(Boolean),
@@ -410,9 +415,9 @@ const Tasks: FC = () => {
     const updatedDays = user.workProfile.days.map((day) =>
       day.day === editingBreak.weekDay
         ? {
-            ...day,
-            breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
-          }
+          ...day,
+          breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
+        }
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
@@ -527,6 +532,10 @@ const Tasks: FC = () => {
     }
     if (!form.isFixed && form.durationMinutes <= 0) {
       setError("Duration must be greater than 0 minutes.");
+      return;
+    }
+    if (form.durationMinutes > 10000){
+      setError("Duration is too long.");
       return;
     }
 
@@ -714,31 +723,28 @@ const Tasks: FC = () => {
           </div>
           <button
             onClick={() => setView("day")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "day"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "day"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Day
           </button>
           <button
             onClick={() => setView("week")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "week"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "week"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Week
           </button>
           <button
             onClick={() => setView("month")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${
-              view === "month"
+            className={`rounded-full px-4 py-2 font-semibold transition ${view === "month"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-            }`}
+              }`}
           >
             Month
           </button>
@@ -805,7 +811,7 @@ const Tasks: FC = () => {
               customButtons={{
                 visibleRange: {
                   text: "",
-                  click: () => {},
+                  click: () => { },
                 },
               }}
               slotMinTime={`${plannerViewForm.startTime}:00`}
@@ -816,11 +822,10 @@ const Tasks: FC = () => {
               locale="de"
               firstDay={1}
             />
-            {/* Visible range controls overlaid on the calendar toolbar */}
-            <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-end">
-              <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-slate-700/60 bg-slate-900/90 px-3 py-1 text-xs backdrop-blur">
-                <span className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                  Visible
+            <div className="mt-3 flex justify-end">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-900/80 px-3 py-1.5 text-xs">
+                <span className="text-[10px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
+                  Visible range
                 </span>
                 <input
                   type="time"
@@ -831,9 +836,9 @@ const Tasks: FC = () => {
                     setPlannerViewForm((f) => ({ ...f, startTime }));
                     savePlannerView(startTime, plannerViewForm.endTime);
                   }}
-                  className="w-20 bg-transparent text-xs text-slate-100 outline-none"
+                  className="w-16 bg-transparent text-xs font-medium text-slate-100 outline-none"
                 />
-                <span className="text-slate-600">–</span>
+                <span className="text-slate-600">to</span>
                 <input
                   type="time"
                   step={900}
@@ -843,7 +848,7 @@ const Tasks: FC = () => {
                     setPlannerViewForm((f) => ({ ...f, endTime }));
                     savePlannerView(plannerViewForm.startTime, endTime);
                   }}
-                  className="w-20 bg-transparent text-xs text-slate-100 outline-none"
+                  className="w-16 bg-transparent text-xs font-medium text-slate-100 outline-none"
                 />
               </div>
             </div>
@@ -948,12 +953,11 @@ const Tasks: FC = () => {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
           onClick={() => {
-            setCalendarDialogOpen(false);
             setError(undefined);
             setStatus(undefined);
           }}
         >
-          <div
+          <div data-modal-backdrop="static"
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1442,7 +1446,7 @@ const Tasks: FC = () => {
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="rounded-full border border-emerald-300/60 bg-emerald-400/20 px-5 py-2 text-sm font-semibold text-emerald-50 shadow-sm transition hover:bg-emerald-400/30"
+                  className="rounded-full border border-emerald-300 bg-emerald-400 px-5 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-emerald-300"
                 >
                   Save changes
                 </button>

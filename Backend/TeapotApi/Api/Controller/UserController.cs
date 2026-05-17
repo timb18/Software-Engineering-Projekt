@@ -64,7 +64,9 @@ public class UserController(IUserService userService) : ControllerBase
                     request.DisplayName,
                     request.Email,
                     request.ProfileImageUrl,
-                    request.Timezone),
+                    request.Timezone,
+                    request.BreakColor,
+                    request.OrgColors),
                 cancellationToken);
 
 
@@ -80,7 +82,6 @@ public class UserController(IUserService userService) : ControllerBase
         }
         catch (Exception e)
         {
-            var ex = e;
             return TypedResults.InternalServerError(e.Message);
         }
     }
@@ -110,11 +111,11 @@ public class UserController(IUserService userService) : ControllerBase
         {
             return TypedResults.BadRequest(e.Message);
         }
-        catch (KeyNotFoundException e)
+        catch (KeyNotFoundException)
         {
             return TypedResults.NotFound("User not found");
         }
-        catch (Exception e)
+        catch (Exception)
         {
             return TypedResults.InternalServerError("There was an issue with changing the password");
         }
@@ -123,16 +124,22 @@ public class UserController(IUserService userService) : ControllerBase
     private static UserProfileResponse ToResponse(UserProfileDto profile) => new(
         profile.Id,
         profile.Email,
-        profile.Timezone);
+        profile.Timezone,
+        profile.BreakColor,
+        profile.OrgColors);
 }
 
 public sealed record UpdateUserProfileRequest(
     string? DisplayName,
     string? Email,
     string? ProfileImageUrl,
-    string? Timezone);
+    string? Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);
 
 public sealed record UserProfileResponse(
     Guid Id,
     string Email,
-    string Timezone);
+    string Timezone,
+    string? BreakColor = null,
+    string? OrgColors = null);

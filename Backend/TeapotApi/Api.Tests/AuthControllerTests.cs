@@ -26,8 +26,6 @@ public class AuthControllerTests
         _dbContext = new TeapotDbContext(options);
         var userService = new UserService(
             new UserRepository(_dbContext),
-            new OrganizationRepository(_dbContext),
-            new MembershipRepository(_dbContext),
             new WorkProfileRepository(_dbContext),
             new UnitOfWork(_dbContext),
             new FakeManagementApiClient([
@@ -83,7 +81,7 @@ public class AuthControllerTests
     }
 
     [Test]
-    public async Task EnsureUser_CreatesMissingUserAndWorkProfile()
+    public async Task EnsureUser_CreatesMissingUserWithoutPersonalWorkspace()
     {
         var result = await _controller.EnsureUser(
             new EnsureUserRequest("ensure-user@test.com", "auth0|ensure"),
@@ -93,9 +91,9 @@ public class AuthControllerTests
         {
             Assert.That(result, Is.InstanceOf<OkObjectResult>());
             Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
-            Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(1));
-            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(1));
-            Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1));
+            Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(0));
             Assert.That(_dbContext.Users.Single().AuthProviderSubject, Is.EqualTo("auth0|ensure"));
         });
     }
@@ -113,9 +111,9 @@ public class AuthControllerTests
         {
             Assert.That(secondResult, Is.InstanceOf<OkObjectResult>());
             Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
-            Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(1));
-            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(1));
-            Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1));
+            Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(0));
         });
     }
 }

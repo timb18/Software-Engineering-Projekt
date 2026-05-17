@@ -5,6 +5,7 @@ using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Services.Tests.Fakes;
+using Organization = DataAccess.Models.Organization;
 
 namespace Services.Tests;
 
@@ -31,8 +32,6 @@ public class UserServiceTests
 
     private static UserService BuildService(TeapotDbContext db) => new(
         new UserRepository(db),
-        new OrganizationRepository(db),
-        new MembershipRepository(db),
         new WorkProfileRepository(db),
         new UnitOfWork(db),
         new FakeManagementApiClient([
@@ -54,14 +53,14 @@ public class UserServiceTests
     // ── EnsureUserAsync – new user ────────────────────────────────────────────
 
     [Test]
-    public async Task EnsureUserAsync_Returns_Non_Empty_Ids_For_New_Email()
+    public async Task EnsureUserAsync_Returns_UserId_And_No_WorkProfile_For_New_Email()
     {
         var (userId, workProfileId) = await _service.EnsureUserAsync("new@example.com");
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(userId, Is.Not.EqualTo(Guid.Empty));
-            Assert.That(workProfileId, Is.Not.EqualTo(Guid.Empty));
+            Assert.That(workProfileId, Is.Null);
         }
     }
 
@@ -76,37 +75,31 @@ public class UserServiceTests
     }
 
     [Test]
-    public async Task EnsureUserAsync_Creates_WorkProfile_Row_In_Database()
+    public async Task EnsureUserAsync_Does_Not_Create_WorkProfile_Row_For_New_User()
     {
         var (_, workProfileId) = await _service.EnsureUserAsync("profile@example.com");
 
-        var workProfile = await _dbContext.Set<WorkProfile>().FindAsync(workProfileId);
-        Assert.That(workProfile, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(workProfileId, Is.Null);
+            Assert.That(_dbContext.Set<WorkProfile>().Any(), Is.False);
+        });
     }
 
     [Test]
-    public async Task EnsureUserAsync_Creates_Personal_Organization_For_New_User()
+    public async Task EnsureUserAsync_Does_Not_Create_Personal_Organization_For_New_User()
     {
-        var (_, workProfileId) = await _service.EnsureUserAsync("org@example.com");
+        await _service.EnsureUserAsync("org@example.com");
 
-        var workProfile = await _dbContext.Set<WorkProfile>()
-            .Include(wp => wp.Membership)
-            .ThenInclude(m => m.Organization)
-            .FirstAsync(wp => wp.Id == workProfileId);
-
-        Assert.That(workProfile.Membership.Organization.Name, Does.Contain("org@example.com"));
+        Assert.That(_dbContext.Set<Organization>().Any(), Is.False);
     }
 
     [Test]
-    public async Task EnsureUserAsync_Sets_Organizer_Role_On_Personal_Membership()
+    public async Task EnsureUserAsync_Does_Not_Create_Membership_For_New_User()
     {
-        var (_, workProfileId) = await _service.EnsureUserAsync("organizer@example.com");
+        await _service.EnsureUserAsync("organizer@example.com");
 
-        var workProfile = await _dbContext.Set<WorkProfile>()
-            .Include(wp => wp.Membership)
-            .FirstAsync(wp => wp.Id == workProfileId);
-
-        Assert.That(workProfile.Membership.Role, Is.EqualTo(ERole.Organizer));
+        Assert.That(_dbContext.Set<Membership>().Any(), Is.False);
     }
 
     // ── EnsureUserAsync – returning user ──────────────────────────────────────
@@ -119,6 +112,7 @@ public class UserServiceTests
 
         Assert.That(userId2, Is.EqualTo(userId1));
         Assert.That(workProfileId2, Is.EqualTo(workProfileId1));
+        Assert.That(workProfileId2, Is.Null);
     }
 
     [Test]
@@ -132,7 +126,7 @@ public class UserServiceTests
     }
 
     [Test]
-    public async Task EnsureUserAsync_Does_Not_Create_Duplicate_WorkProfile_Rows()
+    public async Task EnsureUserAsync_Does_Not_Create_WorkProfiles_On_Repeated_Login()
     {
         await _service.EnsureUserAsync("dup-wp@example.com");
         await _service.EnsureUserAsync("dup-wp@example.com");
@@ -142,18 +136,23 @@ public class UserServiceTests
             .Include(wp => wp.Membership)
             .Count(wp => wp.Membership.UserId == userId);
 
-        Assert.That(profileCount, Is.EqualTo(1));
+        Assert.That(profileCount, Is.EqualTo(0));
     }
 
     // ── EnsureUserAsync – different users are independent ────────────────────
 
     [Test]
-    public async Task EnsureUserAsync_Creates_Separate_WorkProfiles_For_Different_Emails()
+    public async Task EnsureUserAsync_Does_Not_Create_WorkProfiles_For_Different_Emails()
     {
         var (_, profileA) = await _service.EnsureUserAsync("a@example.com");
         var (_, profileB) = await _service.EnsureUserAsync("b@example.com");
 
-        Assert.That(profileA, Is.Not.EqualTo(profileB));
+        Assert.Multiple(() =>
+        {
+            Assert.That(profileA, Is.Null);
+            Assert.That(profileB, Is.Null);
+            Assert.That(_dbContext.Set<WorkProfile>().Any(), Is.False);
+        });
     }
 
     [Test]

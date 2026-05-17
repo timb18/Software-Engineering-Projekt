@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ensureUser, fetchUserProfile, updateUserProfile } from "./user-api";
 
 const USER_ID = "11111111-1111-1111-1111-111111111111";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const profile = {
   id: USER_ID,
@@ -37,7 +38,7 @@ describe("ensureUser", () => {
     });
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe("/api/auth/ensure");
+    expect(url).toBe(`${API_BASE}/api/auth/ensure`);
     expect(init?.method).toBe("POST");
     expect(JSON.parse(init?.body as string)).toEqual({
       email: "anna@example.com",
@@ -54,7 +55,7 @@ describe("fetchUserProfile", () => {
 
     const result = await fetchUserProfile(USER_ID);
 
-    expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toBe(`/api/user/${USER_ID}/profile`);
+    expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toBe(`${API_BASE}/api/user/${USER_ID}/profile`);
     expect(result).toEqual(profile);
   });
 });
@@ -71,7 +72,7 @@ describe("updateUserProfile", () => {
     });
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/user/${USER_ID}/profile`);
+    expect(url).toBe(`${API_BASE}/api/user/${USER_ID}/profile`);
     expect(init?.method).toBe("PUT");
     expect(JSON.parse(init?.body as string)).toEqual({
       displayName: "Anna Example",

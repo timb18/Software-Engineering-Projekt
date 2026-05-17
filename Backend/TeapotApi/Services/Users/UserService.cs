@@ -12,8 +12,6 @@ namespace Services.Users;
 /// and password management for the Auth0 user management system.
 /// </summary>
 /// <param name="userRepository">Repository interface for user data access operations.</param>
-/// <param name="organizationRepository">Repository interface for organization data access operations.</param>
-/// <param name="membershipRepository">Repository interface for membership data access operations.</param>
 /// <param name="workProfileRepository">Repository interface for work profile data access operations.</param>
 /// <param name="unitOfWork">Unit of work for transactional data persistence.</param>
 /// <param name="managementClient">Auth0 Management API client for external service integration.</param>
@@ -24,8 +22,6 @@ namespace Services.Users;
 /// </remarks>
 public class UserService(
     IUserRepository userRepository,
-    IOrganizationRepository organizationRepository,
-    IMembershipRepository membershipRepository,
     IWorkProfileRepository workProfileRepository,
     IUnitOfWork unitOfWork,
     IManagementApiClient managementClient,
@@ -33,18 +29,7 @@ public class UserService(
 {
     private static readonly EmailAddressAttribute EmailValidator = new();
 
-    /// <summary>
-    /// Ensures that a user account exists for the specified email address.
-    /// If no user is found, a new user is created with a personal organization,
-    /// membership, and a new work profile with default settings.
-    /// </summary>
-    /// <param name="email">The unique email address for the user account.</param>
-    /// <param name="authProviderSubject">The subject identifier from the authentication provider, if applicable.</param>
-    /// <param name="cancellationToken">A token to monitor the cancellation status of the operation.</param>
-    /// <returns>A tuple containing the GUID of the user and the GUID of the work profile.</returns>
-    /// <exception cref="ArgumentException">Thrown when the email is invalid or the profile image URL is not valid.</exception>
-    /// <exception cref="OperationCanceledException">Thrown if the operation is cancelled by the token.</exception>
-    public async Task<(Guid UserId, Guid WorkProfileId)> EnsureUserAsync(
+    public async Task<(Guid UserId, Guid? WorkProfileId)> EnsureUserAsync(
         string email,
         string? authProviderSubject = null,
         CancellationToken cancellationToken = default)
@@ -65,35 +50,8 @@ public class UserService(
             return (user.Id, existingProfile.Id);
         }
 
-        // No work profile yet — create a personal org + membership + work profile
-        var personalOrg = new Organization
-        {
-            Name = $"Personal ({normalizedEmail})",
-            Description = "Auto-created personal workspace",
-            MaxUsers = 1,
-            CreatedAt = DateTime.UtcNow,
-        };
-        await organizationRepository.AddAsync(personalOrg, cancellationToken);
-
-        var membership = new Membership
-        {
-            UserId = user.Id,
-            OrganizationId = personalOrg.Id,
-            Role = ERole.Organizer,
-            CreatedAt = DateTime.UtcNow,
-        };
-        await membershipRepository.AddAsync(membership, cancellationToken);
-
-        var workProfile = new WorkProfile
-        {
-            MembershipId = membership.Id,
-            MaxDailyLoad = TimeSpan.FromHours(8),
-            CreatedAt = DateTime.UtcNow,
-        };
-        await workProfileRepository.AddAsync(workProfile, cancellationToken);
-
         await tx.CommitAsync(cancellationToken);
-        return (user.Id, workProfile.Id);
+        return (user.Id, null);
     }
 
     public async Task<UserProfileDto> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -151,6 +109,10 @@ public class UserService(
         }
 
         user.Timezone = normalizedTimezone;
+        if (command.BreakColor is not null)
+            user.BreakColor = NormalizeOptional(command.BreakColor);
+        if (command.OrgColors is not null)
+            user.OrgColors = NormalizeOptional(command.OrgColors);
         user.EditedAt = DateTime.UtcNow;
 
         if ((updateUserRequestContent.Email != null || updateUserRequestContent.Nickname != null ||
@@ -246,7 +208,9 @@ public class UserService(
     private static UserProfileDto MapProfile(User user) => new(
         user.Id,
         user.Email,
-        user.Timezone ?? "Europe/Berlin");
+        user.Timezone ?? "Europe/Berlin",
+        user.BreakColor,
+        user.OrgColors);
 
     private static string NormalizeRequired(string? value, string errorMessage) =>
         NormalizeOptional(value) ?? throw new ArgumentException(errorMessage);

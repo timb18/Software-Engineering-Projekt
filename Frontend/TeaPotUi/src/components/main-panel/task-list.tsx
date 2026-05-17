@@ -115,6 +115,10 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
       setError("Duration must be greater than 0 minutes.");
       return;
     }
+    if (form.durationMinutes > 10000) {
+      setError("Duration is too long.");
+      return;
+    }
 
     const deadline = dayjs(form.deadline);
     if (!deadline.isValid()) {
@@ -175,11 +179,9 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose();
-      }}
+      onClick={ () => {} }
     >
-      <div className="flex w-full max-w-2xl max-h-[90dvh] flex-col gap-4 overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl sm:rounded-3xl">
+      <div data-modal-backdrop="static" className="flex w-full max-w-2xl max-h-[90dvh] flex-col gap-4 overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl sm:rounded-3xl">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-slate-50">New Task</h2>

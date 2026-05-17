@@ -7,6 +7,8 @@ export type UserProfile = {
   email: string;
   profileImageUrl?: string;
   timezone: string;
+  breakColor?: string | null;
+  orgColors?: string | null;
 };
 
 export type EnsureUserPayload = {
@@ -18,7 +20,7 @@ export type EnsureUserPayload = {
 
 export type EnsureUserResponse = {
   userId: string;
-  workProfileId: string;
+  workProfileId: string | null;
 };
 
 export async function ensureUser(payload: EnsureUserPayload): Promise<EnsureUserResponse> {

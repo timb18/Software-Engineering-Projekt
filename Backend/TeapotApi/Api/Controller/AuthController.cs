@@ -25,8 +25,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Finds or creates a user by email and ensures they have a personal work profile.
-    /// Call this once after Auth0 login. Returns userId and workProfileId for subsequent API calls.
+    /// Finds or creates a user by email.
+    /// Call this once after Auth0 login. Returns userId and the active workProfileId when one exists.
     /// </summary>
     [HttpPost("ensure")]
     [ProducesResponseType(typeof(EnsureUserResponse), StatusCodes.Status200OK)]
@@ -102,7 +102,7 @@ public record EnsureUserRequest(
     string Email,
     string? AuthProviderSubject = null);
 
-public record EnsureUserResponse(Guid UserId, Guid WorkProfileId);
+public record EnsureUserResponse(Guid UserId, Guid? WorkProfileId);
 
 public record RegisterRequest
 {

@@ -13,6 +13,7 @@ import {
 import { fetchWorkProfile } from "../util/work-profile-api";
 import { ensureUser, fetchUserProfile } from "../util/user-api";
 import { fetchOrganizationsByUserEmail } from "../util/org-api";
+import { applyStoredColorPreferences } from "../util/color-prefs";
 
 type UserStore = {
   user: User;
@@ -72,10 +73,11 @@ export const initForUser = async (
       profileImageUrl,
     });
     const profile = await fetchUserProfile(userId);
+    applyStoredColorPreferences(profile.breakColor, profile.orgColors);
 
     const [tasksResult, workProfileResult, organizationsResult] =
       await Promise.allSettled([
-        fetchTasks(workProfileId),
+        workProfileId ? fetchTasks(workProfileId) : Promise.resolve([]),
         fetchWorkProfile(userId),
         fetchOrganizationsByUserEmail(email),
       ]);
@@ -94,14 +96,11 @@ export const initForUser = async (
           ? previousState.user.orgs
           : [];
     const activeOrganization =
-      orgs.find((org) => org.id === previousState.activeOrganizationId) ??
-      orgs[0] ??
-      null;
-    const activeWorkProfileId =
-      activeOrganization?.workProfileId ?? workProfileId;
+      orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
+    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId ?? null;
 
     let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
-    if (activeWorkProfileId !== workProfileId) {
+    if (activeWorkProfileId && activeWorkProfileId !== workProfileId) {
       try {
         tasks = assignTasksToOrganization(
           await fetchTasks(activeWorkProfileId),
@@ -132,6 +131,8 @@ export const initForUser = async (
         id: userId,
         email: profile.email,
         timezone: profile.timezone,
+        appearanceBreakColor: profile.breakColor,
+        appearanceOrgColors: profile.orgColors,
         tasks,
         workProfile: workProfile ?? undefined,
         hasPersistedWorkProfile: workProfile !== null,

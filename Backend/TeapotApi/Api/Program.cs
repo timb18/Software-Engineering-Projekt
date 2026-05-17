@@ -8,6 +8,7 @@ using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -21,7 +22,7 @@ if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
-// Add services to the container.
+// Register application services.
 builder.Services.AddTeapotServices();
 
 var jsonStringEnumConverter = new JsonStringEnumConverter(
@@ -261,6 +262,13 @@ builder.Services.AddControllers()
 var app = builder.Build();
 
 await SchemaUpgradeService.ApplyAsync(app.Services);
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                       ForwardedHeaders.XForwardedHost |
+                       ForwardedHeaders.XForwardedProto
+});
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();

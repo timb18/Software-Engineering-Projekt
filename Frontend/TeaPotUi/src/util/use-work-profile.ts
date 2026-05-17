@@ -636,39 +636,47 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
   const copyDayScheduleTo = (sourceDay: WorkWeekDay, targetDays: WorkWeekDay[]) => {
     clearMessages();
     const sourceData = workForm.days.find((d) => d.day === sourceDay);
-    if (!sourceData) return;
+    if (!sourceData) return false;
 
-    setWorkForm((current) => ({
-      days: current.days.map((day) => {
-        if (!targetDays.includes(day.day)) return day;
+    let copiedEntryCount = 0;
+    const nextDays = workForm.days.map((day) => {
+      if (!targetDays.includes(day.day)) return day;
 
-        const newBlocks = sourceData.blocks
-          .filter((block) => {
-            const s = timeToMinutes(block.startTime);
-            const e = timeToMinutes(block.endTime);
-            return !blocksOverlap(day.blocks, s, e);
-          })
-          .map((block) => {
-            const company =
-              companyOptions.find((c) => c.id === block.companyId) ?? companyOptions[0];
-            return createWorkBlock(company, block.startTime, block.endTime);
-          });
+      const newBlocks = sourceData.blocks
+        .filter((block) => {
+          const s = timeToMinutes(block.startTime);
+          const e = timeToMinutes(block.endTime);
+          return !blocksOverlap(day.blocks, s, e);
+        })
+        .map((block) => {
+          const company =
+            companyOptions.find((c) => c.id === block.companyId) ?? companyOptions[0];
+          return createWorkBlock(company, block.startTime, block.endTime);
+        });
 
-        const newBreaks = sourceData.breaks
-          .filter((wb) => {
-            const s = timeToMinutes(wb.startTime);
-            const e = timeToMinutes(wb.endTime);
-            return !breaksOverlap(day.breaks, s, e);
-          })
-          .map((wb) => createWorkBreak(wb.startTime, wb.endTime));
+      const newBreaks = sourceData.breaks
+        .filter((wb) => {
+          const s = timeToMinutes(wb.startTime);
+          const e = timeToMinutes(wb.endTime);
+          return !breaksOverlap(day.breaks, s, e);
+        })
+        .map((wb) => createWorkBreak(wb.startTime, wb.endTime));
 
-        return {
-          ...day,
-          blocks: sortBlocks([...day.blocks, ...newBlocks]),
-          breaks: sortBreaks([...day.breaks, ...newBreaks]),
-        };
-      }),
-    }));
+      copiedEntryCount += newBlocks.length + newBreaks.length;
+
+      return {
+        ...day,
+        blocks: sortBlocks([...day.blocks, ...newBlocks]),
+        breaks: sortBreaks([...day.breaks, ...newBreaks]),
+      };
+    });
+
+    if (copiedEntryCount === 0) {
+      onStatusChange("No new entries were copied because the selected days already contain overlapping entries.");
+      return false;
+    }
+
+    setWorkForm({ days: nextDays });
 
     setCopyDaySource(undefined);
     setCopyDayPanelOpen(false);
@@ -676,6 +684,7 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
     onStatusChange(
       `${DAY_LABELS[sourceDay]} copied to ${targetDays.map((d) => DAY_LABELS[d]).join(", ")}.`,
     );
+    return true;
   };
 
   const copySingleShiftTo = (block: WorkBlock, targetDays: WorkWeekDay[]) => {
@@ -736,26 +745,26 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
     plannerViewStart: string,
     plannerViewEnd: string,
     plannerViewValidationError?: string,
-  ) => {
+  ): Promise<boolean> => {
     clearMessages();
 
     if (pendingSelection) {
       onErrorChange(
         "Create or cancel the selected calendar entry before saving the work profile.",
       );
-      return;
+      return false;
     }
 
     if (plannerViewValidationError) {
       onErrorChange(plannerViewValidationError);
-      return;
+      return false;
     }
 
     const normalizedWorkProfile = normalizeWorkProfile(workForm);
     const validationError = validateWorkProfile(normalizedWorkProfile);
     if (validationError) {
       onErrorChange(validationError);
-      return;
+      return false;
     }
 
     const nextUser = {
@@ -772,10 +781,12 @@ export function useWorkProfile(user: User, callbacks: UseWorkProfileCallbacks) {
       setSavedWorkProfile(normalizedWorkProfile);
       onDirtyChange?.(false);
       onStatusChange("Work profile saved.");
+      return true;
     } catch (error) {
       onErrorChange(
         error instanceof Error ? error.message : "Work profile could not be saved.",
       );
+      return false;
     }
   };
 
