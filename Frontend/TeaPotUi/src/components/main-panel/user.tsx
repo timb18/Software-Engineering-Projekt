@@ -151,6 +151,8 @@ const User: FC = () => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingAppearance, setIsSavingAppearance] = useState(false);
   const [isAppearanceDirty, setIsAppearanceDirty] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profileForm, setProfileForm] = useState({
     displayName: userFromAuth?.nickname ?? "",
     email: userFromAuth?.email ?? "",
@@ -711,11 +713,20 @@ const User: FC = () => {
                   <span className="text-xs tracking-[0.14em] text-slate-500 uppercase">
                     New password
                   </span>
-                  <input
-                    type="password"
-                    {...registerPwChange("newPassword", { required: true })}
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      {...registerPwChange("newPassword", { required: true })}
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 pr-16 text-slate-100 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((visible) => !visible)}
+                      className="absolute top-1/2 right-2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
+                    >
+                      {showNewPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                   {changePwError.newPassword && (
                     <div className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30">
                       {changePwError.newPassword.message}
@@ -726,11 +737,22 @@ const User: FC = () => {
                   <span className="text-xs tracking-[0.14em] text-slate-500 uppercase">
                     Confirm password
                   </span>
-                  <input
-                    type="password"
-                    {...registerPwChange("confirmPassword", { required: true })}
-                    className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      {...registerPwChange("confirmPassword", { required: true })}
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 pr-16 text-slate-100 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword((visible) => !visible)
+                      }
+                      className="absolute top-1/2 right-2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
+                    >
+                      {showConfirmPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                   {changePwError.confirmPassword && (
                     <div className="rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30">
                       {changePwError.confirmPassword.message}
