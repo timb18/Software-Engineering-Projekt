@@ -206,9 +206,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       endTime: user.plannerViewEnd ?? DEFAULT_PLANNER_VIEW_END,
     }),
   );
-  const [saveFeedback, setSaveFeedback] = useState<
-    { kind: "success" | "error"; text: string } | null
-  >(null);
+  const [saveFeedback, setSaveFeedback] = useState<{
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
   const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
   const [saveAfterCopyDay, setSaveAfterCopyDay] = useState(false);
 
@@ -560,8 +561,8 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
           <button
             type="button"
             onClick={saveWork}
-            disabled={isSavingWorkProfile}
-            className="rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={user.orgs.length < 1 || isSavingWorkProfile}
+            className="cursor-pointer rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-emerald-400/15"
           >
             {isSavingWorkProfile ? "Saving..." : "Save work profile"}
           </button>
@@ -607,266 +608,276 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
         </div>
       </div>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
-        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-slate-100">
-              Week View
-            </div>
-            <p className="mt-1 text-xs text-slate-400">
-              Drag over empty space for a shift or fully inside an existing
-              shift for a break.
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-2 text-xs sm:w-auto sm:min-w-88 sm:flex-row sm:items-center sm:gap-px sm:p-1">
-            {/* Visible range */}
-            <div className="flex flex-wrap items-center gap-2 rounded-xl px-3 py-2">
-              <span className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                Visible
-              </span>
-              <input
-                type="time"
-                step={900}
-                value={plannerViewForm.startTime}
-                onChange={(event) => {
-                  clearMessages();
-                  setPlannerViewForm((current) => ({
-                    ...current,
-                    startTime: event.target.value,
-                  }));
-                }}
-                className="w-20 bg-transparent text-xs text-slate-100 outline-none"
-              />
-              <span className="text-slate-600">–</span>
-              <input
-                type="time"
-                step={900}
-                value={plannerViewForm.endTime}
-                onChange={(event) => {
-                  clearMessages();
-                  setPlannerViewForm((current) => ({
-                    ...current,
-                    endTime: event.target.value,
-                  }));
-                }}
-                className="w-20 bg-transparent text-xs text-slate-100 outline-none"
-              />
-            </div>
-
-            {/* Divider */}
-            <div className="mx-1 hidden h-6 w-px bg-slate-800 sm:block" />
-
-            {/* Copy day toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                if (copyDayPanelOpen) {
-                  setCopyDayPanelOpen(false);
-                  setCopyDaySource(undefined);
-                  setCopyDayTargets([]);
-                } else {
-                  setCopyDayPanelOpen(true);
-                }
-              }}
-              className={`rounded-xl border px-3 py-2 text-xs font-semibold transition sm:shrink-0 ${
-                copyDayPanelOpen
-                  ? "border-slate-600 bg-slate-800 text-slate-200"
-                  : "border-emerald-300/60 bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/25"
-              }`}
-            >
-              {copyDayPanelOpen ? "✕ Close" : "Copy day"}
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          {copyDayPanelOpen ? (
-            <div className="mb-3 rounded-2xl border border-emerald-300/20 bg-emerald-400/8 px-4 py-3">
-              {/* Step 1: pick source */}
-              <div className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-emerald-300 uppercase">
-                Step 1 — Which day do you want to copy from?
+      {user.orgs.length > 0 ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
+          <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-slate-100">
+                Week View
               </div>
-              <div className="flex flex-wrap gap-1">
-                {WEEK_DAYS.map((day) => {
-                  const hasEntries =
-                    (workForm.days.find((d) => d.day === day)?.blocks.length ??
-                      0) > 0 ||
-                    (workForm.days.find((d) => d.day === day)?.breaks.length ??
-                      0) > 0;
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      disabled={!hasEntries}
-                      onClick={() =>
-                        setCopyDaySource(
-                          day === copyDaySource ? undefined : day,
-                        )
-                      }
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                        copyDaySource === day
-                          ? "border border-emerald-300/60 bg-emerald-400/30 text-emerald-100"
-                          : hasEntries
-                            ? "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-200"
-                            : "cursor-not-allowed border border-slate-800 bg-slate-950/40 text-slate-600"
-                      }`}
-                    >
-                      {DAY_LABELS[day]}
-                    </button>
-                  );
-                })}
+              <p className="mt-1 text-xs text-slate-400">
+                Drag over empty space for a shift or fully inside an existing
+                shift for a break.
+              </p>
+            </div>
+            <div className="flex w-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-2 text-xs sm:w-auto sm:min-w-88 sm:flex-row sm:items-center sm:gap-px sm:p-1">
+              {/* Visible range */}
+              <div className="flex flex-wrap items-center gap-2 rounded-xl px-3 py-2">
+                <span className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                  Visible
+                </span>
+                <input
+                  type="time"
+                  step={900}
+                  value={plannerViewForm.startTime}
+                  onChange={(event) => {
+                    clearMessages();
+                    setPlannerViewForm((current) => ({
+                      ...current,
+                      startTime: event.target.value,
+                    }));
+                  }}
+                  className="w-20 bg-transparent text-xs text-slate-100 outline-none"
+                />
+                <span className="text-slate-600">–</span>
+                <input
+                  type="time"
+                  step={900}
+                  value={plannerViewForm.endTime}
+                  onChange={(event) => {
+                    clearMessages();
+                    setPlannerViewForm((current) => ({
+                      ...current,
+                      endTime: event.target.value,
+                    }));
+                  }}
+                  className="w-20 bg-transparent text-xs text-slate-100 outline-none"
+                />
               </div>
 
-              {/* Step 2: pick targets — only shown once a source is selected */}
-              {copyDaySource && (
-                <>
-                  <div className="mt-4 mb-2 text-[11px] font-semibold tracking-[0.14em] text-emerald-300 uppercase">
-                    Step 2 — Copy to which days?
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {WEEK_DAYS.filter((d) => d !== copyDaySource).map((day) => (
+              {/* Divider */}
+              <div className="mx-1 hidden h-6 w-px bg-slate-800 sm:block" />
+
+              {/* Copy day toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (copyDayPanelOpen) {
+                    setCopyDayPanelOpen(false);
+                    setCopyDaySource(undefined);
+                    setCopyDayTargets([]);
+                  } else {
+                    setCopyDayPanelOpen(true);
+                  }
+                }}
+                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition sm:shrink-0 ${
+                  copyDayPanelOpen
+                    ? "border-slate-600 bg-slate-800 text-slate-200"
+                    : "border-emerald-300/60 bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/25"
+                }`}
+              >
+                {copyDayPanelOpen ? "✕ Close" : "Copy day"}
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            {copyDayPanelOpen ? (
+              <div className="mb-3 rounded-2xl border border-emerald-300/20 bg-emerald-400/8 px-4 py-3">
+                {/* Step 1: pick source */}
+                <div className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-emerald-300 uppercase">
+                  Step 1 — Which day do you want to copy from?
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {WEEK_DAYS.map((day) => {
+                    const hasEntries =
+                      (workForm.days.find((d) => d.day === day)?.blocks
+                        .length ?? 0) > 0 ||
+                      (workForm.days.find((d) => d.day === day)?.breaks
+                        .length ?? 0) > 0;
+                    return (
                       <button
                         key={day}
                         type="button"
-                        onClick={() => toggleCopyDayTarget(day)}
+                        disabled={!hasEntries}
+                        onClick={() =>
+                          setCopyDaySource(
+                            day === copyDaySource ? undefined : day,
+                          )
+                        }
                         className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          copyDayTargets.includes(day)
-                            ? "border border-emerald-300/60 bg-emerald-400/25 text-emerald-100"
-                            : "border border-slate-700 bg-slate-900/60 text-slate-400 hover:border-emerald-300/30 hover:text-emerald-200"
+                          copyDaySource === day
+                            ? "border border-emerald-300/60 bg-emerald-400/30 text-emerald-100"
+                            : hasEntries
+                              ? "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-200"
+                              : "cursor-not-allowed border border-slate-800 bg-slate-950/40 text-slate-600"
                         }`}
                       >
                         {DAY_LABELS[day]}
                       </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCopyDayTargets(
-                          copyDayTargets.length === WEEK_DAYS.length - 1
-                            ? []
-                            : WEEK_DAYS.filter((d) => d !== copyDaySource),
-                        )
-                      }
-                      className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-xs font-semibold text-slate-400 transition hover:border-emerald-300/30 hover:text-emerald-200"
-                    >
-                      {copyDayTargets.length === WEEK_DAYS.length - 1
-                        ? "Deselect all"
-                        : "All"}
-                    </button>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={copyDayTargets.length === 0}
-                      onClick={() => {
-                        const copied = copyDayScheduleTo(
-                          copyDaySource,
-                          copyDayTargets,
-                        );
-                        if (copied) {
-                          setSaveAfterCopyDay(true);
+                    );
+                  })}
+                </div>
+
+                {/* Step 2: pick targets — only shown once a source is selected */}
+                {copyDaySource && (
+                  <>
+                    <div className="mt-4 mb-2 text-[11px] font-semibold tracking-[0.14em] text-emerald-300 uppercase">
+                      Step 2 — Copy to which days?
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {WEEK_DAYS.filter((d) => d !== copyDaySource).map(
+                        (day) => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => toggleCopyDayTarget(day)}
+                            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                              copyDayTargets.includes(day)
+                                ? "border border-emerald-300/60 bg-emerald-400/25 text-emerald-100"
+                                : "border border-slate-700 bg-slate-900/60 text-slate-400 hover:border-emerald-300/30 hover:text-emerald-200"
+                            }`}
+                          >
+                            {DAY_LABELS[day]}
+                          </button>
+                        ),
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCopyDayTargets(
+                            copyDayTargets.length === WEEK_DAYS.length - 1
+                              ? []
+                              : WEEK_DAYS.filter((d) => d !== copyDaySource),
+                          )
                         }
-                      }}
-                      className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Apply copy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCopyDayPanelOpen(false);
-                        setCopyDaySource(undefined);
-                        setCopyDayTargets([]);
-                      }}
-                      className="rounded-full border border-slate-700 bg-slate-900/60 px-4 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : null}
-          <div className="relative">
-            <div
-              className="work-planner-calendar min-w-4xl lg:min-w-280"
-              style={calendarStyle}
-            >
-              <FullCalendar
-                ref={calendarRef}
-                plugins={[timeGridPlugin, interactionPlugin]}
-                initialView="timeGridWeek"
-                initialDate={REFERENCE_WEEK_START}
-                visibleRange={{
-                  start: REFERENCE_WEEK_START,
-                  end: REFERENCE_WEEK_END,
-                }}
-                headerToolbar={false}
-                firstDay={1}
-                weekends
-                allDaySlot={false}
-                height="auto"
-                expandRows={false}
-                editable
-                eventStartEditable
-                eventDurationEditable
-                eventResizableFromStart
-                selectable
-                selectMirror
-                selectMinDistance={10}
-                eventOverlap={false}
-                slotEventOverlap={false}
-                selectOverlap
-                nowIndicator={false}
-                scrollTimeReset={false}
-                slotDuration="00:30:00"
-                snapDuration="00:15:00"
-                slotLabelInterval="01:00:00"
-                slotMinTime={plannerViewWindow.slotMinTime}
-                slotMaxTime={plannerViewWindow.slotMaxTime}
-                scrollTime={plannerViewWindow.scrollTime}
-                events={calendarEvents}
-                displayEventEnd
-                eventTimeFormat={{
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  meridiem: false,
-                  hour12: false,
-                }}
-                dayHeaderContent={renderDayHeaderContent}
-                selectAllow={(selectionInfo) =>
-                  Boolean(
-                    getSingleDayFromRange(
-                      selectionInfo.start,
-                      selectionInfo.end,
-                    ),
-                  )
-                }
-                select={handleCalendarSelect}
-                eventDrop={handleEventDrop}
-                eventResize={handleEventResize}
-                eventClick={handleCalendarEventClick}
-                eventContent={renderEventContent}
-                eventClassNames={(eventInfo) => {
-                  const id = eventInfo.event.id;
-                  if (id.startsWith("break-")) {
-                    const breakId = id.slice(6);
-                    return selectedBreak?.breakId === breakId
-                      ? ["work-break-event", "is-selected-shift"]
-                      : ["work-break-event"];
+                        className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-xs font-semibold text-slate-400 transition hover:border-emerald-300/30 hover:text-emerald-200"
+                      >
+                        {copyDayTargets.length === WEEK_DAYS.length - 1
+                          ? "Deselect all"
+                          : "All"}
+                      </button>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={copyDayTargets.length === 0}
+                        onClick={() => {
+                          const copied = copyDayScheduleTo(
+                            copyDaySource,
+                            copyDayTargets,
+                          );
+                          if (copied) {
+                            setSaveAfterCopyDay(true);
+                          }
+                        }}
+                        className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Apply copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCopyDayPanelOpen(false);
+                          setCopyDaySource(undefined);
+                          setCopyDayTargets([]);
+                        }}
+                        className="rounded-full border border-slate-700 bg-slate-900/60 px-4 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : null}
+            <div className="relative">
+              <div
+                className="work-planner-calendar min-w-4xl lg:min-w-280"
+                style={calendarStyle}
+              >
+                <FullCalendar
+                  ref={calendarRef}
+                  plugins={[timeGridPlugin, interactionPlugin]}
+                  initialView="timeGridWeek"
+                  initialDate={REFERENCE_WEEK_START}
+                  visibleRange={{
+                    start: REFERENCE_WEEK_START,
+                    end: REFERENCE_WEEK_END,
+                  }}
+                  headerToolbar={false}
+                  firstDay={1}
+                  weekends
+                  allDaySlot={false}
+                  height="auto"
+                  expandRows={false}
+                  editable
+                  eventStartEditable
+                  eventDurationEditable
+                  eventResizableFromStart
+                  selectable
+                  selectMirror
+                  selectMinDistance={10}
+                  eventOverlap={false}
+                  slotEventOverlap={false}
+                  selectOverlap
+                  nowIndicator={false}
+                  scrollTimeReset={false}
+                  slotDuration="00:30:00"
+                  snapDuration="00:15:00"
+                  slotLabelInterval="01:00:00"
+                  slotMinTime={plannerViewWindow.slotMinTime}
+                  slotMaxTime={plannerViewWindow.slotMaxTime}
+                  scrollTime={plannerViewWindow.scrollTime}
+                  events={calendarEvents}
+                  displayEventEnd
+                  eventTimeFormat={{
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    meridiem: false,
+                    hour12: false,
+                  }}
+                  dayHeaderContent={renderDayHeaderContent}
+                  selectAllow={(selectionInfo) =>
+                    Boolean(
+                      getSingleDayFromRange(
+                        selectionInfo.start,
+                        selectionInfo.end,
+                      ),
+                    )
                   }
-                  const colorIdx: number =
-                    eventInfo.event.extendedProps.companyColorIdx ?? 0;
-                  const companyClass = `work-shift-company-${colorIdx}`;
-                  return selectedShift?.blockId === id
-                    ? ["work-shift-event", companyClass, "is-selected-shift"]
-                    : ["work-shift-event", companyClass];
-                }}
-              />
+                  select={handleCalendarSelect}
+                  eventDrop={handleEventDrop}
+                  eventResize={handleEventResize}
+                  eventClick={handleCalendarEventClick}
+                  eventContent={renderEventContent}
+                  eventClassNames={(eventInfo) => {
+                    const id = eventInfo.event.id;
+                    if (id.startsWith("break-")) {
+                      const breakId = id.slice(6);
+                      return selectedBreak?.breakId === breakId
+                        ? ["work-break-event", "is-selected-shift"]
+                        : ["work-break-event"];
+                    }
+                    const colorIdx: number =
+                      eventInfo.event.extendedProps.companyColorIdx ?? 0;
+                    const companyClass = `work-shift-company-${colorIdx}`;
+                    return selectedShift?.blockId === id
+                      ? ["work-shift-event", companyClass, "is-selected-shift"]
+                      : ["work-shift-event", companyClass];
+                  }}
+                />
+              </div>
             </div>
           </div>
+        </section>
+      ) : (
+        <div className="flex h-50 flex-col items-center justify-center rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
+          <div className="text-center text-2xl font-semibold text-slate-100">
+            Join an organization to get access to the Work-Profile-Planner
+          </div>
         </div>
-      </section>
+      )}
 
       {(pendingSelection || selectedShiftDetails || selectedBreakDetails) && (
         <div
