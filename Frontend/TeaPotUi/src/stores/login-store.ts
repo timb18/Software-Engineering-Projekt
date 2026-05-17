@@ -37,8 +37,6 @@ const useLoginStore = () => {
     const user: User = existingUser ?? {
       id: crypto.randomUUID(),
       email,
-      username: email.split("@")[0],
-      displayName: email.split("@")[0],
       role: "user",
       orgs: [],
       tasks: [],
@@ -56,28 +54,30 @@ const useLoginStore = () => {
     return user;
   };
 
-  const syncAccountFromBackend = (account: { id: string; email: string; username: string }) => {
+  const syncAccountFromBackend = (account: {
+    id: string;
+    email: string;
+    username: string;
+  }) => {
     const users = getDefaults().users;
     const existingUser = users.find((u) => u.email === account.email);
 
     const user: User = existingUser
-      ? { ...existingUser, id: account.id, username: account.username }
+      ? { ...existingUser, id: account.id }
       : {
-        id: account.id,
-        email: account.email,
-        username: account.username,
-        displayName: account.username,
-        role: "user",
-        orgs: [],
-        tasks: [],
-        invites: [],
-        timezone: "Europe/Berlin",
-        workCapacityHours: 8,
-        workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        workStart: "09:00",
-        workEnd: "17:00",
-        breakRules: "30m lunch",
-      };
+          id: account.id,
+          email: account.email,
+          role: "user",
+          orgs: [],
+          tasks: [],
+          invites: [],
+          timezone: "Europe/Berlin",
+          workCapacityHours: 8,
+          workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+          workStart: "09:00",
+          workEnd: "17:00",
+          breakRules: "30m lunch",
+        };
 
     loginStore.setState({ email: account.email, password: "" });
     setUser(user);
@@ -89,7 +89,13 @@ const useLoginStore = () => {
     setUser();
   };
 
-  return { tryLogin, ensureLocalAccount, syncAccountFromBackend, logout, ...state };
+  return {
+    tryLogin,
+    ensureLocalAccount,
+    syncAccountFromBackend,
+    logout,
+    ...state,
+  };
 };
 
 export default useLoginStore;

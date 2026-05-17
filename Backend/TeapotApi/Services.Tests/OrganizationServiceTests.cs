@@ -1,7 +1,10 @@
+using Auth0.ManagementApi;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Services.Tests.Fakes;
+using Organization = DataAccess.Models.Organization;
 
 namespace Services.Tests;
 
@@ -21,7 +24,12 @@ public class OrganizationServiceTests
         _dbContext = new TeapotDbContext(options);
         _service = new OrganizationService(
             new OrganizationRepository(_dbContext),
-            Options.Create(new EmailOptions { ApiBaseUrl = "https://api.example.test" }));
+            Options.Create(new EmailOptions { ApiBaseUrl = "https://api.example.test" }),
+            new FakeManagementApiClient([
+                new UserResponseSchema { UserId = "a", Email = "organizer@example.com" },
+                new UserResponseSchema { UserId = "b", Email = "member@example.com" },
+                new UserResponseSchema { UserId = "c", Email = "co-organizer@example.com" }
+            ]));
     }
 
     [TearDown]
@@ -34,7 +42,6 @@ public class OrganizationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@example.com",
-            Username = "organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -122,7 +129,8 @@ public class OrganizationServiceTests
         _dbContext.Invitations.Add(invitation);
         await _dbContext.SaveChangesAsync();
 
-        await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, user.Id, organization.Name));
+        await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, user.Id,
+            organization.Name));
 
         Assert.Multiple(() =>
         {
@@ -144,7 +152,6 @@ public class OrganizationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -192,7 +199,6 @@ public class OrganizationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -240,7 +246,6 @@ public class OrganizationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -298,7 +303,6 @@ public class OrganizationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@example.com",
-            Username = "organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -349,36 +353,60 @@ public class OrganizationServiceTests
     [Test]
     public void DeleteOrganizationAsync_Throws_When_Organization_Has_Additional_Organizers()
     {
-        var organizer = new User { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };
-        var coOrganizer = new User { Id = Guid.NewGuid(), Email = "co-organizer@example.com", Username = "co", CreatedAt = DateTime.UtcNow };
-        var organization = new Organization { Id = Guid.NewGuid(), Name = "Team Org", Description = "Test", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
+        var organizer = new User
+            { Id = Guid.NewGuid(), Email = "organizer@example.com", CreatedAt = DateTime.UtcNow };
+        var coOrganizer = new User
+            { Id = Guid.NewGuid(), Email = "co-organizer@example.com", CreatedAt = DateTime.UtcNow };
+        var organization = new Organization
+            { Id = Guid.NewGuid(), Name = "Team Org", Description = "Test", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
 
         _dbContext.Users.AddRange(organizer, coOrganizer);
         _dbContext.Organizations.Add(organization);
         _dbContext.Memberships.AddRange(
-            new Membership { Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
-            new Membership { Id = Guid.NewGuid(), UserId = coOrganizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow });
+            new Membership
+            {
+                Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer,
+                CreatedAt = DateTime.UtcNow
+            },
+            new Membership
+            {
+                Id = Guid.NewGuid(), UserId = coOrganizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer,
+                CreatedAt = DateTime.UtcNow
+            });
         _dbContext.SaveChanges();
 
         Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, organization.Name)));
+            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id,
+                organization.Name)));
     }
 
     [Test]
     public async Task DeleteOrganizationAsync_Removes_Organization_And_All_Members_When_Only_Organizer()
     {
-        var organizer = new User { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };
-        var member = new User { Id = Guid.NewGuid(), Email = "member@example.com", Username = "member", CreatedAt = DateTime.UtcNow };
-        var organization = new Organization { Id = Guid.NewGuid(), Name = "Team Org", Description = "Test", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
+        var organizer = new User
+            { Id = Guid.NewGuid(), Email = "organizer@example.com", CreatedAt = DateTime.UtcNow };
+        var member = new User
+            { Id = Guid.NewGuid(), Email = "member@example.com", CreatedAt = DateTime.UtcNow };
+        var organization = new Organization
+            { Id = Guid.NewGuid(), Name = "Team Org", Description = "Test", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
 
         _dbContext.Users.AddRange(organizer, member);
         _dbContext.Organizations.Add(organization);
         _dbContext.Memberships.AddRange(
-            new Membership { Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
-            new Membership { Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = organization.Id, Role = ERole.User, CreatedAt = DateTime.UtcNow });
+            new Membership
+            {
+                Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer,
+                CreatedAt = DateTime.UtcNow
+            },
+            new Membership
+            {
+                Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = organization.Id, Role = ERole.User,
+                CreatedAt = DateTime.UtcNow
+            });
         await _dbContext.SaveChangesAsync();
 
-        await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, organization.Name));
+        await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id,
+            organization.Name));
 
         Assert.Multiple(() =>
         {
@@ -390,16 +418,23 @@ public class OrganizationServiceTests
     [Test]
     public void DeleteOrganizationAsync_Throws_When_Confirmation_Does_Not_Match()
     {
-        var organizer = new User { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };
-        var organization = new Organization { Id = Guid.NewGuid(), Name = "Team Org", Description = "Test", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
+        var organizer = new User
+            { Id = Guid.NewGuid(), Email = "organizer@example.com", CreatedAt = DateTime.UtcNow };
+        var organization = new Organization
+            { Id = Guid.NewGuid(), Name = "Team Org", Description = "Test", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
 
         _dbContext.Users.Add(organizer);
         _dbContext.Organizations.Add(organization);
-        _dbContext.Memberships.Add(new Membership { Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow });
+        _dbContext.Memberships.Add(new Membership
+        {
+            Id = Guid.NewGuid(), UserId = organizer.Id, OrganizationId = organization.Id, Role = ERole.Organizer,
+            CreatedAt = DateTime.UtcNow
+        });
         _dbContext.SaveChanges();
 
         Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id, "wrong name")));
+            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id,
+                "wrong name")));
     }
 
     [Test]
@@ -409,7 +444,6 @@ public class OrganizationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@example.com",
-            Username = "org",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization

@@ -1,7 +1,10 @@
 using Api.Controller;
+using Api.Tests.Fakes;
+using Auth0.ManagementApi;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +27,9 @@ public class UserControllerTests
         var userService = new UserService(
             new UserRepository(_dbContext),
             new WorkProfileRepository(_dbContext),
-            new UnitOfWork(_dbContext));
+            new UnitOfWork(_dbContext),
+            new FakeManagementApiClient([new UserResponseSchema { UserId = "a", Email = "profile@test.com" }]),
+            new Auth0Config("", "", "", "", "", ""));
 
         _controller = new UserController(userService);
     }
@@ -39,8 +44,6 @@ public class UserControllerTests
         {
             Id = Guid.NewGuid(),
             Email = "profile@test.com",
-            Username = "profile",
-            DisplayName = "Profile User",
             Timezone = "Europe/Berlin",
             CreatedAt = DateTime.UtcNow,
         };
@@ -59,8 +62,6 @@ public class UserControllerTests
         {
             Id = Guid.NewGuid(),
             Email = "profile@test.com",
-            Username = "profile",
-            DisplayName = "Profile User",
             Timezone = "Europe/Berlin",
             CreatedAt = DateTime.UtcNow,
         };
@@ -72,7 +73,7 @@ public class UserControllerTests
             new UpdateUserProfileRequest("Profile User", "not-an-email", null, "Europe/Berlin"),
             CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        Assert.That(result.Result, Is.TypeOf<BadRequest<string>>());
     }
 
     [Test]
@@ -82,8 +83,6 @@ public class UserControllerTests
         {
             Id = Guid.NewGuid(),
             Email = "profile@test.com",
-            Username = "profile",
-            DisplayName = "Profile User",
             Timezone = "Europe/Berlin",
             CreatedAt = DateTime.UtcNow,
         };
@@ -103,10 +102,9 @@ public class UserControllerTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result, Is.TypeOf<OkObjectResult>());
-            Assert.That(saved!.DisplayName, Is.EqualTo("Updated Profile"));
-            Assert.That(saved.Email, Is.EqualTo("updated@test.com"));
-            Assert.That(saved.Timezone, Is.EqualTo("Europe/Paris"));
+            Assert.That(result.Result, Is.TypeOf<Ok<UserProfileResponse>>());
+            Assert.That(saved?.Email, Is.EqualTo("updated@test.com"));
+            Assert.That(saved?.Timezone, Is.EqualTo("Europe/Paris"));
         });
     }
 }

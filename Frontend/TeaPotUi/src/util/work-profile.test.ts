@@ -22,11 +22,9 @@ const company2 = { id: "co-2", name: "Company 2" };
 
 const minimalUser = (overrides: Partial<User> = {}): User => ({
   id: "test",
-  username: "test",
   email: "test@example.com",
   orgs: [],
   tasks: [],
-  role: "user",
   ...overrides,
 });
 
@@ -155,7 +153,12 @@ describe("getCompanyOptions", () => {
 
     const options = getCompanyOptions([], profile);
 
-    expect(options.some((option) => option.id === "legacy-co" && option.name === "Legacy Company")).toBe(true);
+    expect(
+      options.some(
+        (option) =>
+          option.id === "legacy-co" && option.name === "Legacy Company",
+      ),
+    ).toBe(true);
   });
 });
 
@@ -204,7 +207,13 @@ describe("normalizeWorkProfile", () => {
     const result = normalizeWorkProfile(profile);
     expect(result.days).toHaveLength(7);
     expect(result.days.map((d) => d.day)).toEqual([
-      "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun",
     ]);
   });
 
@@ -270,9 +279,15 @@ describe("getWorkProfileSummary", () => {
   it("counts a Mon 09:00-17:00 block as 8h, 1 active day", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -295,7 +310,9 @@ describe("getWorkProfileSummary", () => {
         makeDay("Mon"),
         makeDay("Tue"),
         ...["Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -310,10 +327,15 @@ describe("getWorkProfileSummary", () => {
         {
           day: "Mon",
           blocks: [createWorkBlock(company, "09:00", "17:00")],
-          breaks: [createWorkBreak("12:00", "12:30"), createWorkBreak("15:00", "15:15")],
+          breaks: [
+            createWorkBreak("12:00", "12:30"),
+            createWorkBreak("15:00", "15:15"),
+          ],
         },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -328,9 +350,15 @@ describe("validateWorkProfile", () => {
   it("returns undefined for a valid profile", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -343,7 +371,9 @@ describe("validateWorkProfile", () => {
       days: [
         { day: "Mon", blocks: [block], breaks: [] },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -362,7 +392,9 @@ describe("validateWorkProfile", () => {
           breaks: [],
         },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -375,7 +407,9 @@ describe("validateWorkProfile", () => {
       days: [
         { day: "Mon", blocks: [block], breaks: [] },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -394,7 +428,9 @@ describe("validateWorkProfile", () => {
           ],
         },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -408,9 +444,15 @@ describe("createWorkProfileFromLegacyUser", () => {
   it("uses user.workProfile when present", () => {
     const stored: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "08:00", "16:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "08:00", "16:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -445,10 +487,20 @@ describe("getLegacyWorkSettings", () => {
   it("returns correct maxDailyHours as workCapacityHours", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
-        { day: "Tue", blocks: [createWorkBlock(company, "09:00", "13:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
+        {
+          day: "Tue",
+          blocks: [createWorkBlock(company, "09:00", "13:00")],
+          breaks: [],
+        },
         ...["Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -459,10 +511,20 @@ describe("getLegacyWorkSettings", () => {
   it("returns active days in workDays", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
-        { day: "Wed", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
+        {
+          day: "Wed",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -473,9 +535,15 @@ describe("getLegacyWorkSettings", () => {
   it("sets no-breaks message when profile has no breaks", () => {
     const profile: WorkProfile = {
       days: [
-        { day: "Mon", blocks: [createWorkBlock(company, "09:00", "17:00")], breaks: [] },
+        {
+          day: "Mon",
+          blocks: [createWorkBlock(company, "09:00", "17:00")],
+          breaks: [],
+        },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };
@@ -492,7 +560,9 @@ describe("getLegacyWorkSettings", () => {
           breaks: [createWorkBreak("12:00", "12:30")],
         },
         ...["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-          day: d as never, blocks: [], breaks: [],
+          day: d as never,
+          blocks: [],
+          breaks: [],
         })),
       ],
     };

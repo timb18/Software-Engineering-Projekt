@@ -1,10 +1,16 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Services.Users;
 
 namespace Api.Controller;
 
+/// <summary>
+/// Handles user authentication and registration operations for the API.
+/// </summary>
+/// <remarks>
+/// This controller provides endpoints for ensuring users have work profiles after authentication,
+/// and registering new users to the system.
+/// </remarks>
 [Route("api/[controller]")]
 [ApiController]
 public class AuthController : ControllerBase
@@ -35,17 +41,26 @@ public class AuthController : ControllerBase
         var (userId, workProfileId) = await _userService.EnsureUserAsync(
             request.Email,
             request.AuthProviderSubject,
-            request.DisplayName,
-            request.ProfileImageUrl,
             cancellationToken);
         return Ok(new EnsureUserResponse(userId, workProfileId));
     }
 
+    /// <summary>
+    /// Registers a new user account using the provided email address.
+    /// Checks for existing users with the same email and returns the existing account if found.
+    /// Otherwise, creates a new user record in the repository and returns the new account details.
+    /// </summary>
+    /// <param name="request">The HTTP request body containing the user's email address.</param>
+    /// <param name="cancellationToken">The cancellation token to observe the execution of the asynchronous operation.</param>
+    /// <returns>A task representing the HTTP response containing the user's unique ID and email address on success.</returns>
     [HttpPost("register")]
-    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType<RegisterResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
-            return BadRequest(new { success = false, message = "E-Mail ist erforderlich." });
+            return BadRequest("E-Mail ist erforderlich.");
 
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
@@ -61,7 +76,6 @@ public class AuthController : ControllerBase
                 {
                     Id = existingUser.Id,
                     Email = existingUser.Email,
-                    Username = existingUser.Username ?? normalizedEmail.Split('@')[0]
                 }
             });
         }
@@ -70,42 +84,33 @@ public class AuthController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Email = normalizedEmail,
-            Username = string.IsNullOrWhiteSpace(request.Username) ? normalizedEmail.Split('@')[0] : request.Username.Trim(),
             CreatedAt = DateTime.UtcNow
         };
 
         await _userRepository.AddAsync(user, cancellationToken);
 
-        return Ok(new
-        {
-            success = true,
-            created = true,
-            data = new RegisterResponse
+        return Ok(new RegisterResponse
             {
                 Id = user.Id,
                 Email = user.Email,
-                Username = user.Username ?? normalizedEmail.Split('@')[0]
             }
-        });
+        );
     }
 }
 
 public record EnsureUserRequest(
     string Email,
-    string? AuthProviderSubject = null,
-    string? DisplayName = null,
-    string? ProfileImageUrl = null);
+    string? AuthProviderSubject = null);
+
 public record EnsureUserResponse(Guid UserId, Guid? WorkProfileId);
 
-public class RegisterRequest
+public record RegisterRequest
 {
-    public string Email { get; set; } = string.Empty;
-    public string? Username { get; set; }
+    public string Email { get; init; } = string.Empty;
 }
 
 public class RegisterResponse
 {
     public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
 }

@@ -1,4 +1,6 @@
 using Api.Controller;
+using Api.Tests.Fakes;
+using Auth0.ManagementApi;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
@@ -8,7 +10,6 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Api.Tests;
 
-[Category("Integration")]
 public class AuthControllerTests
 {
     private TeapotDbContext _dbContext = null!;
@@ -26,7 +27,14 @@ public class AuthControllerTests
         var userService = new UserService(
             new UserRepository(_dbContext),
             new WorkProfileRepository(_dbContext),
-            new UnitOfWork(_dbContext));
+            new UnitOfWork(_dbContext),
+            new FakeManagementApiClient([
+                new UserResponseSchema { UserId = "a", Email = "new-user@test.com" },
+                new UserResponseSchema { UserId = "b", Email = "existing@test.com" },
+                new UserResponseSchema { UserId = "c", Email = "ensure-user@test.com" },
+                new UserResponseSchema { UserId = "d", Email = "repeat@test.com" }
+            ]),
+            new Auth0Config("", "", "", "", "", ""));
         _controller = new AuthController(userService, new UserRepository(_dbContext));
     }
 
@@ -42,12 +50,14 @@ public class AuthControllerTests
         var result = await _controller.RegisterAsync(new RegisterRequest
         {
             Email = "new-user@test.com",
-            Username = "new-user"
         }, CancellationToken.None);
 
-        Assert.That(result, Is.InstanceOf<OkObjectResult>());
-        Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
-        Assert.That(_dbContext.Users.Single().Email, Is.EqualTo("new-user@test.com"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
+            Assert.That(_dbContext.Users.Single().Email, Is.EqualTo("new-user@test.com"));
+        });
     }
 
     [Test]
@@ -57,15 +67,13 @@ public class AuthControllerTests
         {
             Id = Guid.NewGuid(),
             Email = "existing@test.com",
-            Username = "existing",
             CreatedAt = DateTime.UtcNow
         });
         await _dbContext.SaveChangesAsync();
 
         var result = await _controller.RegisterAsync(new RegisterRequest
         {
-            Email = "existing@test.com",
-            Username = "ignored"
+            Email = "existing@test.com"
         }, CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<OkObjectResult>());
@@ -76,15 +84,18 @@ public class AuthControllerTests
     public async Task EnsureUser_CreatesMissingUserWithoutPersonalWorkspace()
     {
         var result = await _controller.EnsureUser(
-            new EnsureUserRequest("ensure-user@test.com", "auth0|ensure", "Ensure User", "https://example.com/u.png"),
+            new EnsureUserRequest("ensure-user@test.com", "auth0|ensure"),
             CancellationToken.None);
 
-        Assert.That(result, Is.InstanceOf<OkObjectResult>());
-        Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
-        Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(0));
-        Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(0));
-        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(0));
-        Assert.That(_dbContext.Users.Single().AuthProviderSubject, Is.EqualTo("auth0|ensure"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.InstanceOf<OkObjectResult>());
+            Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
+            Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.Users.Single().AuthProviderSubject, Is.EqualTo("auth0|ensure"));
+        });
     }
 
     [Test]
@@ -96,10 +107,13 @@ public class AuthControllerTests
             new EnsureUserRequest("repeat@test.com"),
             CancellationToken.None);
 
-        Assert.That(secondResult, Is.InstanceOf<OkObjectResult>());
-        Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
-        Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(0));
-        Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(0));
-        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(0));
+        Assert.Multiple(() =>
+        {
+            Assert.That(secondResult, Is.InstanceOf<OkObjectResult>());
+            Assert.That(_dbContext.Users.Count(), Is.EqualTo(1));
+            Assert.That(_dbContext.Organizations.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(0));
+            Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(0));
+        });
     }
 }

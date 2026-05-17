@@ -47,6 +47,8 @@ builder.Services.AddEndpointsApiExplorer()
         o.SwaggerDoc("v1",
             new OpenApiInfo
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
+        o.SupportNonNullableReferenceTypes();
+        o.NonNullableReferenceTypesAsRequired();
         if (auth0Config is not null)
         {
             o.AddSecurityDefinition("Auth0", new OpenApiSecurityScheme

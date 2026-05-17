@@ -32,7 +32,6 @@ public class WorkProfileServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -135,7 +134,6 @@ public class WorkProfileServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -196,7 +194,6 @@ public class WorkProfileServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -247,7 +244,6 @@ public class WorkProfileServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -336,7 +332,6 @@ public class WorkProfileServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
 

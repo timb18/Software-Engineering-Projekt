@@ -31,10 +31,7 @@ export type WorkProfile = {
 
 export type User = {
   id: string;
-  username: string;
-  displayName?: string;
   email: string;
-  profileImage?: string;
   timezone?: string;
   appearanceBreakColor?: string | null;
   appearanceOrgColors?: string | null;
@@ -53,6 +50,13 @@ export type User = {
   invites?: Invitation[];
 };
 
+export type OrgUser = {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+};
+
 export type Org = {
   id: string;
   name: string;
@@ -60,7 +64,7 @@ export type Org = {
   maxUsers?: number;
   auth0OrganizationId?: string;
   workProfileId?: string | null;
-  users: User[];
+  users: OrgUser[];
   adminEmails?: string[];
   invites?: Invitation[];
 };
@@ -92,7 +96,7 @@ export type Task = {
 
 export type Priority = "low" | "medium" | "high";
 
-export type Role = "admin" | "user";
+export type Role = "organizer" | "user";
 
 export type Invitation = {
   id?: string;

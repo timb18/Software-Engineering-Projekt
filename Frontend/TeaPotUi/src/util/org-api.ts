@@ -1,4 +1,4 @@
-import type { Org, Invitation, User } from "./types";
+import type { Org, Invitation, OrgUser } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -18,7 +18,7 @@ type UpdateMembershipRoleRequest = {
   initiatorUserId: string;
   userId: string;
   organizationId: string;
-  role: "admin" | "user";
+  role: "organizer" | "user";
 };
 
 type OrganizationApiResponse = {
@@ -27,12 +27,7 @@ type OrganizationApiResponse = {
   description?: string;
   maxUsers?: number;
   workProfileId?: string | null;
-  users: Array<{
-    id: string;
-    email: string;
-    username: string;
-    role: string;
-  }>;
+  users: OrgUser[];
   invites: Array<{
     id: string;
     organizationId: string;
@@ -62,24 +57,13 @@ const mapInvite = (
   invitationUrl: invite.invitationLink,
 });
 
-const mapMember = (member: OrganizationApiResponse["users"][number]): User => ({
-  id: member.id,
-  email: member.email,
-  username: member.username,
-  displayName: member.username,
-  role: member.role === "organizer" ? "admin" : "user",
-  orgs: [],
-  tasks: [],
-  invites: [],
-});
-
-const sortMembers = (members: User[]) =>
+const sortMembers = (members: OrgUser[]) =>
   [...members].sort((a, b) => {
     if (a.role !== b.role) {
-      return a.role === "admin" ? -1 : 1;
+      return a.role === "organizer" ? -1 : 1;
     }
 
-    return a.username.localeCompare(b.username);
+    return a.email.localeCompare(b.email);
   });
 
 const mapOrganization = (org: OrganizationApiResponse): Org => ({
@@ -88,20 +72,24 @@ const mapOrganization = (org: OrganizationApiResponse): Org => ({
   description: org.description,
   maxUsers: org.maxUsers,
   workProfileId: org.workProfileId ?? null,
-  users: sortMembers(org.users.map(mapMember)),
+  users: sortMembers(org.users),
   adminEmails: org.users
     .filter((member) => member.role === "organizer")
     .map((member) => member.email),
   invites: org.invites.map((invite) => mapInvite(invite, org.name)),
 });
 
-export async function fetchOrganizationsByUserEmail(email: string): Promise<Org[]> {
+export async function fetchOrganizationsByUserEmail(
+  email: string,
+): Promise<Org[]> {
   const res = await fetch(
     `${API_BASE}/api/Organization/by-user-email?email=${encodeURIComponent(email)}`,
   );
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch organizations: ${res.status} ${res.statusText}`);
+    throw new Error(
+      `Failed to fetch organizations: ${res.status} ${res.statusText}`,
+    );
   }
 
   const organizations = (await res.json()) as OrganizationApiResponse[];
@@ -138,16 +126,19 @@ export async function removeUserFromOrganization(
 export async function renameOrganization(
   request: RenameOrganizationRequest,
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/Organization/${request.organizationId}/rename`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const res = await fetch(
+    `${API_BASE}/api/Organization/${request.organizationId}/rename`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        initiatorUserId: request.initiatorUserId,
+        name: request.name,
+      }),
     },
-    body: JSON.stringify({
-      initiatorUserId: request.initiatorUserId,
-      name: request.name,
-    }),
-  });
+  );
 
   if (!res.ok) {
     const message = await res.text();

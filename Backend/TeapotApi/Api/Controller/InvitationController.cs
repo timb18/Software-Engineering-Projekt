@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Services.Organizations;
 
 namespace Api.Controller;
 
@@ -18,10 +18,20 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Sendet eine Einladung an einen Benutzer
+    /// Sends an invitation to the specified email address for the given organization.
     /// </summary>
+    /// <param name="request">
+    /// A request object containing the invitation details, including the recipient email, organization ID, expiry duration, and optional sender information.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to monitor the cancellation status for the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// A task containing the result of the invitation sending operation.
+    /// </returns>
     [HttpPost("send")]
-    public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -36,7 +46,7 @@ public class InvitationController : ControllerBase
                 ResolvePublicApiBaseUrl(),
                 cancellationToken);
 
-            return Ok(new { success = true, message = "Invite sent:", data = result });
+            return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
@@ -49,10 +59,24 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Akzeptiert eine Einladung
+    /// Accepts the specified invitation using the provided user identifier or email address.
     /// </summary>
-    [HttpPost("{invitationId}/accept")]
-    public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId, [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
+    /// <param name="invitationId">
+    /// The unique identifier of the invitation to be accepted.
+    /// </param>
+    /// <param name="request">
+    /// A request object containing either the user ID or email address required to complete the invitation acceptance.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to monitor the cancellation status for the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// A task containing the HTTP result indicating the success or failure of the invitation acceptance operation.
+    /// </returns>
+    [HttpPost("{invitationId:guid}/accept")]
+    public async Task<Results<Ok<string>, BadRequest<string>, NotFound<string>>> AcceptInvitationAsync(
+        [FromRoute] Guid invitationId,
+        [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -66,50 +90,90 @@ public class InvitationController : ControllerBase
             }
             else
             {
-                return BadRequest(new { success = false, message = "UserId or Email is required." });
+                return TypedResults.BadRequest("UserId or Email is required.");
             }
 
-            return Ok(new { success = true, message = "Invite accepted" });
+            return TypedResults.Ok("Invite accepted");
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new { success = false, message = ex.Message });
+            return TypedResults.NotFound(ex.Message);
         }
         catch (Exception ex)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 
-    [HttpGet("{invitationId}/accept-link")]
+    /// <summary>
+    /// Handles the acceptance of an invitation by redirecting the client to the frontend.
+    /// </summary>
+    /// <param name="invitationId">
+    /// The unique identifier for the invitation to be accepted.
+    /// </param>
+    /// <param name="email">
+    /// The email address of the recipient associated with the invitation.
+    /// </param>
+    /// <returns>
+    /// An action result containing a redirect status code to the frontend application.
+    /// </returns>
+    [HttpGet("{invitationId:guid}/accept-link")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public IActionResult AcceptInvitationLink([FromRoute] Guid invitationId, [FromQuery] string email)
     {
         return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "pending", invitationId, email));
     }
 
+
     /// <summary>
-    /// Lehnt eine Einladung ab
+    /// Rejects the specified invitation for the given organization.
     /// </summary>
-    [HttpPost("{invitationId}/reject")]
-    public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
+    /// <param name="invitationId">
+    /// The unique identifier of the invitation to reject.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to monitor the cancellation status for the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// A task containing a typed result that indicates the outcome of the invitation rejection operation.
+    /// Returns Ok with a message on success, NotFound if the invitation does not exist, and BadRequest on other errors.
+    /// </returns>
+    [HttpPost("{invitationId:guid}/reject")]
+    public async Task<Results<Ok<string>, BadRequest<string>, NotFound<string>>> RejectInvitationAsync(
+        [FromRoute] Guid invitationId,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             await _invitationService.RejectInvitationAsync(invitationId, cancellationToken);
-            return Ok(new { success = true, message = "Invite rejected" });
+            return TypedResults.Ok("Invite rejected");
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new { success = false, message = ex.Message });
+            return TypedResults.NotFound(ex.Message);
         }
         catch (Exception ex)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 
-    [HttpGet("{invitationId}/reject-link")]
-    public async Task<IActionResult> RejectInvitationLink([FromRoute] Guid invitationId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Rejects the specified invitation and redirects the user to a rejection confirmation page.
+    /// </summary>
+    /// <param name="invitationId">
+    /// The unique identifier of the invitation to reject.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to monitor the cancellation status for the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// An IActionResult representing a redirect to the frontend rejection page.
+    /// </returns>
+    [HttpGet("{invitationId:guid}/reject-link")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    public async Task<IActionResult> RejectInvitationLink([FromRoute] Guid invitationId,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -118,49 +182,94 @@ public class InvitationController : ControllerBase
         }
         catch (Exception ex)
         {
-            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "error", message : ex.Message));
+            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "error", message: ex.Message));
         }
     }
 
     /// <summary>
-    /// Ruft offene Einladungen für eine E-Mail-Adresse ab
+    /// Retrieves a list of pending invitation records for the specified email address.
     /// </summary>
+    /// <param name="email">
+    /// The email address to search for pending invitations in the system.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to monitor the cancellation status for the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// A task containing the result of the operation. On success, the result contains a collection of invitation details associated with the specified email. On error, a specific status code is returned with an error message.
+    /// </returns>
     [HttpGet("pending")]
-    public async Task<IActionResult> GetPendingInvitationsAsync([FromQuery] string email, CancellationToken cancellationToken)
+    public async Task<Results<Ok<IEnumerable<InvitationDto>>, BadRequest<string>, NotFound<string>>>
+        GetPendingInvitationsAsync([FromQuery] string email,
+            CancellationToken cancellationToken = default)
     {
         try
         {
             var invitations = await _invitationService.GetPendingInvitationsForEmailAsync(email, cancellationToken);
-            return Ok(new { success = true, data = invitations });
+            return TypedResults.Ok(invitations);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new { success = false, message = ex.Message });
+            return TypedResults.NotFound(ex.Message);
         }
         catch (Exception ex)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 
     /// <summary>
-    /// Ruft alle Einladungen für eine Organisation ab
+    /// Retrieves a collection of pending invitations for the specified organization.
     /// </summary>
-    [HttpGet("organization/{organizationId}")]
-    public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId, CancellationToken cancellationToken)
+    /// <param name="organizationId">
+    /// The unique identifier of the organization for which to retrieve invitations.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to monitor the cancellation status for the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// A task that represents the asynchronous operation. The value contains a result with the list of invitations if successful, or a bad request error if an error occurs.
+    /// </returns>
+    [HttpGet("organization/{organizationId:guid}")]
+    public async Task<Results<Ok<IEnumerable<InvitationDto>>, BadRequest<string>>> GetOrganizationInvitationsAsync(
+        [FromRoute] Guid organizationId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var invitations = await _invitationService.GetInvitationsForOrganizationAsync(organizationId, cancellationToken);
-            return Ok(new { success = true, data = invitations });
+            var invitations =
+                await _invitationService.GetInvitationsForOrganizationAsync(organizationId, cancellationToken);
+            return TypedResults.Ok(invitations);
         }
         catch (Exception ex)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 
-    private static string BuildFrontendRedirect(string configuredBaseUrl, string status, Guid? invitationId = null, string? email = null, string? message = null)
+    /// <summary>
+    /// Constructs a frontend redirect URL based on the specified configuration and status.
+    /// </summary>
+    /// <param name="configuredBaseUrl">
+    /// The base URL for the frontend application. Defaults to a local development address if empty or whitespace.
+    /// </param>
+    /// <param name="status">
+    /// The status to represent in the URL query string (e.g., "pending", "rejected", "error").
+    /// </param>
+    /// <param name="invitationId">
+    /// An optional unique identifier for the invitation included in the query string.
+    /// </param>
+    /// <param name="email">
+    /// An optional email address associated with the invitation or error to include in the query string.
+    /// </param>
+    /// <param name="message">
+    /// An optional error message string to include in the query string if an exception occurred.
+    /// </param>
+    /// <returns>
+    /// A complete URL string formatted as the base URL with appropriate query parameters appended.
+    /// </returns>
+    private static string BuildFrontendRedirect(string configuredBaseUrl, string status, Guid? invitationId = null,
+        string? email = null, string? message = null)
     {
         var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
             ? "http://127.0.0.1:5173/"

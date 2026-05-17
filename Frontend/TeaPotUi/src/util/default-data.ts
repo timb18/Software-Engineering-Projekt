@@ -78,7 +78,7 @@ const defaultTasks: Task[] = [
     startDate: new Date("2026-04-14T14:00:00Z"),
     endDate: new Date("2026-04-14T15:00:00Z"),
     org: companyA.id,
-    deadline: new Date("2026-04-14T15:00:00Z")
+    deadline: new Date("2026-04-14T15:00:00Z"),
   },
   {
     name: "Client review",
@@ -87,16 +87,13 @@ const defaultTasks: Task[] = [
     startDate: new Date("2026-04-16T10:30:00Z"),
     endDate: new Date("2026-04-16T12:00:00Z"),
     org: companyA.id,
-    deadline: new Date("2026-04-16T12:00:00Z")
+    deadline: new Date("2026-04-16T12:00:00Z"),
   },
 ];
 
 const adminA: User = {
   id: "11111111-1111-1111-1111-111111111111",
-  username: "admin",
-  displayName: "Admin A",
   email: "admin@company-a.de",
-  role: "admin",
   orgs: [],
   tasks: defaultTasks,
   invites: [],
@@ -109,10 +106,7 @@ const adminA: User = {
 };
 const userA1: User = {
   id: "22222222-2222-2222-2222-222222222222",
-  username: "userA",
-  displayName: "Anna A",
   email: "user@company-a.de",
-  role: "user",
   orgs: [],
   tasks: [],
   invites: [
@@ -133,10 +127,7 @@ const userA1: User = {
 
 const adminB: User = {
   id: "33333333-3333-3333-3333-333333333333",
-  username: "admin",
-  displayName: "Admin B",
   email: "admin@company-b.de",
-  role: "admin",
   orgs: [],
   tasks: [],
   invites: [],
@@ -149,10 +140,7 @@ const adminB: User = {
 };
 const userB1: User = {
   id: "44444444-4444-4444-4444-444444444444",
-  username: "userB",
-  displayName: "Ben B",
   email: "user@company-b.de",
-  role: "user",
   orgs: [],
   tasks: [],
   invites: [],
@@ -237,12 +225,9 @@ export const orgs: Org[] = [
 export const defaultUser: User = {
   id: "00000000-0000-0000-0000-000000000000",
   email: "example@default.com",
-  role: "user",
-  username: "defaultUser123",
   orgs: [],
   tasks: [],
   invites: [],
-  displayName: "Default User",
   timezone: "Europe/Berlin",
   workCapacityHours: 8,
   workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],

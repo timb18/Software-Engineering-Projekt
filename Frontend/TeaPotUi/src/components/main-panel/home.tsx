@@ -1,15 +1,17 @@
 import dayjs from "dayjs";
 import { type FC } from "react";
 import useUserStore from "../../stores/user-store";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const Home: FC = () => {
-  const { user } = useUserStore();
+  const { user: userFormDb } = useUserStore();
+  const { user: userFromAuth } = useAuth0();
 
-  if (!user) {
+  if (!userFormDb) {
     return <></>;
   }
 
-  const tasks = user.tasks ?? [];
+  const tasks = userFormDb.tasks ?? [];
   const now = dayjs();
   const upcomingTasks = tasks
     .filter((task) => dayjs(task.startDate).isAfter(now.subtract(1, "day")))
@@ -23,7 +25,7 @@ const Home: FC = () => {
     .sort((a, b) => a.deadline.valueOf() - b.deadline.valueOf())
     .slice(0, 3)
     .map(({ task }) => task);
-  const teams = user.orgs ?? [];
+  const teams = userFormDb.orgs ?? [];
 
   return (
     <div className="grid min-h-full w-full grid-rows-[auto_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-8 text-slate-50">
@@ -32,7 +34,7 @@ const Home: FC = () => {
           Welcome back
         </div>
         <div className="mt-2 text-4xl font-semibold">
-          Hi {user.displayName ?? user.username}, plan your week.
+          Hi {userFromAuth?.nickname}, plan your week.
         </div>
         <div className="mt-2 text-slate-400">
           Keep tasks and teams aligned in one glance.

@@ -1,4 +1,5 @@
 using System.Net;
+using Auth0.ManagementApi;
 using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.Extensions.Options;
@@ -7,15 +8,29 @@ namespace Services.Organizations;
 
 public class OrganizationService(
     IOrganizationRepository organizationRepository,
-    IOptions<EmailOptions> emailOptions) : IOrganizationService
+    IOptions<EmailOptions> emailOptions,
+    IManagementApiClient managementClient) : IOrganizationService
 {
     private const string PersonalWorkspaceDescription = "Auto-created personal workspace";
     private readonly EmailOptions _emailOptions = emailOptions.Value;
 
-    public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email,
+        CancellationToken cancellationToken = default)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var organizations = await organizationRepository.GetForUserAsync(normalizedEmail, cancellationToken);
+        var authUsersPager =
+            await managementClient.Users.ListAsync(new ListUsersRequestParameters(),
+                cancellationToken: cancellationToken);
+
+        var authUsers = authUsersPager.CurrentPage.Items.ToList();
+
+
+        while (authUsersPager.HasNextPage)
+        {
+            await authUsersPager.GetNextPageAsync(cancellationToken);
+            authUsers.AddRange(authUsersPager.CurrentPage.Items);
+        }
 
         return organizations.Select(o => new OrganizationDetailsDto
         {
@@ -27,13 +42,16 @@ public class OrganizationService(
                 .FirstOrDefault(m => string.Equals(m.User.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
                 ?.WorkProfile?.Id,
             Users = o.Memberships
-                .OrderByDescending(m => m.Role == ERole.Organizer)
-                .ThenBy(m => m.User.Username)
+                .OrderByDescending(m => m.Role == ERole.Organizer).ThenBy(m => m.User.Email)
                 .Select(m => new OrganizationUserDto
                 {
                     Id = m.User.Id,
                     Email = m.User.Email,
-                    Username = m.User.Username ?? m.User.Email,
+                    Username = authUsers.FirstOrDefault(u =>
+                                       string.Equals(u.Email, m.User.Email,
+                                           StringComparison.InvariantCultureIgnoreCase))?
+                                   .Username ??
+                               m.User.Email,
                     Role = m.Role.ToString().ToLowerInvariant()
                 })
                 .ToList(),
@@ -62,7 +80,8 @@ public class OrganizationService(
 
     private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 
-    public async Task RenameOrganizationAsync(RenameOrganizationCommand command, CancellationToken cancellationToken = default)
+    public async Task RenameOrganizationAsync(RenameOrganizationCommand command,
+        CancellationToken cancellationToken = default)
     {
         if (command.OrganizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.", nameof(command.OrganizationId));
@@ -74,12 +93,14 @@ public class OrganizationService(
         if (string.IsNullOrWhiteSpace(normalizedName))
             throw new ArgumentException("Organization name is required.", nameof(command.Name));
 
-        var organization = await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId, cancellationToken)
+        var organization =
+            await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId,
+                cancellationToken)
             ?? throw new KeyNotFoundException("Organization not found.");
 
         var initiatorMembership = organization.Memberships
-            .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
-            ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
+                                      .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
+                                  ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
 
         if (initiatorMembership.Role != ERole.Organizer)
             throw new UnauthorizedAccessException("Only organizers can rename an organization.");
@@ -96,7 +117,8 @@ public class OrganizationService(
         await organizationRepository.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default)
+    public async Task DeleteOrganizationAsync(DeleteOrganizationCommand command,
+        CancellationToken cancellationToken = default)
     {
         if (command.OrganizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.", nameof(command.OrganizationId));
@@ -104,7 +126,9 @@ public class OrganizationService(
         if (command.InitiatorUserId == Guid.Empty)
             throw new ArgumentException("InitiatorUserId is required.", nameof(command.InitiatorUserId));
 
-        var organization = await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId, cancellationToken)
+        var organization =
+            await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId,
+                cancellationToken)
             ?? throw new KeyNotFoundException("Organization not found.");
 
         if (organization.MaxUsers == 1 &&
@@ -112,8 +136,8 @@ public class OrganizationService(
             throw new InvalidOperationException("Personal workspaces cannot be deleted.");
 
         var initiatorMembership = organization.Memberships
-            .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
-            ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
+                                      .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
+                                  ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
 
         if (initiatorMembership.Role != ERole.Organizer)
             throw new UnauthorizedAccessException("Only organizers can delete an organization.");

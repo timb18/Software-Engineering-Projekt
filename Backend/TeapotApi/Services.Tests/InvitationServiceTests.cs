@@ -45,7 +45,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -78,14 +77,17 @@ public class InvitationServiceTests
             lastName: "Test",
             publicApiBaseUrl: "https://api.example.test/");
 
-        Assert.That(result.Email, Is.EqualTo("member@test.com"));
-        Assert.That(result.OrganizationId, Is.EqualTo(organization.Id));
-        Assert.That(result.OrganizationName, Is.EqualTo(organization.Name));
-        Assert.That(result.Status, Is.EqualTo("Open"));
-        Assert.That(result.InvitationLink, Does.StartWith("https://api.example.test/api/Invitation/"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Email, Is.EqualTo("member@test.com"));
+            Assert.That(result.OrganizationId, Is.EqualTo(organization.Id));
+            Assert.That(result.OrganizationName, Is.EqualTo(organization.Name));
+            Assert.That(result.Status, Is.EqualTo("Open"));
+            Assert.That(result.InvitationLink, Does.StartWith("https://api.example.test/api/Invitation/"));
         Assert.That(result.InvitationLink, Does.Contain($"/api/Invitation/{result.Id}/accept-link"));
-        Assert.That(result.EmailSent, Is.True);
-        Assert.That(result.EmailError, Is.Null);
+            Assert.That(result.EmailSent, Is.True);
+            Assert.That(result.EmailError, Is.Null);
+        });
     }
 
     [Test]
@@ -95,7 +97,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -125,8 +126,11 @@ public class InvitationServiceTests
             7,
             createdByEmail: organizer.Email);
 
-        Assert.That(result.Email, Is.EqualTo("i24017@hb.dhbw-stuttgart.de"));
-        Assert.That(result.InvitationLink, Does.Contain("i24017%40hb.dhbw-stuttgart.de"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Email, Is.EqualTo("i24017@hb.dhbw-stuttgart.de"));
+            Assert.That(result.InvitationLink, Does.Contain("i24017%40hb.dhbw-stuttgart.de"));
+        });
     }
 
     [Test]
@@ -136,7 +140,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -182,7 +185,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -237,7 +239,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -252,7 +253,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@test.com",
-            Username = "Member",
             CreatedAt = DateTime.UtcNow
         };
         var invitation = new Invitation
@@ -274,9 +274,12 @@ public class InvitationServiceTests
 
         var accepted = await _service.AcceptInvitationByEmailAsync(invitation.Id, "member@test.com");
 
-        Assert.That(accepted, Is.True);
-        Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(1));
-        Assert.That(_dbContext.Invitations.Single().Status, Is.EqualTo(EInvitationStatus.Accepted));
+        Assert.Multiple(() =>
+        {
+            Assert.That(accepted, Is.True);
+            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(1));
+            Assert.That(_dbContext.Invitations.Single().Status, Is.EqualTo(EInvitationStatus.Accepted));
+        });
     }
 
     [Test]
@@ -286,7 +289,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@test.com",
-            Username = "Member",
             CreatedAt = DateTime.UtcNow
         };
         var personalOrganization = new Organization
@@ -319,7 +321,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var invitedOrganization = new Organization
@@ -350,10 +351,13 @@ public class InvitationServiceTests
 
         var accepted = await _service.AcceptInvitationByEmailAsync(invitation.Id, invitedUser.Email);
 
-        Assert.That(accepted, Is.True);
-        Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(2));
-        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(2), "A new WorkProfile must be created for the org membership");
-        Assert.That(_dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id), Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(accepted, Is.True);
+            Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(2));
+            Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(2), "A new WorkProfile must be created for the org membership");
+            Assert.That(_dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id), Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -363,7 +367,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -402,7 +405,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -440,7 +442,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "user@test.com",
-            Username = "User",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -471,7 +472,6 @@ public class InvitationServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@test.com",
-            Username = "Organizer",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization

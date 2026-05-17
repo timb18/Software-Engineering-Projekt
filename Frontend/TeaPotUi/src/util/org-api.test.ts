@@ -49,14 +49,14 @@ describe("fetchOrganizationsByUserEmail", () => {
         workProfileId: "work-profile-1",
         users: [
           {
+            displayName: "owner",
             id: "user-1",
             email: "owner@example.com",
             username: "owner",
-            displayName: "owner",
-            role: "admin",
             orgs: [],
             tasks: [],
             invites: [],
+            role: "organizer",
           },
         ],
         adminEmails: ["owner@example.com"],

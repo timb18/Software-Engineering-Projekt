@@ -79,7 +79,7 @@ const defaultTasks: Task[] = [
     startDate: new Date("2026-04-14T14:00:00Z"),
     endDate: new Date("2026-04-14T15:00:00Z"),
     org: companyA,
-    deadline: new Date("2026-04-14T15:00:00Z")
+    deadline: new Date("2026-04-14T15:00:00Z"),
   },
   {
     name: "Client review",
@@ -88,15 +88,15 @@ const defaultTasks: Task[] = [
     startDate: new Date("2026-04-16T10:30:00Z"),
     endDate: new Date("2026-04-16T12:00:00Z"),
     org: companyA,
-    deadline: new Date("2026-04-16T12:00:00Z")
+    deadline: new Date("2026-04-16T12:00:00Z"),
   },
 ];
 
 const adminA: User = {
-  username: "admin",
+  username: "organizer",
   displayName: "Admin A",
   email: "admin@company-a.de",
-  role: "admin",
+  role: "organizer",
   orgs: [],
   tasks: defaultTasks,
   invites: [],
@@ -133,10 +133,10 @@ const userA1: User = {
 };
 
 const adminB: User = {
-  username: "admin",
+  username: "organizer",
   displayName: "Admin B",
   email: "admin@company-b.de",
-  role: "admin",
+  role: "organizer",
   orgs: [],
   tasks: [],
   invites: [],

@@ -28,7 +28,6 @@ public class MembershipServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -144,14 +143,12 @@ public class MembershipServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@example.com",
-            Username = "organizer",
             CreatedAt = DateTime.UtcNow
         };
         var member = new User
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization
@@ -198,14 +195,12 @@ public class MembershipServiceTests
         {
             Id = Guid.NewGuid(),
             Email = "organizer@example.com",
-            Username = "organizer",
             CreatedAt = DateTime.UtcNow
         };
         var member = new User
         {
             Id = Guid.NewGuid(),
             Email = "member@example.com",
-            Username = "member",
             CreatedAt = DateTime.UtcNow
         };
         var organization = new Organization

@@ -132,7 +132,6 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgA, orgB],
       tasks: [],
       role: "user",
@@ -163,27 +162,26 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgB],
       tasks: [],
       role: "user",
       invites: [],
     };
-  
+
     act(() => {
       result.current.setUser(user);
     });
-  
+
     await act(async () => {
       await result.current.setActiveOrganization("org-b");
     });
-  
+
     vi.clearAllMocks();
-  
+
     await act(async () => {
       await result.current.setActiveOrganization("org-b");
     });
-  
+
     expect(fetchTasks).not.toHaveBeenCalled();
   });
 
@@ -209,7 +207,6 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgA, orgB],
       tasks: [],
       role: "user",
@@ -266,7 +263,6 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgA, orgB],
       tasks: [],
       role: "user",
@@ -310,7 +306,6 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgA, orgB],
       tasks: [],
       role: "user",
@@ -345,7 +340,6 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgA],
       tasks: [
         {
@@ -398,7 +392,6 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgA, orgB],
       tasks: [],
       role: "user",
@@ -440,7 +433,6 @@ describe("user-store initForUser", () => {
     const user: User = {
       id: "u1",
       email: "u@x.test",
-      username: "u",
       orgs: [orgA, orgB],
       tasks: [],
       role: "user",

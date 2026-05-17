@@ -190,16 +190,10 @@ public partial class TeapotDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("created_at");
-            entity.Property(e => e.DisplayName)
-                .HasMaxLength(120)
-                .HasColumnName("display_name");
             entity.Property(e => e.EditedAt).HasColumnName("edited_at");
             entity.Property(e => e.Email)
                 .HasMaxLength(255)
                 .HasColumnName("email");
-            entity.Property(e => e.ProfileImageUrl)
-                .HasMaxLength(500)
-                .HasColumnName("profile_image_url");
             entity.Property(e => e.Timezone)
                 .HasMaxLength(100)
                 .HasColumnName("timezone");
@@ -207,9 +201,6 @@ public partial class TeapotDbContext : DbContext
                 .HasColumnName("break_color");
             entity.Property(e => e.OrgColors)
                 .HasColumnName("org_colors");
-            entity.Property(e => e.Username)
-                .HasMaxLength(255)
-                .HasColumnName("username");
         });
 
         modelBuilder.Entity<UserTask>(entity =>

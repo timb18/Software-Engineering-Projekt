@@ -6,13 +6,7 @@ public class User
 
     public string? AuthProviderSubject { get; set; }
 
-    public string? Username { get; set; }
-
-    public string? DisplayName { get; set; }
-
     public string Email { get; set; } = null!;
-
-    public string? ProfileImageUrl { get; set; }
 
     public string? Timezone { get; set; }
 

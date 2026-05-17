@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
-import type { Invitation, Org, User } from "../../util/types";
+import type { Invitation, Org, OrgUser, User } from "../../util/types";
 import acceptInvite from "../../util/accept-invite";
 import {
   fetchOrganizationsByUserEmail,
@@ -37,10 +37,10 @@ const mapInvitationStatus = (status: string): Invitation["status"] =>
     ? "pending"
     : (status.toLowerCase() as Invitation["status"]);
 
-const sortMembersByRole = (members: User[]) =>
+const sortMembersByRole = (members: OrgUser[]) =>
   [...members].sort((a, b) => {
     if (a.role !== b.role) {
-      return a.role === "admin" ? -1 : 1;
+      return a.role === "organizer" ? -1 : 1;
     }
 
     return a.username.localeCompare(b.username);
@@ -356,7 +356,7 @@ const Orgs: FC = () => {
     }
 
     const isAdmin = org.adminEmails?.includes(email) ?? false;
-    const nextRole = isAdmin ? "user" : "admin";
+    const nextRole = isAdmin ? "user" : "organizer";
     const memberKey = `${org.id}:${email}`;
 
     setLeaveError(null);
@@ -776,7 +776,9 @@ const Orgs: FC = () => {
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
             Teams
           </span>
-          <h1 className="text-4xl leading-tight font-semibold">Organizations</h1>
+          <h1 className="text-4xl leading-tight font-semibold">
+            Organizations
+          </h1>
           <span className="text-sm text-slate-400">
             Members, invitations, and organization settings.
           </span>
@@ -790,7 +792,9 @@ const Orgs: FC = () => {
 
       <div className="grid min-w-0 grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-          <div className="text-lg font-semibold text-slate-50">Organizations</div>
+          <div className="text-lg font-semibold text-slate-50">
+            Organizations
+          </div>
           {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
               You are not in any organization yet.
@@ -898,8 +902,12 @@ const Orgs: FC = () => {
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Organization</div>
-                  <div className="break-words text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
+                  <div className="text-xs tracking-[0.18em] text-emerald-300 uppercase">
+                    Organization
+                  </div>
+                  <div className="text-2xl font-semibold wrap-break-word text-slate-50">
+                    {selectedOrg.name}
+                  </div>
                 </div>
                 {!isSelectedAdmin && (
                   <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
@@ -947,9 +955,7 @@ const Orgs: FC = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
-                          {member.role === "admin"
-                            ? "Admin"
-                            : "Member"}
+                          {member.role === "organizer" ? "Admin" : "Member"}
                         </span>
                         {isSelectedAdmin && member.email !== user.email && (
                           <>
