@@ -40,7 +40,7 @@ const mapInvitationStatus = (status: string): Invitation["status"] =>
 const sortMembersByRole = (members: OrgUser[]) =>
   [...members].sort((a, b) => {
     if (a.role !== b.role) {
-      return a.role === "admin" ? -1 : 1;
+      return a.role === "organizer" ? -1 : 1;
     }
 
     return a.username.localeCompare(b.username);
@@ -356,7 +356,7 @@ const Orgs: FC = () => {
     }
 
     const isAdmin = org.adminEmails?.includes(email) ?? false;
-    const nextRole = isAdmin ? "user" : "admin";
+    const nextRole = isAdmin ? "user" : "organizer";
     const memberKey = `${org.id}:${email}`;
 
     setLeaveError(null);
@@ -955,7 +955,7 @@ const Orgs: FC = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
-                          {member.role === "admin" ? "Admin" : "Member"}
+                          {member.role === "organizer" ? "Admin" : "Member"}
                         </span>
                         {isSelectedAdmin && member.email !== user.email && (
                           <>

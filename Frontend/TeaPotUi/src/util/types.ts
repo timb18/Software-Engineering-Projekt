@@ -96,7 +96,7 @@ export type Task = {
 
 export type Priority = "low" | "medium" | "high";
 
-export type Role = "admin" | "user";
+export type Role = "organizer" | "user";
 
 export type Invitation = {
   id?: string;

@@ -18,7 +18,7 @@ type UpdateMembershipRoleRequest = {
   initiatorUserId: string;
   userId: string;
   organizationId: string;
-  role: "admin" | "user";
+  role: "organizer" | "user";
 };
 
 type OrganizationApiResponse = {
@@ -60,7 +60,7 @@ const mapInvite = (
 const sortMembers = (members: OrgUser[]) =>
   [...members].sort((a, b) => {
     if (a.role !== b.role) {
-      return a.role === "admin" ? -1 : 1;
+      return a.role === "organizer" ? -1 : 1;
     }
 
     return a.email.localeCompare(b.email);
