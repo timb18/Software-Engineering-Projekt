@@ -32,7 +32,6 @@ export type WorkProfile = {
 export type User = {
   id: string;
   email: string;
-  profileImage?: string;
   timezone?: string;
   plannerViewStart?: string; // HH:mm
   plannerViewEnd?: string; // HH:mm
@@ -45,7 +44,15 @@ export type User = {
   breakRules?: string;
   orgs: Org[];
   tasks: Task[];
+  role: Role;
   invites?: Invitation[];
+};
+
+export type OrgUser = {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
 };
 
 export type Org = {
@@ -53,7 +60,7 @@ export type Org = {
   name: string;
   auth0OrganizationId?: string;
   workProfileId?: string | null;
-  users: User[];
+  users: OrgUser[];
   adminEmails?: string[];
   invites?: Invitation[];
 };

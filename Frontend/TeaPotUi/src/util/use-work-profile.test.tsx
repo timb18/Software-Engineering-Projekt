@@ -24,6 +24,7 @@ const userWithEmptyProfile = (): User => ({
   email: "tester@example.com",
   orgs: [{ id: "co-1", name: "Acme", users: [] }],
   tasks: [],
+  role: "user",
   workProfile: createEmptyWorkProfile(),
 });
 

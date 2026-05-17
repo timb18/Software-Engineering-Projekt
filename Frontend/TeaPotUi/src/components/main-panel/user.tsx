@@ -149,7 +149,7 @@ const User: FC = () => {
     displayName: userFromAuth?.nickname ?? "",
     email: userFromAuth?.email ?? "",
     timezone: userFromDb.timezone ?? "Europe/Berlin",
-    profileImageUrl: userFromDb.profileImage ?? "",
+    profileImageUrl: userFromAuth?.picture ?? "",
   });
   const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] =
     useState(false);
@@ -278,10 +278,7 @@ const User: FC = () => {
       setUser({
         ...userFromDb,
         id: savedProfile.id,
-        username: savedProfile.username,
-        displayName: savedProfile.displayName,
         email: savedProfile.email,
-        profileImage: savedProfile.profileImageUrl,
         timezone: savedProfile.timezone,
       });
       setStatus("Profile updated.");
@@ -424,6 +421,7 @@ const User: FC = () => {
     }
     try {
       const result = await changePassword(
+        userFromDb.id,
         userFromAuth?.email,
         newPassword.newPassword,
       );
@@ -586,7 +584,7 @@ const User: FC = () => {
         {tab === "work" && (
           <div className="flex flex-col gap-4">
             <WorkProfileConfigurator
-              key={`${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
+              key={`${userFromAuth?.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
               user={userFromDb}
               onSaveUser={persist}
               onStatusChange={setStatus}

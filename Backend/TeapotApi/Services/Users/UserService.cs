@@ -135,10 +135,12 @@ public class UserService(
             updateUserRequestContent.Email = normalizedEmail;
         }
 
-        if (command.DisplayName is not null)
+        if (!string.Equals(command.DisplayName, authUser.Nickname))
         {
             var normalizedDisplayName = NormalizeRequired(command.DisplayName, "Display name is required.");
+            updateUserRequestContent.Nickname = normalizedDisplayName;
             updateUserRequestContent.Username = normalizedDisplayName;
+            updateUserRequestContent.Connection = auth0Config.ConnectionId;
         }
 
         if (command.ProfileImageUrl is not null)
@@ -151,7 +153,7 @@ public class UserService(
         user.Timezone = normalizedTimezone;
         user.EditedAt = DateTime.UtcNow;
 
-        if ((updateUserRequestContent.Email != null || updateUserRequestContent.Username != null ||
+        if ((updateUserRequestContent.Email != null || updateUserRequestContent.Nickname != null ||
              updateUserRequestContent.Picture != null) && authUser.UserId is not null)
         {
             var result = await managementClient.Users.UpdateAsync(authUser.UserId,
@@ -177,10 +179,11 @@ public class UserService(
         ArgumentNullException.ThrowIfNull(changePasswordRequest.Email);
         ArgumentNullException.ThrowIfNull(changePasswordRequest.Password);
 
-        var users = await managementClient.Users.ListAsync(new ListUsersRequestParameters(),
+        var users = await managementClient.Users.ListUsersByEmailAsync(
+            new ListUsersByEmailRequestParameters { Email = changePasswordRequest.Email },
             cancellationToken: cancellationToken);
 
-        var user = users.CurrentPage.Items.FirstOrDefault(u => u.Email == changePasswordRequest.Email);
+        var user = users.FirstOrDefault(u => u.Email == changePasswordRequest.Email);
 
         if (user?.UserId is null)
         {
@@ -318,8 +321,10 @@ public class UserService(
     /// <param name="cancellationToken">A token to monitor the cancellation status of the operation.</param>
     /// <returns>The user record corresponding to the provided email address.</returns>
     /// <exception cref="KeyNotFoundException">Thrown if no user account is found for the provided email address.</exception>
-    private async Task<UserResponseSchema> GetUserFromAuth0(string email, CancellationToken cancellationToken = default)
+    private async Task<UserResponseSchema> GetUserFromAuth0(string email,
+        CancellationToken cancellationToken = default)
     {
+
         var usersEnumerable = await managementClient.Users.ListUsersByEmailAsync(
             new ListUsersByEmailRequestParameters { Email = email }, cancellationToken: cancellationToken);
 

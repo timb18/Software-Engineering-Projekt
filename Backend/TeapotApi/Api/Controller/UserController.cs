@@ -49,13 +49,12 @@ public class UserController(IUserService userService) : ControllerBase
     /// NotFound if the specified user does not exist.
     /// </returns>
     [HttpPut("")]
-    [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateProfile(
-        Guid userId,
-        [FromBody] UpdateUserProfileRequest request,
-        CancellationToken cancellationToken)
+    public async
+        Task<Results<Ok<UserProfileResponse>, BadRequest<string>, NotFound<string>, InternalServerError<string>>>
+        UpdateProfile(
+            Guid userId,
+            [FromBody] UpdateUserProfileRequest request,
+            CancellationToken cancellationToken)
     {
         try
         {
@@ -67,21 +66,25 @@ public class UserController(IUserService userService) : ControllerBase
                     request.ProfileImageUrl,
                     request.Timezone),
                 cancellationToken);
-            
-            
 
-            return Ok(ToResponse(profile));
+
+            return TypedResults.Ok(ToResponse(profile));
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ex.Message);
+            return TypedResults.BadRequest(ex.Message);
         }
         catch (KeyNotFoundException)
         {
-            return NotFound();
+            return TypedResults.NotFound("couldn't find User");
+        }
+        catch (Exception e)
+        {
+            var ex = e;
+            return TypedResults.InternalServerError(e.Message);
         }
     }
-    
+
     /// <summary>
     /// Initiates a password change operation for a specific user.
     /// </summary>
@@ -93,9 +96,10 @@ public class UserController(IUserService userService) : ControllerBase
     /// InternalServerError if an unexpected error occurred during the password change operation.
     /// </returns>
     [HttpPatch("password")]
-    public async Task<Results<NoContent, BadRequest<string>, NotFound<string>, InternalServerError<string>>> ChangePassword(
-        [FromBody] ChangePasswordRequest changePasswordRequest,
-        CancellationToken cancellationToken = default)
+    public async Task<Results<NoContent, BadRequest<string>, NotFound<string>, InternalServerError<string>>>
+        ChangePassword(
+            [FromBody] ChangePasswordRequest changePasswordRequest,
+            CancellationToken cancellationToken = default)
     {
         try
         {
