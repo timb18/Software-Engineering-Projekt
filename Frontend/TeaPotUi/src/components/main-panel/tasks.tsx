@@ -250,12 +250,20 @@ const Tasks: FC = () => {
     }
   }
 
-  const calendarEvents: EventInput[] = filteredTasks
-    .filter((t) => t.startDate && t.endDate)
-    .map((t) => {
+  const scheduledTasks = filteredTasks.filter((t) => t.startDate && t.endDate);
+
+  const calendarEvents: EventInput[] = scheduledTasks
+    .map((t, index) => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
       const isDarkTask = isDarkColor(c);
+      const overlapsAnotherTask = scheduledTasks.some((other, otherIndex) => {
+        if (otherIndex === index) return false;
+        return (
+          dayjs(t.startDate).isBefore(other.endDate) &&
+          dayjs(t.endDate).isAfter(other.startDate)
+        );
+      });
       void colorVersion; // reactive dependency
       return {
         id: t.id ?? `task-${t.name}`,
@@ -270,6 +278,7 @@ const Tasks: FC = () => {
           isDarkTask ? "is-dark-event-color" : "is-light-event-color",
           t.isFixed ? "task-fixed" : "",
           (t.status ?? "todo") === "done" ? "task-done" : "",
+          overlapsAnotherTask ? "task-overlap" : "",
         ].filter(Boolean),
         editable: true,
         extendedProps: { task: t },
@@ -795,6 +804,7 @@ const Tasks: FC = () => {
               selectable
               selectMirror
               selectMinDistance={10}
+              slotEventOverlap={false}
               slotDuration="00:30:00"
               snapDuration="00:15:00"
               slotLabelInterval="01:00:00"
