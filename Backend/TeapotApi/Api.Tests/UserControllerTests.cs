@@ -4,6 +4,7 @@ using Auth0.ManagementApi;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -72,7 +73,7 @@ public class UserControllerTests
             new UpdateUserProfileRequest("Profile User", "not-an-email", null, "Europe/Berlin"),
             CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        Assert.That(result.Result, Is.TypeOf<BadRequest<string>>());
     }
 
     [Test]
@@ -101,9 +102,9 @@ public class UserControllerTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result, Is.TypeOf<OkObjectResult>());
-            Assert.That(saved.Email, Is.EqualTo("updated@test.com"));
-            Assert.That(saved.Timezone, Is.EqualTo("Europe/Paris"));
+            Assert.That(result.Result, Is.TypeOf<Ok<UserProfileResponse>>());
+            Assert.That(saved?.Email, Is.EqualTo("updated@test.com"));
+            Assert.That(saved?.Timezone, Is.EqualTo("Europe/Paris"));
         });
     }
 }

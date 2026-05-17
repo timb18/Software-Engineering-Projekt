@@ -51,8 +51,6 @@ describe("fetchOrganizationsByUserEmail", () => {
           {
             id: "user-1",
             email: "owner@example.com",
-            username: "owner",
-            displayName: "owner",
             role: "admin",
             orgs: [],
             tasks: [],

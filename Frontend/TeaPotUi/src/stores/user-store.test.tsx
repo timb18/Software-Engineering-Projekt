@@ -134,6 +134,7 @@ describe("user-store initForUser", () => {
       email: "u@x.test",
       orgs: [orgA, orgB],
       tasks: [],
+      role: "user",
       invites: [],
     };
 
@@ -163,6 +164,7 @@ describe("user-store initForUser", () => {
       email: "u@x.test",
       orgs: [orgB],
       tasks: [],
+      role: "user",
       invites: [],
     };
 
@@ -207,6 +209,7 @@ describe("user-store initForUser", () => {
       email: "u@x.test",
       orgs: [orgA, orgB],
       tasks: [],
+      role: "user",
       invites: [],
     };
 
@@ -262,6 +265,7 @@ describe("user-store initForUser", () => {
       email: "u@x.test",
       orgs: [orgA, orgB],
       tasks: [],
+      role: "user",
       invites: [],
     };
 
@@ -304,6 +308,7 @@ describe("user-store initForUser", () => {
       email: "u@x.test",
       orgs: [orgA, orgB],
       tasks: [],
+      role: "user",
       invites: [],
     };
 
@@ -347,6 +352,7 @@ describe("user-store initForUser", () => {
           dependencies: [],
         },
       ],
+      role: "user",
       invites: [],
     };
 
@@ -388,6 +394,7 @@ describe("user-store initForUser", () => {
       email: "u@x.test",
       orgs: [orgA, orgB],
       tasks: [],
+      role: "user",
       invites: [],
     };
 
@@ -428,6 +435,7 @@ describe("user-store initForUser", () => {
       email: "u@x.test",
       orgs: [orgA, orgB],
       tasks: [],
+      role: "user",
       invites: [],
     };
 
