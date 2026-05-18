@@ -26,13 +26,13 @@ public class MembershipController(IMembershipService membershipService) : Contro
             await membershipService.LeaveOrganizationAsync(userId, organizationId, cancellationToken);
             return NoContent();
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Membership not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The membership operation could not be completed.");
         }
         catch (ArgumentException exception)
         {
@@ -65,17 +65,17 @@ public class MembershipController(IMembershipService membershipService) : Contro
             await membershipService.RemoveUserFromOrganizationAsync(initiatorUserId, userId, organizationId, cancellationToken);
             return NoContent();
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to remove this user.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Membership not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The membership operation could not be completed.");
         }
         catch (ArgumentException exception)
         {
@@ -109,17 +109,17 @@ public class MembershipController(IMembershipService membershipService) : Contro
             await membershipService.UpdateRoleAsync(initiatorUserId, userId, organizationId, request.Role, cancellationToken);
             return NoContent();
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to update this role.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Membership not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The role could not be updated.");
         }
         catch (ArgumentException exception)
         {

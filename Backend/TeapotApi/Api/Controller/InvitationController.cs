@@ -18,7 +18,7 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Sendet eine Einladung an einen Benutzer
+    /// Sends an invitation to a user.
     /// </summary>
     [HttpPost("send")]
     public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request, CancellationToken cancellationToken)
@@ -38,18 +38,18 @@ public class InvitationController : ControllerBase
 
             return Ok(new { success = true, message = "Invite sent:", data = result });
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(new { success = false, message = ex.Message });
+            return NotFound(new { success = false, message = "Invitation not found." });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return BadRequest(new { success = false, message = "Unable to send the invitation." });
         }
     }
 
     /// <summary>
-    /// Akzeptiert eine Einladung
+    /// Accepts an invitation.
     /// </summary>
     [HttpPost("{invitationId}/accept")]
     public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId, [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
@@ -71,13 +71,13 @@ public class InvitationController : ControllerBase
 
             return Ok(new { success = true, message = "Invite accepted" });
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(new { success = false, message = ex.Message });
+            return NotFound(new { success = false, message = "Invitation not found." });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return BadRequest(new { success = false, message = "Unable to accept the invitation." });
         }
     }
 
@@ -88,7 +88,7 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Lehnt eine Einladung ab
+    /// Rejects an invitation.
     /// </summary>
     [HttpPost("{invitationId}/reject")]
     public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
@@ -98,13 +98,13 @@ public class InvitationController : ControllerBase
             await _invitationService.RejectInvitationAsync(invitationId, cancellationToken);
             return Ok(new { success = true, message = "Invite rejected" });
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(new { success = false, message = ex.Message });
+            return NotFound(new { success = false, message = "Invitation not found." });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return BadRequest(new { success = false, message = "Unable to reject the invitation." });
         }
     }
 
@@ -116,14 +116,14 @@ public class InvitationController : ControllerBase
             await _invitationService.RejectInvitationAsync(invitationId, cancellationToken);
             return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "rejected"));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "error", message : ex.Message));
+            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "error", message: "Unable to process the invitation."));
         }
     }
 
     /// <summary>
-    /// Ruft offene Einladungen für eine E-Mail-Adresse ab
+    /// Retrieves open invitations for an email address.
     /// </summary>
     [HttpGet("pending")]
     public async Task<IActionResult> GetPendingInvitationsAsync([FromQuery] string email, CancellationToken cancellationToken)
@@ -133,18 +133,18 @@ public class InvitationController : ControllerBase
             var invitations = await _invitationService.GetPendingInvitationsForEmailAsync(email, cancellationToken);
             return Ok(new { success = true, data = invitations });
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(new { success = false, message = ex.Message });
+            return NotFound(new { success = false, message = "Invitation not found." });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return BadRequest(new { success = false, message = "Unable to load pending invitations." });
         }
     }
 
     /// <summary>
-    /// Ruft alle Einladungen für eine Organisation ab
+    /// Retrieves all invitations for an organization.
     /// </summary>
     [HttpGet("organization/{organizationId}")]
     public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId, CancellationToken cancellationToken)
@@ -154,9 +154,9 @@ public class InvitationController : ControllerBase
             var invitations = await _invitationService.GetInvitationsForOrganizationAsync(organizationId, cancellationToken);
             return Ok(new { success = true, data = invitations });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            return BadRequest(new { success = false, message = "Unable to load organization invitations." });
         }
     }
 
