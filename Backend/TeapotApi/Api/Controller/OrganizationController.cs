@@ -31,9 +31,9 @@ public class OrganizationController(
         {
             return BadRequest(ex.Message);
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The organization could not be created.");
         }
     }
 
@@ -45,9 +45,9 @@ public class OrganizationController(
             var organizations = await organizationService.GetOrganizationsForUserAsync(email, cancellationToken);
             return Ok(organizations);
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Organization not found.");
         }
         catch (ArgumentException ex)
         {
@@ -86,17 +86,17 @@ public class OrganizationController(
         {
             return BadRequest(ex.Message);
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to rename this organization.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Organization not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The organization could not be renamed.");
         }
     }
 
@@ -125,17 +125,17 @@ public class OrganizationController(
         {
             return BadRequest(ex.Message);
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to delete this organization.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Organization not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The organization could not be deleted.");
         }
     }
 }
