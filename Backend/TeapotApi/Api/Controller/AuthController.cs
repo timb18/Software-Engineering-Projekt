@@ -19,8 +19,9 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Finds or creates a user by email.
-    /// Call this once after Auth0 login. Returns the user ID and the active work profile ID when one exists.
+    /// Finds an existing user by email or creates a new one when none exists.
+    /// Call this once after Auth0 login so the frontend can get the internal user ID
+    /// and, when available, the active work profile ID in a single round-trip.
     /// </summary>
     [HttpPost("ensure")]
     [ProducesResponseType(typeof(EnsureUserResponse), StatusCodes.Status200OK)]
@@ -41,6 +42,10 @@ public class AuthController : ControllerBase
         return Ok(new EnsureUserResponse(userId, workProfileId));
     }
 
+    /// <summary>
+    /// Registers a user if the email is new, or returns the existing user if it already exists.
+    /// This keeps the operation idempotent for clients that may retry the request.
+    /// </summary>
     [HttpPost("register")]
     public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {

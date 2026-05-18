@@ -18,7 +18,8 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Sends an invitation to a user.
+    /// Sends a new invitation email for a user and returns the created invitation data.
+    /// The response includes the invitation state so the client can update the UI immediately.
     /// </summary>
     [HttpPost("send")]
     public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request, CancellationToken cancellationToken)
@@ -49,7 +50,9 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Accepts an invitation.
+    /// Accepts an invitation either by authenticated user ID or by email address.
+    /// The endpoint supports both flows so the frontend can reuse the same action after login
+    /// and from the invitation link workflow.
     /// </summary>
     [HttpPost("{invitationId}/accept")]
     public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId, [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
@@ -82,13 +85,18 @@ public class InvitationController : ControllerBase
     }
 
     [HttpGet("{invitationId}/accept-link")]
+    /// <summary>
+    /// Redirects the browser to the frontend acceptance flow for a specific invitation.
+    /// This is used from the email link so the frontend can continue the invitation process.
+    /// </summary>
     public IActionResult AcceptInvitationLink([FromRoute] Guid invitationId, [FromQuery] string email)
     {
         return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "pending", invitationId, email));
     }
 
     /// <summary>
-    /// Rejects an invitation.
+    /// Rejects an invitation and returns a simple success or error payload for the client.
+    /// This keeps the rejection flow lightweight for both API consumers and email link usage.
     /// </summary>
     [HttpPost("{invitationId}/reject")]
     public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
@@ -109,6 +117,10 @@ public class InvitationController : ControllerBase
     }
 
     [HttpGet("{invitationId}/reject-link")]
+    /// <summary>
+    /// Rejects the invitation and redirects back to the frontend with the outcome.
+    /// The redirect-based flow is primarily used by the email link rejection action.
+    /// </summary>
     public async Task<IActionResult> RejectInvitationLink([FromRoute] Guid invitationId, CancellationToken cancellationToken)
     {
         try
@@ -123,7 +135,8 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves open invitations for an email address.
+    /// Retrieves all open invitations for a specific email address.
+    /// The result is filtered server-side so the frontend does not need to duplicate invitation state logic.
     /// </summary>
     [HttpGet("pending")]
     public async Task<IActionResult> GetPendingInvitationsAsync([FromQuery] string email, CancellationToken cancellationToken)
@@ -144,7 +157,8 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves all invitations for an organization.
+    /// Retrieves all invitations that belong to a specific organization.
+    /// This endpoint is used to render the organization's invitation overview in the UI.
     /// </summary>
     [HttpGet("organization/{organizationId}")]
     public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId, CancellationToken cancellationToken)
@@ -160,6 +174,9 @@ public class InvitationController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Builds a frontend redirect URL with the invitation status and optional context parameters.
+    /// </summary>
     private static string BuildFrontendRedirect(string configuredBaseUrl, string status, Guid? invitationId = null, string? email = null, string? message = null)
     {
         var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
@@ -180,6 +197,10 @@ public class InvitationController : ControllerBase
         return url;
     }
 
+    /// <summary>
+    /// Resolves the public API base URL that is embedded into invitation links.
+    /// When the configured value is local or empty, the current request host is used instead.
+    /// </summary>
     private string ResolvePublicApiBaseUrl()
     {
         var configuredBaseUrl = TrimTrailingSlash(_emailOptions.ApiBaseUrl);
@@ -191,6 +212,9 @@ public class InvitationController : ControllerBase
             : configuredBaseUrl;
     }
 
+    /// <summary>
+    /// Builds the public base URL from forwarded request headers or the current request host.
+    /// </summary>
     private string BuildRequestBaseUrl()
     {
         var forwardedProto = Request.Headers["X-Forwarded-Proto"]
@@ -210,12 +234,18 @@ public class InvitationController : ControllerBase
             : TrimTrailingSlash($"{scheme}://{host}{Request.PathBase}");
     }
 
+    /// <summary>
+    /// Returns true when the supplied base URL points to a local development host.
+    /// </summary>
     private static bool IsLocalBaseUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
          uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
          uri.Host.Equals("[::1]", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Removes any trailing slash so URL concatenation stays consistent.
+    /// </summary>
     private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 }
 

@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace Api.Controller;
 
 /// <summary>
-/// Provides endpoints for managing user operations through the API.
+/// Provides endpoints for user-management operations that are separate from the regular profile API.
 /// </summary>
 /// <remarks>
 /// This controller handles requests mapped to the "api/users/management" route.
-/// It exposes password-change functionality for user credentials.
+/// It currently exposes password-change functionality for user credentials.
 /// </remarks>
 /// <param name="managementService">The interface for managing user data and operations.</param>
 [Route("api/users/management")]
@@ -17,6 +17,7 @@ public class UserManagementController(IUserManagementService managementService) 
     
     /// <summary>
     /// Initiates a password change operation for a specific user.
+    /// The service layer performs the actual Auth0 call and returns a domain-level exception when needed.
     /// </summary>
     /// <param name="changePasswordRequest">The request containing the user's email and new password.</param>
     /// <param name="cancellationToken">Token to observe for request cancellation.</param>
