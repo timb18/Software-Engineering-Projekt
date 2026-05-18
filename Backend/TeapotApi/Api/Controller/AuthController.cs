@@ -20,7 +20,7 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Finds or creates a user by email.
-    /// Call this once after Auth0 login. Returns userId and the active workProfileId when one exists.
+    /// Call this once after Auth0 login. Returns the user ID and the active work profile ID when one exists.
     /// </summary>
     [HttpPost("ensure")]
     [ProducesResponseType(typeof(EnsureUserResponse), StatusCodes.Status200OK)]

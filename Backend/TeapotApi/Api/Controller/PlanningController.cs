@@ -23,7 +23,7 @@ public record TaskBlockResponse(
 public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockRepository taskBlockRepository) : ControllerBase
 {
     /// <summary>
-    /// Generates a work plan for all open tasks of the given work profile.
+    /// Generates a work plan for all open tasks in the given work profile.
     /// Runs dependency analysis, critical path computation, and recursive scheduling.
     /// </summary>
     [HttpPost("schedule")]
@@ -44,7 +44,7 @@ public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockReposito
             : UnprocessableEntity(response);
     }
 
-    /// <summary>Returns all task blocks for the given work profile (for calendar rendering).</summary>
+    /// <summary>Returns all task blocks for the given work profile for calendar rendering.</summary>
     [HttpGet("blocks")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskBlockResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBlocks(Guid workProfileId, CancellationToken cancellationToken)

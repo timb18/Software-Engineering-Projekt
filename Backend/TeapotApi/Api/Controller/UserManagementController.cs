@@ -7,8 +7,8 @@ namespace Api.Controller;
 /// Provides endpoints for managing user operations through the API.
 /// </summary>
 /// <remarks>
-/// This controller handles requests mapped to the "api/user/management" route.
-/// It exposes functionality for updating user credentials specifically through password modification.
+/// This controller handles requests mapped to the "api/users/management" route.
+/// It exposes password-change functionality for user credentials.
 /// </remarks>
 /// <param name="managementService">The interface for managing user data and operations.</param>
 [Route("api/users/management")]
@@ -23,7 +23,7 @@ public class UserManagementController(IUserManagementService managementService) 
     /// <returns>
     /// NoContent on successful password change.
     /// NotFound if the user specified in the request does not exist.
-    /// InternalServerError if an unexpected error occurred during the password change operation.
+    /// InternalServerError if an unexpected error occurs during the password change operation.
     /// </returns>
     [HttpPatch("change-password")]
     public async Task<Results<NoContent, BadRequest<string>, NotFound<string>, InternalServerError<string>>> ChangePassword(
