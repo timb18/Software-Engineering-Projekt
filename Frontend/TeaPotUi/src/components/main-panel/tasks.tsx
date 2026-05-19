@@ -97,6 +97,7 @@ const Tasks: FC = () => {
   const [scheduleMsg, setScheduleMsg] = useState<{
     ok: boolean;
     text: string;
+    warnings?: string[];
   } | null>(null);
   const [blocks, setBlocks] = useState<TaskBlock[]>([]);
   const [editingBreak, setEditingBreak] = useState<{
@@ -126,7 +127,9 @@ const Tasks: FC = () => {
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() =>
+      setUser({ ...user }),
+    );
   };
 
   useEffect(() => {
@@ -166,11 +169,13 @@ const Tasks: FC = () => {
         success: boolean;
         errorMessage?: string;
         backtrackingCount?: number;
+        warnings?: string[];
       };
       if (json.success) {
         setScheduleMsg({
           ok: true,
           text: `Plan created (${json.backtrackingCount ?? 0} backtracks).`,
+          warnings: json.warnings ?? [],
         });
         // Reload tasks and blocks so the calendar reflects the newly generated plan.
         const updated = await fetchTasks(workProfileId);
@@ -181,6 +186,7 @@ const Tasks: FC = () => {
         setScheduleMsg({
           ok: false,
           text: json.errorMessage ?? "Scheduling failed.",
+          warnings: json.warnings ?? [],
         });
       }
     } catch {
@@ -206,9 +212,6 @@ const Tasks: FC = () => {
         t.org === selectedFilterOrg.workProfileId);
     return byStatus && byOrg;
   });
-
-  // Blocks are fetched for schedule status and timing metadata; visible task cards use user.tasks.
-  void blocks;
 
   const calendarRef = useRef<FullCalendar>(null);
 
@@ -251,32 +254,63 @@ const Tasks: FC = () => {
     }
   }
 
-  const calendarEvents: EventInput[] = filteredTasks
-    .filter((t) => t.startDate && t.endDate)
-    .map((t) => {
+  const taskById = new Map((user.tasks ?? []).map((task) => [task.id, task]));
+  const visibleTaskIds = new Set(filteredTasks.map((task) => task.id).filter(Boolean));
+  const calendarEvents: EventInput[] = blocks
+    .filter((block) => visibleTaskIds.has(block.taskId))
+    .map((block) => {
+      const task = taskById.get(block.taskId);
       // The color utilities intentionally depend on external theme state.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
+      const c: RgbColor = task?.org ? getOrgColor(task.org) : getOrgColor("");
       const isDarkTask = isDarkColor(c);
+      const overlapsAnotherTask = scheduledTasks.some((other, otherIndex) => {
+        if (otherIndex === index) return false;
+        return (
+          dayjs(t.startDate).isBefore(other.endDate) &&
+          dayjs(t.endDate).isAfter(other.startDate)
+        );
+      });
       void colorVersion; // reactive dependency
       return {
-        id: t.id ?? `task-${t.name}`,
-        title: t.name,
-        start: t.startDate,
-        end: t.endDate,
+        id: `${block.taskId}-${block.startDate.toISOString()}`,
+        title: task?.name ?? block.taskName,
+        start: block.startDate,
+        end: block.endDate,
         backgroundColor: rgbToCss(c, 0.22),
-        borderColor: t.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
+        borderColor: block.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
         textColor: readableTextColor(c),
         classNames: [
           "task-event",
           isDarkTask ? "is-dark-event-color" : "is-light-event-color",
-          t.isFixed ? "task-fixed" : "",
-          (t.status ?? "todo") === "done" ? "task-done" : "",
+          block.isFixed ? "task-fixed" : "",
+          (task?.status ?? block.taskStatus ?? "todo") === "done" ? "task-done" : "",
         ].filter(Boolean),
-        editable: true,
-        extendedProps: { task: t },
+        editable: !!task,
+        extendedProps: { task },
       };
     });
+
+  const persistWorkProfile = async (updatedProfile: NonNullable<typeof user.workProfile>) => {
+    setUser({ ...user, workProfile: updatedProfile });
+    try {
+      const savedProfile = await saveWorkProfile(user.id, updatedProfile);
+      setUser({
+        ...user,
+        workProfile: savedProfile,
+        hasPersistedWorkProfile: true,
+        plannerViewStart: savedProfile.plannerViewStart ?? user.plannerViewStart,
+        plannerViewEnd: savedProfile.plannerViewEnd ?? user.plannerViewEnd,
+      });
+      if (workProfileId) {
+        const updatedBlocks = await fetchBlocks(workProfileId);
+        setBlocks(updatedBlocks);
+      }
+    } catch {
+      setUser({ ...user });
+      throw new Error("Could not save work profile.");
+    }
+  };
 
   const updateBreakInProfile = (
     breakId: string,
@@ -315,9 +349,7 @@ const Tasks: FC = () => {
       return day;
     });
     const updatedProfile = { ...user.workProfile, days: updatedDays };
-    setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => {
-      setUser({ ...user });
+    persistWorkProfile(updatedProfile).catch(() => {
       revert();
     });
   };
@@ -423,8 +455,7 @@ const Tasks: FC = () => {
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
-    setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    void persistWorkProfile(updatedProfile);
     setEditingBreak(null);
   };
 
@@ -692,6 +723,25 @@ const Tasks: FC = () => {
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
+      {scheduleMsg && (
+        <div className="schedule-toast pointer-events-none fixed right-6 top-6 z-50 w-[min(32rem,calc(100vw-3rem))]">
+          <div className="schedule-toast__panel pointer-events-auto rounded-2xl border border-amber-300/40 bg-slate-950/95 p-4 text-left shadow-2xl shadow-black/40 ring-1 ring-amber-300/20 backdrop-blur-sm">
+            <div className={`schedule-toast__message text-sm font-semibold ${scheduleMsg.ok ? "text-emerald-300" : "text-amber-200"}`}>
+              {scheduleMsg.text}
+            </div>
+            {scheduleMsg.warnings && scheduleMsg.warnings.length > 0 && (
+              <div className="schedule-toast__warnings mt-3 space-y-1 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-50">
+                <div className="schedule-toast__warnings-title font-semibold tracking-wide text-amber-200 uppercase">
+                  Auto-Schedule warning
+                </div>
+                {scheduleMsg.warnings.map((warning) => (
+                  <div key={warning}>{warning}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
@@ -705,7 +755,7 @@ const Tasks: FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => {
                 void triggerSchedule();
@@ -715,13 +765,6 @@ const Tasks: FC = () => {
             >
               {scheduling ? "Scheduling…" : "Auto-Schedule"}
             </button>
-            {scheduleMsg && (
-              <span
-                className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}
-              >
-                {scheduleMsg.text}
-              </span>
-            )}
           </div>
           <button
             onClick={() => setView("day")}
@@ -797,6 +840,7 @@ const Tasks: FC = () => {
               selectable
               selectMirror
               selectMinDistance={10}
+              slotEventOverlap={false}
               slotDuration="00:30:00"
               snapDuration="00:15:00"
               slotLabelInterval="01:00:00"

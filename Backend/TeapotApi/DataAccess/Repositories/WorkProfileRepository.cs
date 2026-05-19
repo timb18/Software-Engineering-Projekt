@@ -32,6 +32,25 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
                 wp.Membership.Organization.Description == PersonalWorkspaceDescription)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<WorkProfile?> GetByUserAndOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default) =>
+        context.WorkProfiles
+            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.Membership).ThenInclude(m => m.Organization)
+            .FirstOrDefaultAsync(
+                wp => wp.Membership.UserId == userId && wp.Membership.OrganizationId == organizationId,
+                cancellationToken);
+
+    public Task<WorkProfile?> GetByUserAndOrganizationNoTrackingAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default) =>
+        context.WorkProfiles
+            .AsNoTracking()
+            .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
+            .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
+            .Include(wp => wp.Membership).ThenInclude(m => m.Organization)
+            .FirstOrDefaultAsync(
+                wp => wp.Membership.UserId == userId && wp.Membership.OrganizationId == organizationId,
+                cancellationToken);
+
     public Task<WorkProfile?> FindByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.WorkProfiles
             .FirstOrDefaultAsync(wp => wp.Membership.UserId == userId, cancellationToken);
@@ -67,9 +86,29 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task ReplaceDaysAsync(IList<WorkDayProfile> oldDays, IList<WorkDayProfile> newDays, CancellationToken cancellationToken = default)
+    public async Task ReplaceDaysAsync(
+        Guid workProfileId,
+        IList<WorkDayProfile> oldDays,
+        IList<WorkDayProfile> newDays,
+        bool deleteFlexibleTaskBlocks = false,
+        CancellationToken cancellationToken = default)
     {
         await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        if (deleteFlexibleTaskBlocks)
+        {
+            var taskIds = await context.UserTasks
+                .Where(t => t.WorkProfileId == workProfileId)
+                .Select(t => t.Id)
+                .ToListAsync(cancellationToken);
+
+            var flexibleTaskBlocks = await context.TaskBlocks
+                .Where(block => taskIds.Contains(block.TaskId) && !block.IsFixed)
+                .ToListAsync(cancellationToken);
+
+            if (flexibleTaskBlocks.Count > 0)
+                context.TaskBlocks.RemoveRange(flexibleTaskBlocks);
+        }
 
         if (oldDays.Count > 0)
         {

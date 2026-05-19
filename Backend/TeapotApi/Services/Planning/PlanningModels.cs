@@ -26,7 +26,8 @@ public record PlanningResult(
     bool Success,
     string? ErrorMessage,
     int BacktrackingCount,
-    IReadOnlyList<TaskBlock> PlannedBlocks);
+    IReadOnlyList<TaskBlock> PlannedBlocks,
+    IReadOnlyList<string> Warnings);
 
 /// <summary>
 /// Mutable budget information used by the recursive scheduler.

@@ -49,6 +49,7 @@ const Sidebar: FC = () => {
         backgroundImage: `url(${user.profileImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundColor: "#ffffff",
       };
     }
     // Fall back to a small set of stable gradients so the avatar still looks intentional.
@@ -72,7 +73,7 @@ const Sidebar: FC = () => {
       >
         <div className="flex items-center gap-3">
           <div
-            className="aspect-square h-12 w-12 rounded-full border border-slate-700"
+            className="aspect-square h-12 w-12 rounded-full bg-white shadow-[inset_0_0_0_2px_rgba(255,255,255,0.92),0_8px_18px_rgba(15,23,42,0.16)]"
             style={avatarStyle}
           ></div>
           <div className="flex flex-col">
