@@ -40,7 +40,7 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
         context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
-            .Include(wp => wp.Membership)
+            .Include(wp => wp.Membership).ThenInclude(m => m.User)
             .FirstOrDefaultAsync(wp => wp.Id == workProfileId, cancellationToken);
 
     public async Task<IReadOnlyList<WorkProfileTimeInterval>> GetTimeIntervalsAsync(

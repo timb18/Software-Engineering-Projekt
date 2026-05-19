@@ -2,9 +2,10 @@ using DataAccess.Models;
 
 namespace Services.Planning;
 
-public record TimeSlot(DateTime Start, DateTime End)
+public record TimeSlot(DateTime Start, DateTime End, DateOnly? WorkDay = null)
 {
     public int DurationMinutes => (int)(End - Start).TotalMinutes;
+    public DateOnly Day => WorkDay ?? DateOnly.FromDateTime(Start);
 }
 
 public record DependencyAnalysisResult(
