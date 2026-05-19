@@ -8,7 +8,8 @@ public record PlanningResultResponse(
     bool Success,
     string? ErrorMessage,
     int BacktrackingCount,
-    IReadOnlyList<TaskBlock> PlannedBlocks);
+    IReadOnlyList<TaskBlock> PlannedBlocks,
+    IReadOnlyList<string> Warnings);
 
 public record TaskBlockResponse(
     Guid TaskId,
@@ -38,7 +39,8 @@ public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockReposito
             result.Success,
             result.ErrorMessage,
             result.BacktrackingCount,
-            result.PlannedBlocks);
+            result.PlannedBlocks,
+            result.Warnings);
 
         return result.Success
             ? Ok(response)

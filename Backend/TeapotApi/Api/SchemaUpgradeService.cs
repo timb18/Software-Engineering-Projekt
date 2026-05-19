@@ -47,6 +47,42 @@ public static class SchemaUpgradeService
             ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone character varying(100);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS break_color text;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS org_colors text;
+
+            -- Work breaks are part of the scheduler contract. Older databases may
+            -- have work profiles and blocks but no persisted break table yet.
+            CREATE TABLE IF NOT EXISTS work_breaks (
+                id uuid DEFAULT gen_random_uuid() NOT NULL,
+                work_day_profile_id uuid NOT NULL,
+                start_time character varying(5) NOT NULL DEFAULT '12:00',
+                end_time character varying(5) NOT NULL DEFAULT '12:30'
+            );
+
+            ALTER TABLE work_breaks ADD COLUMN IF NOT EXISTS start_time character varying(5) NOT NULL DEFAULT '12:00';
+            ALTER TABLE work_breaks ADD COLUMN IF NOT EXISTS end_time character varying(5) NOT NULL DEFAULT '12:30';
+            ALTER TABLE work_breaks ADD COLUMN IF NOT EXISTS work_day_profile_id uuid;
+
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'work_breaks_pkey'
+                ) THEN
+                    ALTER TABLE work_breaks ADD CONSTRAINT work_breaks_pkey PRIMARY KEY (id);
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'work_breaks_work_day_profile_id_fkey'
+                ) THEN
+                    ALTER TABLE work_breaks
+                    ADD CONSTRAINT work_breaks_work_day_profile_id_fkey
+                    FOREIGN KEY (work_day_profile_id)
+                    REFERENCES work_day_profiles(id)
+                    ON DELETE CASCADE;
+                END IF;
+            END $$;
             
             -- Populate new user columns with sensible defaults if empty
             UPDATE users

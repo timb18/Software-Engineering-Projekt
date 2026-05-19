@@ -93,11 +93,18 @@ public interface IWorkProfileRepository
     /// <summary>
     /// Replaces the work day profiles (daily schedules) for a work profile.
     /// </summary>
+    /// <param name="workProfileId">The work profile whose schedule is being replaced</param>
     /// <param name="oldDays">The existing work day profiles to remove</param>
     /// <param name="newDays">The new work day profiles to add</param>
+    /// <param name="deleteFlexibleTaskBlocks">Whether generated, non-fixed task blocks must be cleared in the same transaction</param>
     /// <param name="cancellationToken">Token to observe for cancellation requests</param>
     /// <remarks>Used when a user updates their work schedule (e.g., changing work hours)</remarks>
-    Task ReplaceDaysAsync(IList<WorkDayProfile> oldDays, IList<WorkDayProfile> newDays, CancellationToken cancellationToken = default);
+    Task ReplaceDaysAsync(
+        Guid workProfileId,
+        IList<WorkDayProfile> oldDays,
+        IList<WorkDayProfile> newDays,
+        bool deleteFlexibleTaskBlocks = false,
+        CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Deletes a work profile and all associated data (tasks, schedules, blocks).

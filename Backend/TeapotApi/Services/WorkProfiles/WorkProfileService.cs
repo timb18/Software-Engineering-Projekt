@@ -58,12 +58,13 @@ public class WorkProfileService(
             return await GetAsync(userId, organizationId, cancellationToken) ?? normalized;
         }
 
+        var oldDays = existing.Days.ToList();
+        var scheduleChanged = HasSchedulingInputChanged(existing.MaxDailyLoad, oldDays, normalized.MaxDailyLoad, normalized.Days);
+
         existing.MaxDailyLoad = normalized.MaxDailyLoad;
         existing.PlannerViewStart = normalized.PlannerViewStart;
         existing.PlannerViewEnd = normalized.PlannerViewEnd;
         existing.EditedAt = DateTime.UtcNow;
-
-        var oldDays = existing.Days.ToList();
         // Prepare foreign keys on new days without touching the tracked navigation property.
         // This avoids EF change-tracker conflicts from navigation-collection reassignment.
         var newDays = normalized.Days.Select(day =>
@@ -85,7 +86,7 @@ public class WorkProfileService(
 
         // ReplaceDaysAsync calls SaveChangesAsync internally, which also persists
         // the scalar-property changes on the tracked entity.
-        await workProfileRepository.ReplaceDaysAsync(oldDays, newDays, cancellationToken);
+        await workProfileRepository.ReplaceDaysAsync(existing.Id, oldDays, newDays, scheduleChanged, cancellationToken);
 
         return await GetAsync(userId, organizationId, cancellationToken) ?? existing;
     }
@@ -168,5 +169,52 @@ public class WorkProfileService(
                 workBreak.WorkDayProfileId = day.Id;
             }
         }
+    }
+
+    private static bool HasSchedulingInputChanged(
+        TimeSpan oldMaxDailyLoad,
+        IEnumerable<WorkDayProfile> oldDays,
+        TimeSpan newMaxDailyLoad,
+        IEnumerable<WorkDayProfile> newDays)
+    {
+        if (oldMaxDailyLoad != newMaxDailyLoad)
+            return true;
+
+        var oldByDay = oldDays.ToDictionary(day => day.Day);
+        var newByDay = newDays.ToDictionary(day => day.Day);
+        if (!oldByDay.Keys.Order().SequenceEqual(newByDay.Keys.Order()))
+            return true;
+
+        foreach (var day in newByDay.Keys)
+        {
+            var oldDay = oldByDay[day];
+            var newDay = newByDay[day];
+
+            var oldBlocks = oldDay.Blocks
+                .OrderBy(block => block.StartTime)
+                .ThenBy(block => block.EndTime)
+                .ThenBy(block => block.CompanyId)
+                .Select(block => (block.CompanyId, block.CompanyName, block.StartTime, block.EndTime));
+            var newBlocks = newDay.Blocks
+                .OrderBy(block => block.StartTime)
+                .ThenBy(block => block.EndTime)
+                .ThenBy(block => block.CompanyId)
+                .Select(block => (block.CompanyId, block.CompanyName, block.StartTime, block.EndTime));
+            if (!oldBlocks.SequenceEqual(newBlocks))
+                return true;
+
+            var oldBreaks = oldDay.Breaks
+                .OrderBy(workBreak => workBreak.StartTime)
+                .ThenBy(workBreak => workBreak.EndTime)
+                .Select(workBreak => (workBreak.StartTime, workBreak.EndTime));
+            var newBreaks = newDay.Breaks
+                .OrderBy(workBreak => workBreak.StartTime)
+                .ThenBy(workBreak => workBreak.EndTime)
+                .Select(workBreak => (workBreak.StartTime, workBreak.EndTime));
+            if (!oldBreaks.SequenceEqual(newBreaks))
+                return true;
+        }
+
+        return false;
     }
 }

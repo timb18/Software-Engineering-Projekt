@@ -92,6 +92,36 @@ public class SchedulingAlgorithmTests
     }
 
     [Test]
+    public void TrySchedule_TaskBelowMinimumBlock_IsCompletedWithoutPlannedBlock()
+    {
+        var taskId = Guid.NewGuid();
+        var task = MakeTask(taskId, estimateMinutes: _algorithm.MinBlockMinutes - 1);
+        var state = BuildState([task]);
+
+        var result = _algorithm.TrySchedule(state);
+
+        Assert.That(result, Is.True);
+        Assert.That(state.PlannedBlocks, Is.Empty);
+        Assert.That(state.RemainingMinutes[taskId], Is.Zero);
+    }
+
+    [Test]
+    public void TrySchedule_TaskAtMinimumBlock_IsPlaced()
+    {
+        var taskId = Guid.NewGuid();
+        var task = MakeTask(taskId, estimateMinutes: _algorithm.MinBlockMinutes);
+        var state = BuildState([task]);
+
+        var result = _algorithm.TrySchedule(state);
+
+        Assert.That(result, Is.True);
+        Assert.That(state.PlannedBlocks, Has.Count.EqualTo(1));
+        Assert.That(
+            (state.PlannedBlocks[0].EndDate - state.PlannedBlocks[0].StartDate).TotalMinutes,
+            Is.EqualTo(_algorithm.MinBlockMinutes));
+    }
+
+    [Test]
     public void TrySchedule_SingleShortTask_ReturnsTrue()
     {
         var taskId = Guid.NewGuid();

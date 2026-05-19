@@ -34,11 +34,14 @@ public class TaskBlockRepository(TeapotDbContext context) : ITaskBlockRepository
         await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
 
         // Delete all non-fixed blocks for these tasks
-        await context.TaskBlocks
+        var oldFlexibleBlocks = await context.TaskBlocks
             .Where(b => taskIds.Contains(b.TaskId) && !b.IsFixed)
-            .ExecuteDeleteAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+        if (oldFlexibleBlocks.Count > 0)
+            context.TaskBlocks.RemoveRange(oldFlexibleBlocks);
 
         await context.TaskBlocks.AddRangeAsync(newBlocks, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
     }
