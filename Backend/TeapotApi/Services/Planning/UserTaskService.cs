@@ -3,8 +3,14 @@ using DataAccess.Repositories;
 
 namespace Services.Planning;
 
+/// <summary>
+/// Implements CRUD operations for user tasks and keeps dependencies and fixed blocks in sync.
+/// </summary>
 public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDependencyRepository taskDependencyRepository, ITaskBlockRepository taskBlockRepository) : IUserTaskService
 {
+    /// <summary>
+    /// Loads all tasks for a work profile and attaches dependency ids to each task.
+    /// </summary>
     public async Task<IEnumerable<UserTask>> GetTasksAsync(
         Guid workProfileId, CancellationToken cancellationToken = default)
     {
@@ -21,12 +27,18 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         return tasks;
     }
 
+    /// <summary>
+    /// Loads a single task for the given work profile.
+    /// </summary>
     public async Task<UserTask> GetTaskAsync(Guid workProfileId, Guid taskId, CancellationToken cancellationToken = default)
     {
         return await userTaskRepository.FindAsync(taskId, workProfileId, cancellationToken)
             ?? throw new KeyNotFoundException($"Task {taskId} not found.");
     }
 
+    /// <summary>
+    /// Creates a new task, stores dependencies, and persists fixed task blocks when needed.
+    /// </summary>
     public async Task<UserTask> CreateTaskAsync(
         Guid workProfileId, UserTask task, CancellationToken cancellationToken = default)
     {
@@ -44,6 +56,9 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         return task;
     }
 
+    /// <summary>
+    /// Updates a task and synchronizes its dependencies and fixed blocks.
+    /// </summary>
     public async Task<UserTask> UpdateTaskAsync(
         Guid workProfileId, Guid taskId, UserTask updated, CancellationToken cancellationToken = default)
     {
@@ -74,6 +89,9 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         return existing;
     }
 
+    /// <summary>
+    /// Deletes a task and removes any dependent scheduling data first.
+    /// </summary>
     public async Task DeleteTaskAsync(
         Guid workProfileId, Guid taskId, CancellationToken cancellationToken = default)
     {

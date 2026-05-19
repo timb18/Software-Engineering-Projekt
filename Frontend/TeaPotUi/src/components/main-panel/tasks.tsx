@@ -126,7 +126,9 @@ const Tasks: FC = () => {
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() =>
+      setUser({ ...user }),
+    );
   };
 
   useEffect(() => {
@@ -172,7 +174,7 @@ const Tasks: FC = () => {
           ok: true,
           text: `Plan created (${json.backtrackingCount ?? 0} backtracks).`,
         });
-        // Reload tasks and blocks so the calendar reflects the new schedule
+        // Reload tasks and blocks so the calendar reflects the newly generated plan.
         const updated = await fetchTasks(workProfileId);
         setUser({ ...user, tasks: updated });
         const updatedBlocks = await fetchBlocks(workProfileId);
@@ -207,12 +209,12 @@ const Tasks: FC = () => {
     return byStatus && byOrg;
   });
 
-  // blocks are fetched for auto-schedule status; direct task rendering uses user.tasks
+  // Blocks are fetched for schedule status and timing metadata; visible task cards use user.tasks.
   void blocks;
 
   const calendarRef = useRef<FullCalendar>(null);
 
-  // Generate recurring break events from work profile for a ±8 week window
+  // Generate recurring break events from the work profile for a wide calendar window.
   const breakEvents: EventInput[] = [];
   if (user.workProfile) {
     const windowStart = dayjs().subtract(14, "day").startOf("day");
@@ -227,6 +229,7 @@ const Tasks: FC = () => {
         while (date.isBefore(windowEnd)) {
           const breakC = getBreakColor();
           const isDarkBreak = isDarkColor(breakC);
+          // Keep color-dependent event styling reactive without rebuilding the entire calendar state.
           void colorVersion;
           breakEvents.push({
             id: `break-${workBreak.id}-${date.format("YYYY-MM-DD")}`,
@@ -323,7 +326,7 @@ const Tasks: FC = () => {
     });
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => {
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() => {
       setUser({ ...user });
       revert();
     });
@@ -431,7 +434,9 @@ const Tasks: FC = () => {
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() =>
+      setUser({ ...user }),
+    );
     setEditingBreak(null);
   };
 

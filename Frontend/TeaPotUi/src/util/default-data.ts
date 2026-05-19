@@ -1,8 +1,36 @@
 import dayjs from "dayjs";
 import type { Task, Org, User } from "./types";
 
+/**
+ * Start of this week (Monday) for demo data date calculations.
+ * Used to create realistic dates relative to current week.
+ */
 const startOfThisWeek = dayjs().startOf("week").add(1, "day");
 
+/**
+ * Factory function for creating demo tasks with realistic scheduling.
+ * 
+ * Parameters:
+ * - dayOffset: 0=Monday, 1=Tuesday, ..., 6=Sunday (relative to start of week)
+ * - start/end: [hours, minutes] for task timing on that day
+ * - name/description: Task metadata
+ * - priority: "low" | "medium" | "high" (default: "medium")
+ * - status: "todo" | "in-progress" | "done" (default: "todo")
+ * - isFixed: Whether task has fixed time allocation (default: false)
+ * 
+ * Used for creating demo data set that reflects realistic work patterns.
+ * All demo tasks are assigned to companyA by default.
+ * 
+ * @param dayOffset - Day of week (0=Mon, 6=Sun)
+ * @param start - [hours, minutes] start time
+ * @param end - [hours, minutes] end time
+ * @param name - Task title
+ * @param description - Task description
+ * @param priority - Task priority level
+ * @param status - Current status
+ * @param isFixed - Whether time allocation is fixed
+ * @returns Demo Task object
+ */
 const createTask = (
   dayOffset: number,
   start: [number, number],
@@ -40,6 +68,11 @@ const createTask = (
   };
 };
 
+/**
+ * Demo organization A (for testing and demo purposes).
+ * Used as the primary organization in demo data.
+ * Real organizations come from backend API.
+ */
 const companyA: Org = {
   id: "org-a",
   name: "company a",
@@ -47,6 +80,11 @@ const companyA: Org = {
   adminEmails: ["admin@company-a.de"],
   invites: [],
 };
+
+/**
+ * Demo organization B (for testing and demo purposes).
+ * Includes a pending invitation to demonstrate invitation flow.
+ */
 const companyB: Org = {
   id: "org-b",
   name: "company b",
@@ -62,6 +100,16 @@ const companyB: Org = {
   ],
 };
 
+/**
+ * Demo tasks for offline/testing mode.
+ * Represents a realistic week of work with various task types,
+ * priorities, and statuses.
+ * 
+ * Used when:
+ * - Developing without backend connection
+ * - Testing task management UI
+ * - Providing example data to new users
+ */
 const defaultTasks: Task[] = [
   {
     name: "Sprint planning",

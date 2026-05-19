@@ -1,5 +1,6 @@
 import { useAuth0 } from "@auth0/auth0-react";
 
+// Minimal login screen shown before the user is authenticated.
 const Login = () => {
   const { loginWithRedirect: login } = useAuth0();
   return (

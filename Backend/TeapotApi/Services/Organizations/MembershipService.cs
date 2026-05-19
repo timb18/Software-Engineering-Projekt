@@ -3,11 +3,20 @@ using DataAccess.Repositories;
 
 namespace Services.Organizations;
 
+/// <summary>
+/// Implements membership changes and organizer checks for organizations.
+/// </summary>
 public class MembershipService(IMembershipRepository membershipRepository) : IMembershipService
 {
+    /// <summary>
+    /// Removes the current user from an organization.
+    /// </summary>
     public async Task LeaveOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
         => await RemoveMembershipAsync(userId, organizationId, cancellationToken);
 
+    /// <summary>
+    /// Removes another user from an organization after confirming organizer permissions.
+    /// </summary>
     public async Task RemoveUserFromOrganizationAsync(Guid initiatorUserId, Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
     {
         var initiatorMembership = await membershipRepository.FindOrganizerAsync(organizationId, initiatorUserId, cancellationToken)
@@ -16,6 +25,9 @@ public class MembershipService(IMembershipRepository membershipRepository) : IMe
         await RemoveMembershipAsync(userId, organizationId, cancellationToken);
     }
 
+    /// <summary>
+    /// Updates a member role while preventing the last organizer from being removed.
+    /// </summary>
     public async Task UpdateRoleAsync(Guid initiatorUserId, Guid userId, Guid organizationId, string role, CancellationToken cancellationToken = default)
     {
         if (initiatorUserId == Guid.Empty)
@@ -65,6 +77,7 @@ public class MembershipService(IMembershipRepository membershipRepository) : IMe
 
         if (membership.Role == ERole.Organizer)
         {
+            // Keep at least one organizer in every organization.
             var organizerCount = await membershipRepository.CountOrganizersAsync(organizationId, cancellationToken);
             if (organizerCount <= 1)
                 throw new InvalidOperationException("Cannot leave: you are the only organizer of this organization. Transfer ownership first or delete the organization.");

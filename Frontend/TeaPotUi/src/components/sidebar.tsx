@@ -7,6 +7,7 @@ const Sidebar: FC = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
+  // Treat nested routes as active when their prefix matches the current location.
   const isActive = (path: string) =>
     path === "/" ? pathname === "/" : pathname.startsWith(path);
 
@@ -43,6 +44,7 @@ const Sidebar: FC = () => {
 
   const avatarStyle = useMemo(() => {
     if (user?.profileImage?.startsWith("http")) {
+      // Prefer a real user image when one is available.
       return {
         backgroundImage: `url(${user.profileImage})`,
         backgroundSize: "cover",
@@ -50,6 +52,7 @@ const Sidebar: FC = () => {
         backgroundColor: "#ffffff",
       };
     }
+    // Fall back to a small set of stable gradients so the avatar still looks intentional.
     const gradients: Record<string, string> = {
       "gradient-1": "linear-gradient(135deg, #34d399, #2563eb)",
       "gradient-2": "linear-gradient(135deg, #ec4899, #8b5cf6)",

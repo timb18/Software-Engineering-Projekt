@@ -3,15 +3,23 @@ using DataAccess.Repositories;
 
 namespace Services.WorkProfiles;
 
+/// <summary>
+/// Manages the personal work profile and its daily schedule layout.
+/// </summary>
 public class WorkProfileService(
     IWorkProfileRepository workProfileRepository,
     IMembershipRepository membershipRepository) : IWorkProfileService
 {
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-    public async Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Loads the personal work profile and fills any missing weekday entries.
+    /// </summary>
+    public async Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
-        var profile = await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
+        var profile = organizationId.HasValue
+            ? await workProfileRepository.GetByUserAndOrganizationNoTrackingAsync(userId, organizationId.Value, cancellationToken)
+            : await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
         if (profile is null) return null;
 
         var existingDays = profile.Days.ToDictionary(d => d.Day);
@@ -24,21 +32,30 @@ public class WorkProfileService(
         return profile;
     }
 
-    public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Creates or updates the user's work profile and keeps nested day, block, and break graphs consistent.
+    /// </summary>
+    public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
-        var existing = await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
+        var existing = organizationId.HasValue
+            ? await workProfileRepository.GetByUserAndOrganizationAsync(userId, organizationId.Value, cancellationToken)
+            : await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
         var normalized = NormalizeProfile(profile);
 
         if (existing is null)
         {
-            var membership = await membershipRepository.FindPersonalAsync(userId, cancellationToken)
-                ?? throw new ArgumentException("No membership found for this user.");
+            var membership = organizationId.HasValue
+                ? await membershipRepository.FindAsync(userId, organizationId.Value, cancellationToken)
+                : await membershipRepository.FindPersonalAsync(userId, cancellationToken);
+
+            if (membership is null)
+                throw new ArgumentException("No membership found for this user and organization.");
 
             normalized.MembershipId = membership.Id;
             normalized.CreatedAt = DateTime.UtcNow;
             PrepareProfileGraph(normalized);
             await workProfileRepository.AddAsync(normalized, cancellationToken);
-            return await GetAsync(userId, cancellationToken) ?? normalized;
+            return await GetAsync(userId, organizationId, cancellationToken) ?? normalized;
         }
 
         existing.MaxDailyLoad = normalized.MaxDailyLoad;
@@ -47,7 +64,7 @@ public class WorkProfileService(
         existing.EditedAt = DateTime.UtcNow;
 
         var oldDays = existing.Days.ToList();
-        // Prepare FKs on new days without touching the tracked navigation property.
+        // Prepare foreign keys on new days without touching the tracked navigation property.
         // This avoids EF change-tracker conflicts from navigation-collection reassignment.
         var newDays = normalized.Days.Select(day =>
         {
@@ -67,12 +84,15 @@ public class WorkProfileService(
         }).ToList();
 
         // ReplaceDaysAsync calls SaveChangesAsync internally, which also persists
-        // the scalar-property changes on the tracked `existing` entity.
+        // the scalar-property changes on the tracked entity.
         await workProfileRepository.ReplaceDaysAsync(oldDays, newDays, cancellationToken);
 
-        return await GetAsync(userId, cancellationToken) ?? existing;
+        return await GetAsync(userId, organizationId, cancellationToken) ?? existing;
     }
 
+    /// <summary>
+    /// Deletes the current user's work profile and its dependent data.
+    /// </summary>
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
@@ -84,6 +104,9 @@ public class WorkProfileService(
         await workProfileRepository.DeleteAsync(profile, cancellationToken);
     }
 
+    /// <summary>
+    /// Deletes the work profile identified by the given email address.
+    /// </summary>
     public async Task DeleteByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email))

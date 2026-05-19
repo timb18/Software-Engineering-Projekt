@@ -38,6 +38,8 @@ import "./work-profile-configurator.css";
 
 type WorkProfileConfiguratorProps = {
   user: User;
+  activeOrganizationId: string | null;
+  onActiveOrganizationChange: (organizationId: string) => Promise<void> | void;
   onSaveUser: (nextUser: User) => Promise<void> | void;
   onStatusChange: (value: string | undefined) => void;
   onErrorChange: (value: string | undefined) => void;
@@ -194,6 +196,8 @@ const getPlannerViewWindow = (
 
 const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
   user,
+  activeOrganizationId,
+  onActiveOrganizationChange,
   onSaveUser,
   onStatusChange,
   onErrorChange,
@@ -211,6 +215,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     text: string;
   } | null>(null);
   const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
+  const [isSwitchingOrganization, setIsSwitchingOrganization] = useState(false);
   const [saveAfterCopyDay, setSaveAfterCopyDay] = useState(false);
 
   const [colorVersion, setColorVersion] = useState(0);
@@ -310,7 +315,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
   const calendarEvents = useMemo<EventInput[]>(
     () => [
-      // Background column hints for each empty day (encouragement)
+      // Show subtle background hints for empty days so the calendar does not feel blank.
       ...(showEncouragement
         ? workForm.days
             .filter((day) => day.blocks.length === 0)
@@ -373,7 +378,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     [workForm.days, companyOptions, showEncouragement, colorVersion],
   );
 
-  // ── FullCalendar wrappers ─────────────────────────────────────────────────
+  // Wrap FullCalendar actions so dialogs and selections stay in sync.
 
   const closeEntryDialog = () => {
     closeEntryDialogState();
@@ -406,6 +411,30 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     }
   };
 
+  const activeOrganization =
+    user.orgs.find((org) => org.id === activeOrganizationId) ?? user.orgs[0];
+
+  const handleOrganizationChange = async (organizationId: string) => {
+    if (!organizationId || organizationId === activeOrganizationId) return;
+
+    setIsSwitchingOrganization(true);
+    setSaveFeedback(null);
+    clearMessages();
+
+    try {
+      await Promise.resolve(onActiveOrganizationChange(organizationId));
+      onStatusChange("Organization work profile loaded.");
+    } catch (switchError) {
+      onErrorChange(
+        switchError instanceof Error
+          ? switchError.message
+          : "Organization could not be loaded.",
+      );
+    } finally {
+      setIsSwitchingOrganization(false);
+    }
+  };
+
   useEffect(() => {
     if (!saveAfterCopyDay || !isDirty || isSavingWorkProfile) {
       return;
@@ -413,6 +442,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
     setSaveAfterCopyDay(false);
     void saveWork();
+    // The save action intentionally closes over the current form and dirty state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveAfterCopyDay, isDirty, isSavingWorkProfile]);
 
@@ -558,14 +588,41 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
               weekly view.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={saveWork}
-            disabled={user.orgs.length < 1 || isSavingWorkProfile}
-            className="cursor-pointer rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-emerald-400/15"
-          >
-            {isSavingWorkProfile ? "Saving..." : "Save work profile"}
-          </button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-72">
+            <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+              Organization
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select
+                value={activeOrganization?.id ?? ""}
+                onChange={(event) => void handleOrganizationChange(event.target.value)}
+                disabled={isSwitchingOrganization || isSavingWorkProfile}
+                className="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {user.orgs.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={saveWork}
+                disabled={
+                  user.orgs.length < 1 ||
+                  isSavingWorkProfile ||
+                  isSwitchingOrganization
+                }
+                className="cursor-pointer rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-emerald-400/15"
+              >
+                {isSavingWorkProfile
+                  ? "Saving..."
+                  : isSwitchingOrganization
+                    ? "Loading..."
+                    : "Save"}
+              </button>
+            </div>
+          </div>
         </div>
         {saveFeedback && (
           <div

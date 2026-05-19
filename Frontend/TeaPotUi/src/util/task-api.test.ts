@@ -6,6 +6,7 @@ import type { Task } from "./types";
 
 const WORK_PROFILE_ID = "11111111-0000-0000-0000-000000000000";
 const TASK_ID = "22222222-0000-0000-0000-000000000000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 /** Mock a global fetch that resolves with the given data. */
 const mockFetch = (data: unknown, ok = true, status = 200) =>
@@ -62,7 +63,7 @@ describe("fetchTasks", () => {
     await fetchTasks(WORK_PROFILE_ID);
 
     const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}`);
   });
 
   it("maps backend fields to frontend Task shape", async () => {
@@ -95,7 +96,7 @@ describe("createTask", () => {
     await createTask(WORK_PROFILE_ID, makeTask());
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}`);
     expect(init?.method).toBe("POST");
   });
 
@@ -162,7 +163,7 @@ describe("updateTask", () => {
     await updateTask(WORK_PROFILE_ID, TASK_ID, makeTask());
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
     expect(init?.method).toBe("PUT");
   });
 
@@ -190,7 +191,7 @@ describe("deleteTask", () => {
     await deleteTask(WORK_PROFILE_ID, TASK_ID);
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
     expect(init?.method).toBe("DELETE");
   });
 

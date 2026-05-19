@@ -190,7 +190,7 @@ const Orgs: FC = () => {
     };
 
     void loadOrganizations();
-    // Organizations and pending invites should be loaded once for each account.
+    // Reload organizations only when the signed-in account changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.email]);
 

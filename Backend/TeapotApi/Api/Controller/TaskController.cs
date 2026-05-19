@@ -8,7 +8,7 @@ namespace Api.Controller;
 public class TaskController(IUserTaskService taskService) : ControllerBase
 {
     /// <summary>Loads a single task for editing.</summary>
-    /// <remarks>Returns the full UserTask object needed to populate the edit modal.</remarks>
+    /// <remarks>Returns the full UserTask object needed to populate the edit modal and preserve current values.</remarks>
     [HttpGet("{taskId:guid}")]
     [ProducesResponseType(typeof(UserTask), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -22,7 +22,7 @@ public class TaskController(IUserTaskService taskService) : ControllerBase
             return NotFound();
         return Ok(task);
     }
-    /// <summary>Returns all tasks for the given work profile.</summary>
+    /// <summary>Returns all tasks for the given work profile in a single list.</summary>
     [HttpGet("")]
     [ProducesResponseType(typeof(IEnumerable<UserTask>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTasks(Guid workProfileId, CancellationToken cancellationToken)
@@ -31,7 +31,7 @@ public class TaskController(IUserTaskService taskService) : ControllerBase
         return Ok(tasks);
     }
 
-    /// <summary>Creates a new task for the given work profile.</summary>
+    /// <summary>Creates a new task for the given work profile after validating the task name.</summary>
     [HttpPost("")]
     [ProducesResponseType(typeof(UserTask), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -45,7 +45,7 @@ public class TaskController(IUserTaskService taskService) : ControllerBase
         return CreatedAtAction(nameof(GetTasks), new { workProfileId }, created);
     }
 
-    /// <summary>Updates an existing task.</summary>
+    /// <summary>Updates an existing task and returns the persisted version.</summary>
     [HttpPut("{taskId:guid}")]
     [ProducesResponseType(typeof(UserTask), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -63,7 +63,7 @@ public class TaskController(IUserTaskService taskService) : ControllerBase
         }
     }
 
-    /// <summary>Deletes a task.</summary>
+    /// <summary>Deletes a task from the given work profile.</summary>
     [HttpDelete("{taskId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
