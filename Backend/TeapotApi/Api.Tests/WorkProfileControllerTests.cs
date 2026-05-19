@@ -57,7 +57,7 @@ public class WorkProfileControllerTests
                     ])
             ]);
 
-        var result = await controller.Put(userId, request, CancellationToken.None);
+        var result = await controller.Put(userId, null, request, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<OkObjectResult>());
         Assert.That(service.LastSavedProfile, Is.Not.Null);
@@ -77,10 +77,10 @@ public class WorkProfileControllerTests
         public Guid? LastDeletedUserId { get; private set; }
         public WorkProfile? LastSavedProfile { get; private set; }
 
-        public Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        public Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null, CancellationToken cancellationToken = default) =>
             Task.FromResult<WorkProfile?>(null);
 
-        public Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, CancellationToken cancellationToken = default) =>
+        public Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(LastSavedProfile = profile);
 
         public Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)

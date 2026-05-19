@@ -126,7 +126,9 @@ const Tasks: FC = () => {
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() =>
+      setUser({ ...user }),
+    );
   };
 
   useEffect(() => {
@@ -316,7 +318,7 @@ const Tasks: FC = () => {
     });
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => {
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() => {
       setUser({ ...user });
       revert();
     });
@@ -424,7 +426,9 @@ const Tasks: FC = () => {
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() =>
+      setUser({ ...user }),
+    );
     setEditingBreak(null);
   };
 

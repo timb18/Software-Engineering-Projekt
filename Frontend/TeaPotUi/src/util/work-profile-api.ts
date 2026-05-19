@@ -32,8 +32,16 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
  * @returns Promise resolving to WorkProfile, or null if none saved
  * @throws Error if fetch fails (excluding 204)
  */
-export async function fetchWorkProfile(userId: string): Promise<WorkProfile | null> {
-  const res = await fetch(`${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`);
+const organizationQuery = (organizationId?: string | null) =>
+  organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
+
+export async function fetchWorkProfile(
+  userId: string,
+  organizationId?: string | null,
+): Promise<WorkProfile | null> {
+  const res = await fetch(
+    `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}${organizationQuery(organizationId)}`,
+  );
 
   if (res.status === 204) return null; // No profile saved yet
   if (!res.ok) throw new Error(`Failed to fetch work profile: ${res.status} ${res.statusText}`);
@@ -68,8 +76,12 @@ export async function fetchWorkProfile(userId: string): Promise<WorkProfile | nu
  * @returns Promise resolving to saved WorkProfile from server
  * @throws Error with message if save fails
  */
-export async function saveWorkProfile(userId: string, profile: WorkProfile): Promise<WorkProfile> {
-  const res = await fetch(`${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`, {
+export async function saveWorkProfile(
+  userId: string,
+  profile: WorkProfile,
+  organizationId?: string | null,
+): Promise<WorkProfile> {
+  const res = await fetch(`${API_BASE}/api/workprofile/${encodeURIComponent(userId)}${organizationQuery(organizationId)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(profile),
