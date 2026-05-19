@@ -67,9 +67,29 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task ReplaceDaysAsync(IList<WorkDayProfile> oldDays, IList<WorkDayProfile> newDays, CancellationToken cancellationToken = default)
+    public async Task ReplaceDaysAsync(
+        Guid workProfileId,
+        IList<WorkDayProfile> oldDays,
+        IList<WorkDayProfile> newDays,
+        bool deleteFlexibleTaskBlocks = false,
+        CancellationToken cancellationToken = default)
     {
         await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        if (deleteFlexibleTaskBlocks)
+        {
+            var taskIds = await context.UserTasks
+                .Where(t => t.WorkProfileId == workProfileId)
+                .Select(t => t.Id)
+                .ToListAsync(cancellationToken);
+
+            var flexibleTaskBlocks = await context.TaskBlocks
+                .Where(block => taskIds.Contains(block.TaskId) && !block.IsFixed)
+                .ToListAsync(cancellationToken);
+
+            if (flexibleTaskBlocks.Count > 0)
+                context.TaskBlocks.RemoveRange(flexibleTaskBlocks);
+        }
 
         if (oldDays.Count > 0)
         {

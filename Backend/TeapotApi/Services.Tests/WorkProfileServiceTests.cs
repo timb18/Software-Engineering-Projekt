@@ -390,6 +390,29 @@ public class WorkProfileServiceTests
             ]
         });
 
+        var savedProfile = await _dbContext.WorkProfiles.SingleAsync();
+        var task = new UserTask
+        {
+            Id = Guid.NewGuid(),
+            WorkProfileId = savedProfile.Id,
+            Name = "Scheduled task",
+            CreatedAt = DateTime.UtcNow,
+            TimeEstimate = TimeSpan.FromHours(1),
+            EarlyStart = DateTime.UtcNow,
+            EarlyFinish = DateTime.UtcNow.AddHours(1),
+            LateStart = DateTime.UtcNow,
+            LateFinish = DateTime.UtcNow.AddHours(1)
+        };
+        _dbContext.UserTasks.Add(task);
+        _dbContext.TaskBlocks.Add(new TaskBlock
+        {
+            TaskId = task.Id,
+            StartDate = DateTime.UtcNow,
+            EndDate = DateTime.UtcNow.AddHours(1),
+            IsFixed = false
+        });
+        await _dbContext.SaveChangesAsync();
+
         var updated = await _service.SaveAsync(user.Id, new WorkProfile
         {
             PlannerViewStart = "07:00",
@@ -430,6 +453,7 @@ public class WorkProfileServiceTests
             Assert.That(updated.Days.Single(day => day.Day == "Mon").Blocks, Is.Empty);
             Assert.That(updated.Days.Single(day => day.Day == "Tue").Blocks.Select(block => block.StartTime), Is.EqualTo(["13:00"]));
             Assert.That(updated.Days.Single(day => day.Day == "Tue").Breaks.Select(workBreak => workBreak.StartTime), Is.EqualTo(["15:00"]));
+            Assert.That(_dbContext.TaskBlocks.Where(block => !block.IsFixed), Is.Empty);
         });
     }
 

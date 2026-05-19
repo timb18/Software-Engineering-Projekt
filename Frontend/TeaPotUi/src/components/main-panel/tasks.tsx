@@ -97,6 +97,7 @@ const Tasks: FC = () => {
   const [scheduleMsg, setScheduleMsg] = useState<{
     ok: boolean;
     text: string;
+    warnings?: string[];
   } | null>(null);
   const [blocks, setBlocks] = useState<TaskBlock[]>([]);
   const [editingBreak, setEditingBreak] = useState<{
@@ -166,11 +167,13 @@ const Tasks: FC = () => {
         success: boolean;
         errorMessage?: string;
         backtrackingCount?: number;
+        warnings?: string[];
       };
       if (json.success) {
         setScheduleMsg({
           ok: true,
           text: `Plan created (${json.backtrackingCount ?? 0} backtracks).`,
+          warnings: json.warnings ?? [],
         });
         // Reload tasks and blocks so the calendar reflects the newly generated plan.
         const updated = await fetchTasks(workProfileId);
@@ -181,6 +184,7 @@ const Tasks: FC = () => {
         setScheduleMsg({
           ok: false,
           text: json.errorMessage ?? "Scheduling failed.",
+          warnings: json.warnings ?? [],
         });
       }
     } catch {
@@ -206,9 +210,6 @@ const Tasks: FC = () => {
         t.org === selectedFilterOrg.workProfileId);
     return byStatus && byOrg;
   });
-
-  // Blocks are fetched for schedule status and timing metadata; visible task cards use user.tasks.
-  void blocks;
 
   const calendarRef = useRef<FullCalendar>(null);
 
@@ -251,32 +252,56 @@ const Tasks: FC = () => {
     }
   }
 
-  const calendarEvents: EventInput[] = filteredTasks
-    .filter((t) => t.startDate && t.endDate)
-    .map((t) => {
+  const taskById = new Map((user.tasks ?? []).map((task) => [task.id, task]));
+  const visibleTaskIds = new Set(filteredTasks.map((task) => task.id).filter(Boolean));
+  const calendarEvents: EventInput[] = blocks
+    .filter((block) => visibleTaskIds.has(block.taskId))
+    .map((block) => {
+      const task = taskById.get(block.taskId);
       // The color utilities intentionally depend on external theme state.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
+      const c: RgbColor = task?.org ? getOrgColor(task.org) : getOrgColor("");
       const isDarkTask = isDarkColor(c);
       void colorVersion; // reactive dependency
       return {
-        id: t.id ?? `task-${t.name}`,
-        title: t.name,
-        start: t.startDate,
-        end: t.endDate,
+        id: `${block.taskId}-${block.startDate.toISOString()}`,
+        title: task?.name ?? block.taskName,
+        start: block.startDate,
+        end: block.endDate,
         backgroundColor: rgbToCss(c, 0.22),
-        borderColor: t.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
+        borderColor: block.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
         textColor: readableTextColor(c),
         classNames: [
           "task-event",
           isDarkTask ? "is-dark-event-color" : "is-light-event-color",
-          t.isFixed ? "task-fixed" : "",
-          (t.status ?? "todo") === "done" ? "task-done" : "",
+          block.isFixed ? "task-fixed" : "",
+          (task?.status ?? block.taskStatus ?? "todo") === "done" ? "task-done" : "",
         ].filter(Boolean),
-        editable: true,
-        extendedProps: { task: t },
+        editable: !!task,
+        extendedProps: { task },
       };
     });
+
+  const persistWorkProfile = async (updatedProfile: NonNullable<typeof user.workProfile>) => {
+    setUser({ ...user, workProfile: updatedProfile });
+    try {
+      const savedProfile = await saveWorkProfile(user.id, updatedProfile);
+      setUser({
+        ...user,
+        workProfile: savedProfile,
+        hasPersistedWorkProfile: true,
+        plannerViewStart: savedProfile.plannerViewStart ?? user.plannerViewStart,
+        plannerViewEnd: savedProfile.plannerViewEnd ?? user.plannerViewEnd,
+      });
+      if (workProfileId) {
+        const updatedBlocks = await fetchBlocks(workProfileId);
+        setBlocks(updatedBlocks);
+      }
+    } catch {
+      setUser({ ...user });
+      throw new Error("Could not save work profile.");
+    }
+  };
 
   const updateBreakInProfile = (
     breakId: string,
@@ -315,9 +340,7 @@ const Tasks: FC = () => {
       return day;
     });
     const updatedProfile = { ...user.workProfile, days: updatedDays };
-    setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => {
-      setUser({ ...user });
+    persistWorkProfile(updatedProfile).catch(() => {
       revert();
     });
   };
@@ -423,8 +446,7 @@ const Tasks: FC = () => {
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
-    setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    void persistWorkProfile(updatedProfile);
     setEditingBreak(null);
   };
 
@@ -716,11 +738,23 @@ const Tasks: FC = () => {
               {scheduling ? "Scheduling…" : "Auto-Schedule"}
             </button>
             {scheduleMsg && (
-              <span
-                className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}
-              >
-                {scheduleMsg.text}
-              </span>
+              <div className="max-w-sm space-y-2 text-right">
+                <div
+                  className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}
+                >
+                  {scheduleMsg.text}
+                </div>
+                {scheduleMsg.warnings && scheduleMsg.warnings.length > 0 && (
+                  <div className="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-left text-xs leading-relaxed text-amber-100 shadow-sm shadow-amber-950/20">
+                    <div className="font-semibold text-amber-200">
+                      Auto-Schedule warning
+                    </div>
+                    {scheduleMsg.warnings.map((warning) => (
+                      <div key={warning}>{warning}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <button
