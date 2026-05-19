@@ -3,7 +3,7 @@
 public interface IInvitationService
 {
     /// <summary>
-    /// Erstellt eine neue Einladung und versendet eine E-Mail
+    /// Creates a new invitation and sends an email.
     /// </summary>
     Task<InvitationDto> SendInvitationAsync(
         string email,
@@ -17,37 +17,37 @@ public interface IInvitationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Akzeptiert eine Einladung und fügt den Benutzer zur Organisation hinzu
+    /// Accepts an invitation and adds the user to the organization.
     /// </summary>
     Task<bool> AcceptInvitationAsync(Guid invitationId, Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Akzeptiert eine Einladung über den E-Mail-Link.
+    /// Accepts an invitation through the email link.
     /// </summary>
     Task<bool> AcceptInvitationByEmailAsync(Guid invitationId, string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Lehnt eine Einladung ab
+    /// Rejects an invitation.
     /// </summary>
     Task<bool> RejectInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Findet eine Einladung nach ID
+    /// Finds an invitation by ID.
     /// </summary>
     Task<InvitationDto?> GetInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Findet alle offenen Einladungen für eine E-Mail-Adresse
+    /// Finds all open invitations for an email address.
     /// </summary>
     Task<IEnumerable<InvitationDto>> GetPendingInvitationsForEmailAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Findet alle Einladungen für eine Organisation
+    /// Finds all invitations for an organization.
     /// </summary>
     Task<IEnumerable<InvitationDto>> GetInvitationsForOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Markiert abgelaufene Einladungen als expired
+    /// Marks expired invitations as expired.
     /// </summary>
     Task<int> CleanupExpiredInvitationsAsync(CancellationToken cancellationToken = default);
 }

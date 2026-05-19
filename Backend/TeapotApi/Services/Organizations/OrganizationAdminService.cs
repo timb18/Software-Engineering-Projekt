@@ -5,6 +5,9 @@ using DataAccess.Repositories;
 
 namespace Services.Organizations;
 
+/// <summary>
+/// Implements administrative organization creation workflows.
+/// </summary>
 public class OrganizationAdminService(
     IOrganizationRepository organizationRepository,
     IUserRepository userRepository,
@@ -12,6 +15,10 @@ public class OrganizationAdminService(
     IUnitOfWork unitOfWork) : IOrganizationAdminService
 {
     private static readonly EmailAddressAttribute EmailValidator = new();
+
+    /// <summary>
+    /// Creates a new organization, creates the organizer account if necessary, and links both records in one transaction.
+    /// </summary>
     public async Task<CreateOrganizationResult> CreateOrganizationAsync(
         CreateOrganizationRequest request,
         CancellationToken cancellationToken = default)

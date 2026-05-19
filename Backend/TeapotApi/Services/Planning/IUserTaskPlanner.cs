@@ -1,5 +1,8 @@
 namespace Services.Planning;
 
+/// <summary>
+/// Generates executable task plans for a work profile.
+/// </summary>
 public interface IUserTaskPlanner
 {
     /// <summary>

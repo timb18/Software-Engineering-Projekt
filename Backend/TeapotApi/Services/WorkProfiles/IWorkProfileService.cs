@@ -2,6 +2,9 @@ using DataAccess.Models;
 
 namespace Services.WorkProfiles;
 
+/// <summary>
+/// Work-profile management operations used by the planning subsystem.
+/// </summary>
 public interface IWorkProfileService
 {
     /// <summary>Returns the work profile for the given user, or null if none exists.</summary>

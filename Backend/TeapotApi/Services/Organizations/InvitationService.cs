@@ -8,6 +8,9 @@ using Microsoft.Extensions.Options;
 
 namespace Services.Organizations;
 
+/// <summary>
+/// Handles invitation creation, acceptance, rejection, and cleanup.
+/// </summary>
 public class InvitationService(
     IInvitationRepository invitationRepository,
     IOrganizationRepository organizationRepository,
@@ -23,6 +26,10 @@ public class InvitationService(
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     private readonly EmailOptions _emailOptions = emailOptions.Value;
+
+    /// <summary>
+    /// Creates an invitation, persists it, and attempts to send the invitation email.
+    /// </summary>
     public async Task<InvitationDto> SendInvitationAsync(
         string email,
         Guid organizationId,
@@ -89,6 +96,9 @@ public class InvitationService(
         };
     }
 
+    /// <summary>
+    /// Accepts an invitation by authenticated user id and creates membership data when needed.
+    /// </summary>
     public async Task<bool> AcceptInvitationAsync(Guid invitationId, Guid userId, CancellationToken cancellationToken = default)
     {
         var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken)
@@ -149,6 +159,9 @@ public class InvitationService(
         return true;
     }
 
+    /// <summary>
+    /// Accepts an invitation after resolving the user account by email.
+    /// </summary>
     public async Task<bool> AcceptInvitationByEmailAsync(Guid invitationId, string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = NormalizeEmail(email);
@@ -165,6 +178,9 @@ public class InvitationService(
         return await AcceptInvitationAsync(invitationId, existingUser.Id, cancellationToken);
     }
 
+    /// <summary>
+    /// Rejects an invitation and removes it from the database.
+    /// </summary>
     public async Task<bool> RejectInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default)
     {
         var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken)
@@ -175,12 +191,18 @@ public class InvitationService(
         return true;
     }
 
+    /// <summary>
+    /// Loads a single invitation by id.
+    /// </summary>
     public async Task<InvitationDto?> GetInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default)
     {
         var invitation = await invitationRepository.FindByIdAsync(invitationId, cancellationToken);
         return invitation is null ? null : MapToDto(invitation);
     }
 
+    /// <summary>
+    /// Returns all pending invitations for the given email address.
+    /// </summary>
     public async Task<IEnumerable<InvitationDto>> GetPendingInvitationsForEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = NormalizeEmail(email);
@@ -188,12 +210,18 @@ public class InvitationService(
         return invitations.Select(invitation => MapToDto(invitation));
     }
 
+    /// <summary>
+    /// Returns all invitations for the given organization.
+    /// </summary>
     public async Task<IEnumerable<InvitationDto>> GetInvitationsForOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default)
     {
         var invitations = await invitationRepository.GetForOrganizationAsync(organizationId, cancellationToken);
         return invitations.Select(invitation => MapToDto(invitation));
     }
 
+    /// <summary>
+    /// Marks open invitations as expired when their expiration date has passed.
+    /// </summary>
     public Task<int> CleanupExpiredInvitationsAsync(CancellationToken cancellationToken = default) =>
         invitationRepository.MarkExpiredInvitationsAsync(cancellationToken);
 
