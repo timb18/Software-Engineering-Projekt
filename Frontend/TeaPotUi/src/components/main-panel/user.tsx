@@ -125,7 +125,12 @@ const ColorPickerCard: FC<{
 
 const User: FC = () => {
   const { logout } = useLoginStore();
-  const { user: userFromDb, setUser } = useUserStore();
+  const {
+    user: userFromDb,
+    activeOrganizationId,
+    setUser,
+    setActiveOrganization,
+  } = useUserStore();
   const { logout: authLogout, user: userFromAuth } = useAuth0();
   const navigate = useNavigate();
   const {
@@ -249,15 +254,27 @@ const User: FC = () => {
     if (nextUser.workProfile && nextUser.id && hasBackendUserId(nextUser.id)) {
       setIsSavingWorkProfile(true);
       try {
-        const savedWorkProfile = await saveWorkProfile(nextUser.id, {
-          ...nextUser.workProfile,
-          plannerViewStart: nextUser.plannerViewStart,
-          plannerViewEnd: nextUser.plannerViewEnd,
-          maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
-        });
+        const savedWorkProfile = await saveWorkProfile(
+          nextUser.id,
+          {
+            ...nextUser.workProfile,
+            plannerViewStart: nextUser.plannerViewStart,
+            plannerViewEnd: nextUser.plannerViewEnd,
+            maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
+          },
+          activeOrganizationId,
+        );
         const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
+        const orgs = activeOrganizationId
+          ? nextUser.orgs.map((org) =>
+              org.id === activeOrganizationId
+                ? { ...org, workProfileId: savedWorkProfile.id ?? org.workProfileId }
+                : org,
+            )
+          : nextUser.orgs;
         setUser({
           ...nextUser,
+          orgs,
           workProfile: savedWorkProfile,
           hasPersistedWorkProfile: true,
           plannerViewStart:
@@ -684,8 +701,10 @@ const User: FC = () => {
         {tab === "work" && (
           <div className="flex flex-col gap-4">
             <WorkProfileConfigurator
-              key={`${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
+              key={`${activeOrganizationId ?? "no-org"}-${userFromDb.workProfile?.id ?? "new"}-${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
               user={userFromDb}
+              activeOrganizationId={activeOrganizationId}
+              onActiveOrganizationChange={setActiveOrganization}
               onSaveUser={persist}
               onStatusChange={setStatus}
               onErrorChange={setError}

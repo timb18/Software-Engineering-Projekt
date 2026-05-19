@@ -96,9 +96,9 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
     [HttpGet("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Get(Guid userId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(Guid userId, [FromQuery] Guid? organizationId, CancellationToken cancellationToken)
     {
-        var profile = await workProfileService.GetAsync(userId, cancellationToken);
+        var profile = await workProfileService.GetAsync(userId, organizationId, cancellationToken);
         if (profile is null)
             return NoContent();
 
@@ -112,13 +112,13 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
     [HttpPut("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put(Guid userId, [FromBody] WorkProfileSaveRequest request,
+    public async Task<IActionResult> Put(Guid userId, [FromQuery] Guid? organizationId, [FromBody] WorkProfileSaveRequest request,
         CancellationToken cancellationToken)
     {
         try
         {
             var profile = MapRequestToWorkProfile(request);
-            var saved = await workProfileService.SaveAsync(userId, profile, cancellationToken);
+            var saved = await workProfileService.SaveAsync(userId, profile, organizationId, cancellationToken);
             return Ok(saved);
         }
         catch (ArgumentException ex)

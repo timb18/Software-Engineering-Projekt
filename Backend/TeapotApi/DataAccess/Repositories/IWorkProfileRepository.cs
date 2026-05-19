@@ -29,6 +29,16 @@ public interface IWorkProfileRepository
     /// <returns>The work profile for the user's personal workspace (not tracked), null if not created</returns>
     /// <remarks>Used for read-only queries to avoid EF Core change tracking overhead</remarks>
     Task<WorkProfile?> GetPersonalNoTrackingAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the user's work profile for one organization membership.
+    /// </summary>
+    Task<WorkProfile?> GetByUserAndOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the user's work profile for one organization membership without tracking changes.
+    /// </summary>
+    Task<WorkProfile?> GetByUserAndOrganizationNoTrackingAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Finds a work profile by the user's ID (searches the user's personal workspace).
