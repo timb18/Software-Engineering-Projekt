@@ -15,9 +15,11 @@ public class WorkProfileService(
     /// <summary>
     /// Loads the personal work profile and fills any missing weekday entries.
     /// </summary>
-    public async Task<WorkProfile?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
-        var profile = await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
+        var profile = organizationId.HasValue
+            ? await workProfileRepository.GetByUserAndOrganizationNoTrackingAsync(userId, organizationId.Value, cancellationToken)
+            : await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
         if (profile is null) return null;
 
         var existingDays = profile.Days.ToDictionary(d => d.Day);
@@ -33,21 +35,27 @@ public class WorkProfileService(
     /// <summary>
     /// Creates or updates the user's work profile and keeps nested day, block, and break graphs consistent.
     /// </summary>
-    public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, CancellationToken cancellationToken = default)
+    public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
-        var existing = await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
+        var existing = organizationId.HasValue
+            ? await workProfileRepository.GetByUserAndOrganizationAsync(userId, organizationId.Value, cancellationToken)
+            : await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
         var normalized = NormalizeProfile(profile);
 
         if (existing is null)
         {
-            var membership = await membershipRepository.FindPersonalAsync(userId, cancellationToken)
-                ?? throw new ArgumentException("No membership found for this user.");
+            var membership = organizationId.HasValue
+                ? await membershipRepository.FindAsync(userId, organizationId.Value, cancellationToken)
+                : await membershipRepository.FindPersonalAsync(userId, cancellationToken);
+
+            if (membership is null)
+                throw new ArgumentException("No membership found for this user and organization.");
 
             normalized.MembershipId = membership.Id;
             normalized.CreatedAt = DateTime.UtcNow;
             PrepareProfileGraph(normalized);
             await workProfileRepository.AddAsync(normalized, cancellationToken);
-            return await GetAsync(userId, cancellationToken) ?? normalized;
+            return await GetAsync(userId, organizationId, cancellationToken) ?? normalized;
         }
 
         var oldDays = existing.Days.ToList();
@@ -80,7 +88,7 @@ public class WorkProfileService(
         // the scalar-property changes on the tracked entity.
         await workProfileRepository.ReplaceDaysAsync(existing.Id, oldDays, newDays, scheduleChanged, cancellationToken);
 
-        return await GetAsync(userId, cancellationToken) ?? existing;
+        return await GetAsync(userId, organizationId, cancellationToken) ?? existing;
     }
 
     /// <summary>

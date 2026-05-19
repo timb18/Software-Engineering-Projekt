@@ -127,7 +127,9 @@ const Tasks: FC = () => {
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() =>
+      setUser({ ...user }),
+    );
   };
 
   useEffect(() => {
@@ -262,6 +264,13 @@ const Tasks: FC = () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const c: RgbColor = task?.org ? getOrgColor(task.org) : getOrgColor("");
       const isDarkTask = isDarkColor(c);
+      const overlapsAnotherTask = scheduledTasks.some((other, otherIndex) => {
+        if (otherIndex === index) return false;
+        return (
+          dayjs(t.startDate).isBefore(other.endDate) &&
+          dayjs(t.endDate).isAfter(other.startDate)
+        );
+      });
       void colorVersion; // reactive dependency
       return {
         id: `${block.taskId}-${block.startDate.toISOString()}`,
@@ -831,6 +840,7 @@ const Tasks: FC = () => {
               selectable
               selectMirror
               selectMinDistance={10}
+              slotEventOverlap={false}
               slotDuration="00:30:00"
               snapDuration="00:15:00"
               slotLabelInterval="01:00:00"

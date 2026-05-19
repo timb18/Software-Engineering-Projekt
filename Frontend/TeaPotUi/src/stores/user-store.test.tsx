@@ -31,7 +31,7 @@ import { fetchOrganizationsByUserEmail } from "../util/org-api";
 
 describe("user-store initForUser", () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     const { result } = renderHook(() => useUserStore());
     act(() => {
       result.current.setUser(defaultUser);
@@ -42,6 +42,7 @@ describe("user-store initForUser", () => {
     const backendUserId = "11111111-2222-3333-4444-555555555555";
     const backendWorkProfileId = "99999999-8888-7777-6666-555555555555";
     const savedWorkProfile = {
+      id: backendWorkProfileId,
       plannerViewStart: "07:00",
       plannerViewEnd: "21:00",
       maxDailyLoad: "03:00:00",
@@ -93,7 +94,7 @@ describe("user-store initForUser", () => {
       await initForUser("auth0|abc123", "test@example.com");
     });
 
-    expect(vi.mocked(fetchWorkProfile)).toHaveBeenCalledWith(backendUserId);
+    expect(vi.mocked(fetchWorkProfile)).toHaveBeenCalledWith(backendUserId, "org-1");
     expect(vi.mocked(fetchOrganizationsByUserEmail)).toHaveBeenCalledWith(
       "test@example.com",
     );
@@ -107,7 +108,9 @@ describe("user-store initForUser", () => {
       expect(result.current.user.workCapacityHours).toBe(3);
       expect(result.current.user.workStart).toBe("09:00");
       expect(result.current.user.workEnd).toBe("12:00");
-      expect(result.current.user.orgs).toEqual(organizations);
+      expect(result.current.user.orgs).toEqual([
+        { ...organizations[0], workProfileId: backendWorkProfileId },
+      ]);
     });
   });
 
@@ -415,10 +418,11 @@ describe("user-store initForUser", () => {
 
     expect(fetchTasks).not.toHaveBeenCalled();
     expect(result.current.activeOrganizationId).toBe("org-b");
-    expect(result.current.workProfileId).toBe("wp-a");
+    expect(result.current.workProfileId).toBeNull();
+    expect(result.current.user.hasPersistedWorkProfile).toBe(false);
   });
 
-  it("switches organization without reloading when both organizations share the same workProfileId", async () => {
+  it("switches organization and reloads the organization-scoped profile", async () => {
     const { result } = renderHook(() => useUserStore());
 
     const orgA = {
@@ -447,6 +451,8 @@ describe("user-store initForUser", () => {
       invites: [],
     };
 
+    vi.mocked(fetchTasks).mockResolvedValue([]);
+
     act(() => {
       result.current.setUser(user);
     });
@@ -455,7 +461,8 @@ describe("user-store initForUser", () => {
       await result.current.setActiveOrganization("org-b");
     });
 
-    expect(fetchTasks).not.toHaveBeenCalled();
+    expect(fetchWorkProfile).toHaveBeenCalledWith("u1", "org-b");
+    expect(fetchTasks).toHaveBeenCalledWith("wp-shared");
     expect(result.current.activeOrganizationId).toBe("org-b");
     expect(result.current.workProfileId).toBe("wp-shared");
   });
