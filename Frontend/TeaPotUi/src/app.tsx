@@ -11,7 +11,12 @@ import {
 } from "./util/pending-invitation";
 
 function App() {
-  const { isAuthenticated, isLoading, user: authUser } = useAuth0();
+  const {
+    isAuthenticated,
+    isLoading,
+    user: authUser,
+    getAccessTokenSilently,
+  } = useAuth0();
   const navigate = useNavigate();
   const initialized = useRef(false);
   const acceptedInvitation = useRef<string | null>(null);
@@ -39,12 +44,35 @@ function App() {
   }, [isAuthenticated, isLoading, location.search, navigate]);
 
   useEffect(() => {
-    // Initialize the local store once after Auth0 has resolved the authenticated user.
-    if (isAuthenticated && authUser?.sub && authUser?.email && !initialized.current) {
+    const initUser = async (
+      sub: string,
+      email: string,
+      username?: string,
+      profilePicture?: string,
+    ) => {
+      const token = await getAccessTokenSilently();
+      initForUser(token, sub, email, username, profilePicture).catch(
+        console.error,
+      );
       initialized.current = true;
-      initForUser(authUser.sub, authUser.email, authUser.name, authUser.picture).catch(console.error);
+    };
+    // Initialize the local store once after Auth0 has resolved the authenticated user.
+    if (
+      isAuthenticated &&
+      authUser?.sub &&
+      authUser?.email &&
+      !initialized.current
+    ) {
+      initUser(authUser.sub, authUser.email, authUser.name, authUser.picture);
     }
-  }, [isAuthenticated, authUser?.sub, authUser?.email, authUser?.name, authUser?.picture]);
+  }, [
+    isAuthenticated,
+    authUser?.sub,
+    authUser?.email,
+    authUser?.name,
+    authUser?.picture,
+    getAccessTokenSilently,
+  ]);
 
   useEffect(() => {
     // Accept a pending invitation automatically after login so the user lands in the team view.
@@ -62,7 +90,10 @@ function App() {
       ? { invitationId, email: searchParams.get("email") ?? undefined }
       : getPendingInvitation();
 
-    if (!pendingInvitation || acceptedInvitation.current === pendingInvitation.invitationId) {
+    if (
+      !pendingInvitation ||
+      acceptedInvitation.current === pendingInvitation.invitationId
+    ) {
       return;
     }
 
@@ -70,17 +101,30 @@ function App() {
 
     const acceptPendingInvitation = async () => {
       try {
-        const { userId } = await initForUser(userSub, userEmail, userName, userPicture);
-        await acceptInvite(pendingInvitation.invitationId, { userId });
+        const token = await getAccessTokenSilently();
+        const { userId } = await initForUser(
+          token,
+          userSub,
+          userEmail,
+          userName,
+          userPicture,
+        );
+        await acceptInvite(pendingInvitation.invitationId, { userId }, token);
         clearPendingInvitation();
-        await initForUser(userSub, userEmail, userName, userPicture);
+        await initForUser(token, userSub, userEmail, userName, userPicture);
         navigate("/teams", { replace: true });
       } catch (error) {
         console.error("acceptInvite failed", error);
         acceptedInvitation.current = null;
         // Route back to the login page with a readable error message instead of dropping the context.
-        const message = error instanceof Error ? error.message : "Einladung konnte nicht angenommen werden.";
-        navigate(`/login?inviteStatus=error&message=${encodeURIComponent(message)}`, { replace: true });
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Einladung konnte nicht angenommen werden.";
+        navigate(
+          `/login?inviteStatus=error&message=${encodeURIComponent(message)}`,
+          { replace: true },
+        );
       }
     };
 
@@ -93,13 +137,14 @@ function App() {
     authUser?.picture,
     location.search,
     navigate,
+    getAccessTokenSilently,
   ]);
 
   return (
     <div className="flex h-screen w-full flex-col bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
-      <div className="grid min-h-0 flex-1 w-full grid-cols-[18.5rem_1fr] rounded-4xl border border-slate-800 bg-slate-900/60 shadow-2xl backdrop-blur">
+      <div className="grid min-h-0 w-full flex-1 grid-cols-[18.5rem_1fr] rounded-4xl border border-slate-800 bg-slate-900/60 shadow-2xl backdrop-blur">
         <Sidebar />
-        <div className="min-h-0 h-full overflow-y-auto">
+        <div className="h-full min-h-0 overflow-y-auto">
           <Outlet />
         </div>
       </div>

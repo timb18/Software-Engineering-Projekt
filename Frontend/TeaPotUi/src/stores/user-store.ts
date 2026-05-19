@@ -4,11 +4,17 @@ import { useStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { defaultUser } from "../util/default-data";
 import { getLegacyWorkSettings } from "../util/work-profile";
-import { fetchTasks, createTask, updateTask, deleteTask } from "../util/task-api";
+import {
+  fetchTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+} from "../util/task-api";
 import { fetchWorkProfile } from "../util/work-profile-api";
 import { ensureUser, fetchUserProfile } from "../util/user-api";
 import { fetchOrganizationsByUserEmail } from "../util/org-api";
 import { applyStoredColorPreferences } from "../util/color-prefs";
+import { useAuth0 } from "@auth0/auth0-react";
 
 type UserStore = {
   user: User;
@@ -22,8 +28,13 @@ const initialState: UserStore = {
   activeOrganizationId: null,
 };
 
-const assignTasksToOrganization = (tasks: Task[], organizationId: string | null | undefined) =>
-  organizationId ? tasks.map((task) => ({ ...task, org: organizationId })) : tasks;
+const assignTasksToOrganization = (
+  tasks: Task[],
+  organizationId: string | null | undefined,
+) =>
+  organizationId
+    ? tasks.map((task) => ({ ...task, org: organizationId }))
+    : tasks;
 
 const memoryStorage = {
   getItem: () => null,
@@ -35,9 +46,12 @@ const userStore = createStore<UserStore>()(
   persist(() => initialState, {
     name: "teapot-user-store",
     storage: createJSONStorage(() => {
-      const browserStorage = typeof window !== "undefined" ? window.localStorage : null;
+      const browserStorage =
+        typeof window !== "undefined" ? window.localStorage : null;
 
-      return browserStorage && typeof browserStorage.setItem === "function" && typeof browserStorage.getItem === "function"
+      return browserStorage &&
+        typeof browserStorage.setItem === "function" &&
+        typeof browserStorage.getItem === "function"
         ? browserStorage
         : memoryStorage;
     }),
@@ -45,6 +59,7 @@ const userStore = createStore<UserStore>()(
 );
 
 export const initForUser = async (
+  token: string,
   sub: string,
   email: string,
   displayName?: string,
@@ -53,24 +68,32 @@ export const initForUser = async (
   const previousState = userStore.getState();
 
   try {
-    const { userId, workProfileId } = await ensureUser({
-      email,
-      authProviderSubject: sub,
-      displayName,
-      profileImageUrl,
-    });
-    const profile = await fetchUserProfile(userId);
+    const { userId, workProfileId } = await ensureUser(
+      {
+        email,
+        authProviderSubject: sub,
+        displayName,
+        profileImageUrl,
+      },
+      token,
+    );
+    const profile = await fetchUserProfile(userId, token);
     applyStoredColorPreferences(profile.breakColor, profile.orgColors);
 
-    const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
-      workProfileId ? fetchTasks(workProfileId) : Promise.resolve([]),
-      fetchWorkProfile(userId),
-      fetchOrganizationsByUserEmail(email),
-    ]);
+    const [tasksResult, workProfileResult, organizationsResult] =
+      await Promise.allSettled([
+        workProfileId ? fetchTasks(workProfileId, token) : Promise.resolve([]),
+        fetchWorkProfile(userId, token),
+        fetchOrganizationsByUserEmail(email, token),
+      ]);
 
-    const initialTasks = tasksResult.status === "fulfilled" ? tasksResult.value : [];
-    const workProfile = workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
-    const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
+    const initialTasks =
+      tasksResult.status === "fulfilled" ? tasksResult.value : [];
+    const workProfile =
+      workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
+    const legacyWorkSettings = workProfile
+      ? getLegacyWorkSettings(workProfile)
+      : undefined;
     const orgs =
       organizationsResult.status === "fulfilled"
         ? organizationsResult.value
@@ -78,18 +101,24 @@ export const initForUser = async (
           ? previousState.user.orgs
           : [];
     const activeOrganization =
-      orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
-    const activeWorkProfileId = activeOrganization?.workProfileId ?? workProfileId ?? null;
+      orgs.find((org) => org.id === previousState.activeOrganizationId) ??
+      orgs[0] ??
+      null;
+    const activeWorkProfileId =
+      activeOrganization?.workProfileId ?? workProfileId ?? null;
 
     let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
     if (activeWorkProfileId && activeWorkProfileId !== workProfileId) {
       try {
         tasks = assignTasksToOrganization(
-          await fetchTasks(activeWorkProfileId),
+          await fetchTasks(activeWorkProfileId, token),
           activeOrganization?.id,
         );
       } catch (error) {
-        console.error("fetchTasks failed for active organization during initForUser", error);
+        console.error(
+          "fetchTasks failed for active organization during initForUser",
+          error,
+        );
         tasks = [];
       }
     }
@@ -98,7 +127,10 @@ export const initForUser = async (
       console.error("fetchTasks failed during initForUser", tasksResult.reason);
     }
     if (workProfileResult.status === "rejected") {
-      console.error("fetchWorkProfile failed during initForUser", workProfileResult.reason);
+      console.error(
+        "fetchWorkProfile failed during initForUser",
+        workProfileResult.reason,
+      );
     }
 
     userStore.setState({
@@ -137,7 +169,10 @@ export const initForUser = async (
       (currentState.user.email === email || currentState.user.id === sub);
 
     if (hasPersistedUser) {
-      return { userId: currentState.user.id, workProfileId: currentState.workProfileId };
+      return {
+        userId: currentState.user.id,
+        workProfileId: currentState.workProfileId,
+      };
     }
 
     userStore.setState({
@@ -160,6 +195,7 @@ export const initForUser = async (
 
 const useUserStore = () => {
   const state = useStore(userStore);
+  const { getAccessTokenSilently } = useAuth0();
 
   const setUser = (newUser: User = defaultUser) => {
     const currentState = userStore.getState();
@@ -172,11 +208,13 @@ const useUserStore = () => {
       activeOrganizationId:
         newUser.id === defaultUser.id || newUser.orgs.length === 0
           ? null
-          : activeOrganization?.id ?? newUser.orgs[0]?.id ?? null,
+          : (activeOrganization?.id ?? newUser.orgs[0]?.id ?? null),
       workProfileId:
         newUser.id === defaultUser.id || newUser.orgs.length === 0
           ? null
-          : activeOrganization?.workProfileId ?? newUser.orgs[0]?.workProfileId ?? currentState.workProfileId,
+          : (activeOrganization?.workProfileId ??
+            newUser.orgs[0]?.workProfileId ??
+            currentState.workProfileId),
     });
   };
 
@@ -196,7 +234,9 @@ const useUserStore = () => {
       return;
     }
 
-    const selectedOrganization = state.user.orgs.find((org) => org.id === organizationId);
+    const selectedOrganization = state.user.orgs.find(
+      (org) => org.id === organizationId,
+    );
     if (!selectedOrganization) {
       return;
     }
@@ -211,8 +251,9 @@ const useUserStore = () => {
       return;
     }
 
+    const token = await getAccessTokenSilently();
     const tasks = assignTasksToOrganization(
-      await fetchTasks(selectedOrganization.workProfileId),
+      await fetchTasks(selectedOrganization.workProfileId, token),
       selectedOrganization.id,
     );
     userStore.setState({
@@ -226,13 +267,17 @@ const useUserStore = () => {
   const addTask = async (task: Task): Promise<Task> => {
     const { workProfileId, activeOrganizationId } = userStore.getState();
     if (workProfileId) {
-      const saved = await createTask(workProfileId, task);
+      const token = await getAccessTokenSilently();
+      const saved = await createTask(workProfileId, task, token);
       const taskForActiveOrganization = {
         ...saved,
         org: task.org || activeOrganizationId || saved.org,
       };
       userStore.setState((s) => ({
-        user: { ...s.user, tasks: [...(s.user.tasks ?? []), taskForActiveOrganization] },
+        user: {
+          ...s.user,
+          tasks: [...(s.user.tasks ?? []), taskForActiveOrganization],
+        },
       }));
       return taskForActiveOrganization;
     }
@@ -257,7 +302,8 @@ const useUserStore = () => {
       }));
 
     if (workProfileId && task.id) {
-      const saved = await updateTask(workProfileId, task.id, task);
+      const token = await getAccessTokenSilently();
+      const saved = await updateTask(workProfileId, task.id, task, token);
       updateLocal({ ...saved, org: task.org });
     } else if (task.id) {
       // Offline fallback: keep local state in sync.
@@ -269,7 +315,8 @@ const useUserStore = () => {
   const removeTask = async (taskId: string): Promise<void> => {
     const { workProfileId } = userStore.getState();
     if (workProfileId) {
-      await deleteTask(workProfileId, taskId);
+      const token = await getAccessTokenSilently();
+      await deleteTask(workProfileId, taskId, token);
     }
     userStore.setState((s) => ({
       user: {
@@ -279,7 +326,14 @@ const useUserStore = () => {
     }));
   };
 
-  return { ...state, setUser, setActiveOrganization, addTask, saveTask, removeTask };
+  return {
+    ...state,
+    setUser,
+    setActiveOrganization,
+    addTask,
+    saveTask,
+    removeTask,
+  };
 };
 
 export default useUserStore;

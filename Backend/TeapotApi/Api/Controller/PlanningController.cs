@@ -1,5 +1,6 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controller;
@@ -20,6 +21,7 @@ public record TaskBlockResponse(
 
 [Route("api/planning/{workProfileId:guid}")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockRepository taskBlockRepository) : ControllerBase
 {
     /// <summary>

@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Services.Organizations;
 
 namespace Api.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class InvitationController : ControllerBase
 {
     private readonly IInvitationService _invitationService;
@@ -54,7 +55,7 @@ public class InvitationController : ControllerBase
     /// The endpoint supports both flows so the frontend can reuse the same action after login
     /// and from the invitation link workflow.
     /// </summary>
-    [HttpPost("{invitationId}/accept")]
+    [HttpPost("{invitationId:guid}/accept")]
     public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId, [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
     {
         try
@@ -84,11 +85,7 @@ public class InvitationController : ControllerBase
         }
     }
 
-    [HttpGet("{invitationId}/accept-link")]
-    /// <summary>
-    /// Redirects the browser to the frontend acceptance flow for a specific invitation.
-    /// This is used from the email link so the frontend can continue the invitation process.
-    /// </summary>
+    [HttpGet("{invitationId:guid}/accept-link")]
     public IActionResult AcceptInvitationLink([FromRoute] Guid invitationId, [FromQuery] string email)
     {
         return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "pending", invitationId, email));
@@ -98,7 +95,7 @@ public class InvitationController : ControllerBase
     /// Rejects an invitation and returns a simple success or error payload for the client.
     /// This keeps the rejection flow lightweight for both API consumers and email link usage.
     /// </summary>
-    [HttpPost("{invitationId}/reject")]
+    [HttpPost("{invitationId:guid}/reject")]
     public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
     {
         try
@@ -116,11 +113,7 @@ public class InvitationController : ControllerBase
         }
     }
 
-    [HttpGet("{invitationId}/reject-link")]
-    /// <summary>
-    /// Rejects the invitation and redirects back to the frontend with the outcome.
-    /// The redirect-based flow is primarily used by the email link rejection action.
-    /// </summary>
+    [HttpGet("{invitationId:guid}/reject-link")]
     public async Task<IActionResult> RejectInvitationLink([FromRoute] Guid invitationId, CancellationToken cancellationToken)
     {
         try
@@ -160,7 +153,7 @@ public class InvitationController : ControllerBase
     /// Retrieves all invitations that belong to a specific organization.
     /// This endpoint is used to render the organization's invitation overview in the UI.
     /// </summary>
-    [HttpGet("organization/{organizationId}")]
+    [HttpGet("organization/{organizationId:guid}")]
     public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId, CancellationToken cancellationToken)
     {
         try

@@ -26,6 +26,7 @@ import {
   type RgbColor,
 } from "../../util/color-prefs";
 import "./tasks-calendar.css";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -59,6 +60,7 @@ const Tasks: FC = () => {
     removeTask,
     workProfileId,
   } = useUserStore();
+  const { getAccessTokenSilently } = useAuth0();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -113,20 +115,24 @@ const Tasks: FC = () => {
     endTime: user.plannerViewEnd ?? "22:00",
   });
 
-  const savePlannerView = (startTime: string, endTime: string) => {
+  const savePlannerView = async (startTime: string, endTime: string) => {
     if (!user.workProfile) return;
     const updatedProfile = {
       ...user.workProfile,
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     };
+
+    const token = await getAccessTokenSilently();
     setUser({
       ...user,
       workProfile: updatedProfile,
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(user.id, updatedProfile, token).catch(() =>
+      setUser({ ...user }),
+    );
   };
 
   useEffect(() => {
@@ -136,11 +142,15 @@ const Tasks: FC = () => {
   }, []);
 
   useEffect(() => {
+    const getBlocks = async (workProfileId: string) => {
+      const token = await getAccessTokenSilently();
+      fetchBlocks(workProfileId, token)
+        .then(setBlocks)
+        .catch(() => setBlocks([]));
+    };
     if (!workProfileId) return;
-    fetchBlocks(workProfileId)
-      .then(setBlocks)
-      .catch(() => setBlocks([]));
-  }, [workProfileId]);
+    getBlocks(workProfileId);
+  }, [getAccessTokenSilently, workProfileId]);
 
   useEffect(() => {
     setFilterOrgId(activeOrganizationId ?? "all");
@@ -158,9 +168,10 @@ const Tasks: FC = () => {
     setScheduling(true);
     setScheduleMsg(null);
     try {
+      const token = await getAccessTokenSilently();
       const res = await fetch(
         `${API_BASE}/api/planning/${encodeURIComponent(workProfileId)}/schedule`,
-        { method: "POST" },
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
       );
       const json = (await res.json()) as {
         success: boolean;
@@ -172,10 +183,11 @@ const Tasks: FC = () => {
           ok: true,
           text: `Plan created (${json.backtrackingCount ?? 0} backtracks).`,
         });
+        const token = await getAccessTokenSilently();
         // Reload tasks and blocks so the calendar reflects the newly generated plan.
-        const updated = await fetchTasks(workProfileId);
+        const updated = await fetchTasks(workProfileId, token);
         setUser({ ...user, tasks: updated });
-        const updatedBlocks = await fetchBlocks(workProfileId);
+        const updatedBlocks = await fetchBlocks(workProfileId, token);
         setBlocks(updatedBlocks);
       } else {
         setScheduleMsg({
@@ -237,7 +249,10 @@ const Tasks: FC = () => {
             backgroundColor: rgbToCss(breakC, 0.15),
             borderColor: rgbToCss(breakC, 0.45),
             textColor: readableTextColor(breakC),
-            classNames: ["break-event", isDarkBreak ? "is-dark-event-color" : "is-light-event-color"],
+            classNames: [
+              "break-event",
+              isDarkBreak ? "is-dark-event-color" : "is-light-event-color",
+            ],
             editable: true,
             extendedProps: {
               type: "break",
@@ -278,7 +293,7 @@ const Tasks: FC = () => {
       };
     });
 
-  const updateBreakInProfile = (
+  const updateBreakInProfile = async (
     breakId: string,
     oldWeekDay: WorkWeekDay,
     newWeekDay: WorkWeekDay,
@@ -316,7 +331,9 @@ const Tasks: FC = () => {
     });
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => {
+
+    const token = await getAccessTokenSilently();
+    saveWorkProfile(user.id, updatedProfile, token).catch(() => {
       setUser({ ...user });
       revert();
     });
@@ -412,19 +429,22 @@ const Tasks: FC = () => {
     if (task) openEdit(task);
   };
 
-  const deleteBreak = () => {
+  const deleteBreak = async () => {
     if (!editingBreak || !user.workProfile) return;
     const updatedDays = user.workProfile.days.map((day) =>
       day.day === editingBreak.weekDay
         ? {
-          ...day,
-          breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
-        }
+            ...day,
+            breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
+          }
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    const token = await getAccessTokenSilently();
+    saveWorkProfile(user.id, updatedProfile, token).catch(() =>
+      setUser({ ...user }),
+    );
     setEditingBreak(null);
   };
 
@@ -536,7 +556,7 @@ const Tasks: FC = () => {
       setError("Duration must be greater than 0 minutes.");
       return;
     }
-    if (form.durationMinutes > 10000){
+    if (form.durationMinutes > 10000) {
       setError("Duration is too long.");
       return;
     }
@@ -626,7 +646,8 @@ const Tasks: FC = () => {
         setStatus("Task created");
         setCalendarDialogOpen(false);
         if (workProfileId) {
-          const updatedBlocks = await fetchBlocks(workProfileId).catch(
+          const token = await getAccessTokenSilently();
+          const updatedBlocks = await fetchBlocks(workProfileId, token).catch(
             () => null,
           );
           if (updatedBlocks) setBlocks(updatedBlocks);
@@ -725,28 +746,31 @@ const Tasks: FC = () => {
           </div>
           <button
             onClick={() => setView("day")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${view === "day"
+            className={`rounded-full px-4 py-2 font-semibold transition ${
+              view === "day"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-              }`}
+            }`}
           >
             Day
           </button>
           <button
             onClick={() => setView("week")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${view === "week"
+            className={`rounded-full px-4 py-2 font-semibold transition ${
+              view === "week"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-              }`}
+            }`}
           >
             Week
           </button>
           <button
             onClick={() => setView("month")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${view === "month"
+            className={`rounded-full px-4 py-2 font-semibold transition ${
+              view === "month"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-              }`}
+            }`}
           >
             Month
           </button>
@@ -813,7 +837,7 @@ const Tasks: FC = () => {
               customButtons={{
                 visibleRange: {
                   text: "",
-                  click: () => { },
+                  click: () => {},
                 },
               }}
               slotMinTime={`${plannerViewForm.startTime}:00`}
@@ -959,7 +983,8 @@ const Tasks: FC = () => {
             setStatus(undefined);
           }}
         >
-          <div data-modal-backdrop="static"
+          <div
+            data-modal-backdrop="static"
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >

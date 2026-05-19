@@ -126,7 +126,11 @@ const ColorPickerCard: FC<{
 const User: FC = () => {
   const { logout } = useLoginStore();
   const { user: userFromDb, setUser } = useUserStore();
-  const { logout: authLogout, user: userFromAuth } = useAuth0();
+  const {
+    logout: authLogout,
+    user: userFromAuth,
+    getAccessTokenSilently,
+  } = useAuth0();
   const navigate = useNavigate();
   const {
     register: registerPwChange,
@@ -249,12 +253,17 @@ const User: FC = () => {
     if (nextUser.workProfile && nextUser.id && hasBackendUserId(nextUser.id)) {
       setIsSavingWorkProfile(true);
       try {
-        const savedWorkProfile = await saveWorkProfile(nextUser.id, {
-          ...nextUser.workProfile,
-          plannerViewStart: nextUser.plannerViewStart,
-          plannerViewEnd: nextUser.plannerViewEnd,
-          maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
-        });
+        const token = await getAccessTokenSilently();
+        const savedWorkProfile = await saveWorkProfile(
+          nextUser.id,
+          {
+            ...nextUser.workProfile,
+            plannerViewStart: nextUser.plannerViewStart,
+            plannerViewEnd: nextUser.plannerViewEnd,
+            maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
+          },
+          token,
+        );
         const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
         setUser({
           ...nextUser,
@@ -308,12 +317,17 @@ const User: FC = () => {
     setIsSavingProfile(true);
 
     try {
-      const savedProfile = await updateUserProfile(userFromDb.id, {
-        displayName: profileForm.displayName.trim(),
-        email: profileForm.email.trim(),
-        profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
-        timezone: profileForm.timezone.trim() || "Europe/Berlin",
-      });
+      const token = await getAccessTokenSilently();
+      const savedProfile = await updateUserProfile(
+        userFromDb.id,
+        {
+          displayName: profileForm.displayName.trim(),
+          email: profileForm.email.trim(),
+          profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
+          timezone: profileForm.timezone.trim() || "Europe/Berlin",
+        },
+        token,
+      );
 
       setUser({
         ...userFromDb,
@@ -356,14 +370,19 @@ const User: FC = () => {
     setIsSavingAppearance(true);
 
     try {
-      const savedProfile = await updateUserProfile(userFromDb.id, {
-        displayName: profileForm.displayName.trim(),
-        email: profileForm.email.trim(),
-        profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
-        timezone: profileForm.timezone.trim() || "Europe/Berlin",
-        breakColor,
-        orgColors: orgColorPrefs,
-      });
+      const token = await getAccessTokenSilently();
+      const savedProfile = await updateUserProfile(
+        userFromDb.id,
+        {
+          displayName: profileForm.displayName.trim(),
+          email: profileForm.email.trim(),
+          profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
+          timezone: profileForm.timezone.trim() || "Europe/Berlin",
+          breakColor,
+          orgColors: orgColorPrefs,
+        },
+        token,
+      );
 
       setBreakColor(breakColorState);
       for (const [orgId, color] of Object.entries(orgColors)) {
@@ -406,8 +425,10 @@ const User: FC = () => {
         ? `${apiBaseUrl}/api/WorkProfile/${userFromDb.id}`
         : `${apiBaseUrl}/api/WorkProfile/by-email?email=${encodeURIComponent(userFromDb.email)}`;
 
+      const token = await getAccessTokenSilently();
       const response = await fetch(deletePath, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -521,9 +542,11 @@ const User: FC = () => {
       return;
     }
     try {
+      const token = await getAccessTokenSilently();
       const result = await changePassword(
         userFromAuth?.email,
         newPassword.newPassword,
+        token,
       );
       alert(
         result

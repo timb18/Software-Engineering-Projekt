@@ -9,16 +9,15 @@ namespace Services.Planning;
 public class DependencyAnalyzer
 {
     /// <summary>
-    /// Analyzes task dependencies, validates feasibility, and computes the critical path.
+    /// Analyzes a list of tasks and their dependencies to calculate the project schedule,
+    /// critical path, and topological ordering.
     /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when cyclic dependencies are detected or deadlines are not achievable.
-    /// </exception>
-    /// <param name="fixedTaskTimes">
-    /// Optional: actual start/finish times for fixed tasks (keyed by task id).
-    /// When provided, the forward pass uses these instead of computing from TimeEstimate.
-    /// Deadline feasibility checks are skipped for fixed tasks (the user explicitly chose the time).
-    /// </param>
+    /// <param name="tasks">The list of user tasks to be analyzed.</param>
+    /// <param name="dependencies">The list of task dependencies defining task relationships.</param>
+    /// <param name="projectStart">The starting date and time for the project planning.</param>
+    /// <param name="fixedTaskTimes">Optional dictionary mapping task IDs to fixed start and end times.</param>
+    /// <return>A DependencyAnalysisResult containing the topological order, critical tasks, and predecessor lists.</return>
+    /// <exception cref="InvalidOperationException">Thrown when a cyclic dependency is detected that prevents valid scheduling.</exception>
     public DependencyAnalysisResult Analyze(
         IReadOnlyList<UserTask> tasks,
         IReadOnlyList<TaskDependency> dependencies,

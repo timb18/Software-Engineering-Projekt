@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class MembershipController(IMembershipService membershipService) : ControllerBase
 {
     [HttpDelete("leave")]

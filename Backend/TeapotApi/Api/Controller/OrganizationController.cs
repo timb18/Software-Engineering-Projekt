@@ -6,6 +6,7 @@ namespace Api.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class OrganizationController(
     IOrganizationAdminService organizationAdminService,
     IOrganizationService organizationService) : ControllerBase
