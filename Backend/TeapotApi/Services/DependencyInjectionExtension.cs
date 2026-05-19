@@ -19,6 +19,7 @@ public static class DependencyInjectionExtension
             services.AddScoped<SmtpEmailSender>();
             services.AddScoped<IEmailSender, ConfiguredEmailSender>();
             services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
+            services.AddScoped<IRecurringBlockerRepository, RecurringBlockerRepository>();
 
             services.AddScoped<IUserManagementService, UserManagementService>();
             services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();

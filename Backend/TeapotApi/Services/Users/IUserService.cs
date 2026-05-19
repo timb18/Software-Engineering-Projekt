@@ -23,6 +23,7 @@ public sealed record UserProfileDto(
     string? ProfileImageUrl,
     string Timezone,
     string? BreakColor = null,
+    string? BlockerColor = null,
     string? OrgColors = null);
 
 public sealed record UpdateUserProfileCommand(
@@ -31,4 +32,5 @@ public sealed record UpdateUserProfileCommand(
     string? ProfileImageUrl,
     string? Timezone,
     string? BreakColor = null,
+    string? BlockerColor = null,
     string? OrgColors = null);

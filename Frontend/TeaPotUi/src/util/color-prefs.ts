@@ -2,9 +2,11 @@ export type RgbColor = { r: number; g: number; b: number };
 
 export const DEFAULT_ORG_COLOR: RgbColor = { r: 16, g: 185, b: 129 };   // emerald
 export const DEFAULT_BREAK_COLOR: RgbColor = { r: 245, g: 158, b: 11 }; // amber
+export const DEFAULT_BLOCKER_COLOR: RgbColor = { r: 139, g: 92, b: 246 }; // violet
 
 const orgKey = (orgId: string) => `teapot-color-org-${orgId}`;
 const BREAK_KEY = "teapot-color-breaks";
+const BLOCKER_KEY = "teapot-color-blockers";
 
 const isRgbColor = (value: unknown): value is RgbColor => {
   const color = value as Partial<RgbColor> | undefined;
@@ -62,9 +64,11 @@ export function serializeOrgColorPreferences(
 
 export function applyStoredColorPreferences(
   breakColor: string | null | undefined,
+  blockerColor: string | null | undefined,
   orgColors: string | null | undefined,
 ): void {
   setBreakColor(parseColorPreference(breakColor, DEFAULT_BREAK_COLOR));
+  setBlockerColor(parseColorPreference(blockerColor, DEFAULT_BLOCKER_COLOR));
   for (const [orgId, color] of Object.entries(parseOrgColorPreferences(orgColors))) {
     setOrgColor(orgId, color);
   }
@@ -93,6 +97,19 @@ export function getBreakColor(): RgbColor {
 
 export function setBreakColor(color: RgbColor): void {
   localStorage.setItem(BREAK_KEY, JSON.stringify(color));
+  window.dispatchEvent(new Event("teapot-colors-changed"));
+}
+
+export function getBlockerColor(): RgbColor {
+  try {
+    const raw = localStorage.getItem(BLOCKER_KEY);
+    if (raw) return JSON.parse(raw) as RgbColor;
+  } catch { /* ignore */ }
+  return { ...DEFAULT_BLOCKER_COLOR };
+}
+
+export function setBlockerColor(color: RgbColor): void {
+  localStorage.setItem(BLOCKER_KEY, JSON.stringify(color));
   window.dispatchEvent(new Event("teapot-colors-changed"));
 }
 

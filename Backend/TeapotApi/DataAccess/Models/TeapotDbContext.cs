@@ -37,6 +37,8 @@ public partial class TeapotDbContext : DbContext
 
     public virtual DbSet<WorkBreak> WorkBreaks { get; set; }
 
+    public virtual DbSet<RecurringBlocker> RecurringBlockers { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -352,6 +354,28 @@ public partial class TeapotDbContext : DbContext
                 .HasForeignKey(d => d.WorkProfileId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("time_intervals_work_profile_id_fkey");
+        });
+
+        modelBuilder.Entity<RecurringBlocker>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("recurring_blockers_pkey");
+            entity.ToTable("recurring_blockers");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.WorkProfileId).HasColumnName("work_profile_id");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100);
+            entity.Property(e => e.DaysOfWeek).HasColumnName("days_of_week").HasMaxLength(31);
+            entity.Property(e => e.StartTime).HasColumnName("start_time").HasMaxLength(5);
+            entity.Property(e => e.EndTime).HasColumnName("end_time").HasMaxLength(5);
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from");
+            entity.Property(e => e.ValidUntil).HasColumnName("valid_until");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.EditedAt).HasColumnName("edited_at");
+
+            entity.HasOne(d => d.WorkProfile).WithMany()
+                .HasForeignKey(d => d.WorkProfileId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("recurring_blockers_work_profile_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

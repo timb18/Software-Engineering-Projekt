@@ -60,7 +60,7 @@ export const initForUser = async (
       profileImageUrl,
     });
     const profile = await fetchUserProfile(userId);
-    applyStoredColorPreferences(profile.breakColor, profile.orgColors);
+    applyStoredColorPreferences(profile.breakColor, profile.blockerColor, profile.orgColors);
 
     const [tasksResult, workProfileResult, organizationsResult] = await Promise.allSettled([
       workProfileId ? fetchTasks(workProfileId) : Promise.resolve([]),
@@ -111,6 +111,7 @@ export const initForUser = async (
         profileImage: profile.profileImageUrl,
         timezone: profile.timezone,
         appearanceBreakColor: profile.breakColor,
+        appearanceBlockerColor: profile.blockerColor,
         appearanceOrgColors: profile.orgColors,
         tasks,
         workProfile: workProfile ?? undefined,

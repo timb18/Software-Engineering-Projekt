@@ -18,6 +18,8 @@ public class User
 
     public string? BreakColor { get; set; }
 
+    public string? BlockerColor { get; set; }
+
     public string? OrgColors { get; set; }
 
     public DateTime CreatedAt { get; set; }

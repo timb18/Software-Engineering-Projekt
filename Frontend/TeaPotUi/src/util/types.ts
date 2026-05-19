@@ -37,6 +37,7 @@ export type User = {
   profileImage?: string;
   timezone?: string;
   appearanceBreakColor?: string | null;
+  appearanceBlockerColor?: string | null;
   appearanceOrgColors?: string | null;
   plannerViewStart?: string; // HH:mm
   plannerViewEnd?: string; // HH:mm

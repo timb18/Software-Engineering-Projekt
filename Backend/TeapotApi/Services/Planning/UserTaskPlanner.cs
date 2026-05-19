@@ -11,6 +11,7 @@ public class UserTaskPlanner(
     IWorkProfileRepository workProfileRepository,
     ITaskDependencyRepository dependencyRepository,
     ITaskBlockRepository taskBlockRepository,
+    IRecurringBlockerRepository recurringBlockerRepository,
     DependencyAnalyzer dependencyAnalyzer,
     SchedulingAlgorithm schedulingAlgorithm) : IUserTaskPlanner
 {
@@ -52,6 +53,9 @@ public class UserTaskPlanner(
 
         // Load blockings (appointments / busy intervals)
         var blockings = await workProfileRepository.GetTimeIntervalsAsync(workProfileId, cancellationToken);
+
+        // Load recurring blockers
+        var recurringBlockers = await recurringBlockerRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
 
         // Load task dependencies
         var dependencies = await dependencyRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
@@ -117,6 +121,10 @@ public class UserTaskPlanner(
         // Remove blocking intervals from free slots
         foreach (var blocking in blockings)
             SubtractInterval(freeSlots, blocking.StartDate, blocking.EndDate);
+
+        // Remove recurring blocker intervals from free slots
+        foreach (var (start, end) in ExpandRecurringBlockers(recurringBlockers, projectStart, projectEnd))
+            SubtractInterval(freeSlots, start, end);
 
         // Remove fixed task blocks from free slots so dynamic tasks cannot overlap them
         foreach (var fb in fixedBlocks)
@@ -248,6 +256,32 @@ public class UserTaskPlanner(
         return date.Date
             .AddHours(int.Parse(parts[0]))
             .AddMinutes(int.Parse(parts[1]));
+    }
+
+    private static IEnumerable<(DateTime Start, DateTime End)> ExpandRecurringBlockers(
+        IReadOnlyList<RecurringBlocker> blockers, DateTime from, DateTime to)
+    {
+        for (var date = from.Date; date < to.Date; date = date.AddDays(1))
+        {
+            var dayAbbrev = ToDayAbbreviation(date.DayOfWeek);
+            foreach (var blocker in blockers)
+            {
+                if (blocker.ValidFrom.HasValue && date < blocker.ValidFrom.Value.ToDateTime(TimeOnly.MinValue))
+                    continue;
+                if (blocker.ValidUntil.HasValue && date > blocker.ValidUntil.Value.ToDateTime(TimeOnly.MinValue))
+                    continue;
+
+                var days = blocker.DaysOfWeek.Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (!days.Contains(dayAbbrev, StringComparer.OrdinalIgnoreCase))
+                    continue;
+
+                var start = ParseTime(date, blocker.StartTime);
+                var end = ParseTime(date, blocker.EndTime);
+                if (end > start)
+                    yield return (start, end);
+            }
+        }
     }
 
     private static string ToDayAbbreviation(DayOfWeek day) => day switch

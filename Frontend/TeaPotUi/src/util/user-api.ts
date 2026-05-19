@@ -8,6 +8,7 @@ export type UserProfile = {
   profileImageUrl?: string;
   timezone: string;
   breakColor?: string | null;
+  blockerColor?: string | null;
   orgColors?: string | null;
 };
 

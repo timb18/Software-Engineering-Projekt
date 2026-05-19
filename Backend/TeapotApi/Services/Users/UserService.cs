@@ -71,6 +71,8 @@ public class UserService(
         user.Timezone = normalizedTimezone;
         if (command.BreakColor is not null)
             user.BreakColor = NormalizeOptional(command.BreakColor);
+        if (command.BlockerColor is not null)
+            user.BlockerColor = NormalizeOptional(command.BlockerColor);
         if (command.OrgColors is not null)
             user.OrgColors = NormalizeOptional(command.OrgColors);
         user.Username = BuildUsername(normalizedEmail, normalizedDisplayName);
@@ -135,6 +137,7 @@ public class UserService(
         user.ProfileImageUrl,
         user.Timezone ?? "Europe/Berlin",
         user.BreakColor,
+        user.BlockerColor,
         user.OrgColors);
 
     private static string BuildUsername(string email, string? displayName)
