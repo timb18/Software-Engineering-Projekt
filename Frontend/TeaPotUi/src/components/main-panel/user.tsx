@@ -826,7 +826,7 @@ const User: FC = () => {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-5 text-sm text-rose-50">
               <div className="text-sm font-semibold">Danger area</div>
-              {/* <p className="mt-2 text-rose-100/90">Dies entfernt dein Konto und loggt dich aus. Demo: keine Server-Operation.</p> */}
+              {/* <p className="mt-2 text-rose-100/90">This removes your account and logs you out. Demo: no server operation.</p> */}
               <button
                 onClick={deleteAccount}
                 className="mt-4 w-fit rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30"

@@ -7,6 +7,10 @@ namespace Api.Controller;
 public class MembershipController(IMembershipService membershipService) : ControllerBase
 {
     [HttpDelete("leave")]
+    /// <summary>
+    /// Removes the current user from an organization based on the provided membership identifiers.
+    /// The request is intentionally explicit so the client can confirm the exact membership being left.
+    /// </summary>
     public async Task<IActionResult> LeaveOrganizationAsync(
         [FromBody] RemoveMembershipRequest request,
         CancellationToken cancellationToken)
@@ -26,13 +30,13 @@ public class MembershipController(IMembershipService membershipService) : Contro
             await membershipService.LeaveOrganizationAsync(userId, organizationId, cancellationToken);
             return NoContent();
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Membership not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The membership operation could not be completed.");
         }
         catch (ArgumentException exception)
         {
@@ -41,6 +45,10 @@ public class MembershipController(IMembershipService membershipService) : Contro
     }
 
     [HttpDelete("remove")]
+    /// <summary>
+    /// Removes another user from an organization when the initiator has sufficient permissions.
+    /// This is used by organization organizers to manage membership directly from the UI.
+    /// </summary>
     public async Task<IActionResult> RemoveUserFromOrganizationAsync(
         [FromBody] RemoveUserRequest request,
         CancellationToken cancellationToken)
@@ -65,17 +73,17 @@ public class MembershipController(IMembershipService membershipService) : Contro
             await membershipService.RemoveUserFromOrganizationAsync(initiatorUserId, userId, organizationId, cancellationToken);
             return NoContent();
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to remove this user.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Membership not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The membership operation could not be completed.");
         }
         catch (ArgumentException exception)
         {
@@ -85,6 +93,10 @@ public class MembershipController(IMembershipService membershipService) : Contro
 
     [HttpPatch("role")]
     [HttpPost("role")]
+    /// <summary>
+    /// Updates the role of a member inside an organization.
+    /// The endpoint accepts both PATCH and POST for compatibility with different frontend callers.
+    /// </summary>
     public async Task<IActionResult> UpdateRoleAsync(
         [FromBody] UpdateRoleRequest request,
         CancellationToken cancellationToken)
@@ -109,17 +121,17 @@ public class MembershipController(IMembershipService membershipService) : Contro
             await membershipService.UpdateRoleAsync(initiatorUserId, userId, organizationId, request.Role, cancellationToken);
             return NoContent();
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to update this role.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Membership not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The role could not be updated.");
         }
         catch (ArgumentException exception)
         {

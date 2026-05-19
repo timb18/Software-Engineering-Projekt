@@ -236,7 +236,7 @@ const useUserStore = () => {
       }));
       return taskForActiveOrganization;
     }
-    // No backend connection – still update local state
+    // No backend connection is available, so keep the local store in sync anyway.
     userStore.setState((s) => ({
       user: { ...s.user, tasks: [...(s.user.tasks ?? []), task] },
     }));
@@ -260,7 +260,7 @@ const useUserStore = () => {
       const saved = await updateTask(workProfileId, task.id, task);
       updateLocal({ ...saved, org: task.org });
     } else if (task.id) {
-      // Offline fallback: keep local state in sync
+      // Offline fallback: keep local state in sync.
       updateLocal(task);
     }
   };

@@ -15,6 +15,10 @@ public class OrganizationController(
     [ProducesResponseType(typeof(CreateOrganizationResult), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    /// <summary>
+    /// Creates a new organization and returns the identifier of the created entity.
+    /// This endpoint is restricted to admin users because it creates top-level tenant data.
+    /// </summary>
     public async Task<IActionResult> Create(
         [FromBody] CreateOrganizationRequest request,
         CancellationToken cancellationToken)
@@ -31,13 +35,17 @@ public class OrganizationController(
         {
             return BadRequest(ex.Message);
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The organization could not be created.");
         }
     }
 
     [HttpGet("by-user-email")]
+    /// <summary>
+    /// Returns all organizations that a user belongs to, resolved by the user's email address.
+    /// The frontend uses this to load the user's organization switcher state.
+    /// </summary>
     public async Task<IActionResult> GetByUserEmail([FromQuery] string email, CancellationToken cancellationToken)
     {
         try
@@ -45,9 +53,9 @@ public class OrganizationController(
             var organizations = await organizationService.GetOrganizationsForUserAsync(email, cancellationToken);
             return Ok(organizations);
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Organization not found.");
         }
         catch (ArgumentException ex)
         {
@@ -62,6 +70,10 @@ public class OrganizationController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    /// <summary>
+    /// Renames an existing organization and records the change as an update operation.
+    /// Both PATCH and POST are supported so older clients can keep using the same workflow.
+    /// </summary>
     public async Task<IActionResult> Rename(
         string organizationId,
         [FromBody] RenameOrganizationRequest request,
@@ -86,17 +98,17 @@ public class OrganizationController(
         {
             return BadRequest(ex.Message);
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to rename this organization.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Organization not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The organization could not be renamed.");
         }
     }
 
@@ -106,6 +118,10 @@ public class OrganizationController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    /// <summary>
+    /// Deletes an organization together with its dependent data when the caller is allowed to do so.
+    /// The confirmation text is required to reduce accidental destructive actions.
+    /// </summary>
     public async Task<IActionResult> Delete(
         Guid organizationId,
         [FromBody] DeleteOrganizationRequest request,
@@ -125,17 +141,17 @@ public class OrganizationController(
         {
             return BadRequest(ex.Message);
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
-            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, "You are not allowed to delete this organization.");
         }
-        catch (KeyNotFoundException ex)
+        catch (KeyNotFoundException)
         {
-            return NotFound(ex.Message);
+            return NotFound("Organization not found.");
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Conflict(ex.Message);
+            return Conflict("The organization could not be deleted.");
         }
     }
 }

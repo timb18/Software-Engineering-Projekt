@@ -310,7 +310,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
   const calendarEvents = useMemo<EventInput[]>(
     () => [
-      // Background column hints for each empty day (encouragement)
+      // Show subtle background hints for empty days so the calendar does not feel blank.
       ...(showEncouragement
         ? workForm.days
             .filter((day) => day.blocks.length === 0)
@@ -373,7 +373,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     [workForm.days, companyOptions, showEncouragement, colorVersion],
   );
 
-  // ── FullCalendar wrappers ─────────────────────────────────────────────────
+  // Wrap FullCalendar actions so dialogs and selections stay in sync.
 
   const closeEntryDialog = () => {
     closeEntryDialogState();
@@ -413,6 +413,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
 
     setSaveAfterCopyDay(false);
     void saveWork();
+    // The save action intentionally closes over the current form and dirty state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveAfterCopyDay, isDirty, isSavingWorkProfile]);
 

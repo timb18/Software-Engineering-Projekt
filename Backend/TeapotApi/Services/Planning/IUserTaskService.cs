@@ -2,6 +2,9 @@ using DataAccess.Models;
 
 namespace Services.Planning;
 
+/// <summary>
+/// CRUD operations for user tasks within a work profile.
+/// </summary>
 public interface IUserTaskService
 {
     Task<IEnumerable<UserTask>> GetTasksAsync(Guid workProfileId, CancellationToken cancellationToken = default);
