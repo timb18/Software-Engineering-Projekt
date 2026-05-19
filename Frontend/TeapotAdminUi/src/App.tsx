@@ -10,6 +10,7 @@ interface MyPayload extends JwtPayload {
   permissions?: string[];
 }
 
+// Auth0 scopes required by the admin UI to create organizations.
 const authParams = {
   audience: import.meta.env.VITE_AUTH0_AUDIENCE,
   scope: "openid profile email write:orgs",
@@ -28,6 +29,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
+    // Attach the access token to every generated API request.
     const interceptorId = client.interceptors.request.use(async (request) => {
       const token = await getAccessToken({ authorizationParams: authParams });
       request.headers.set("Authorization", `Bearer ${token}`);
@@ -40,6 +42,7 @@ function App() {
   }, [getAccessToken]);
 
   useEffect(() => {
+    // Derive the admin flag from the token so the UI can hide privileged actions.
     const extractAdminRoleFromToken = async () => {
       const token = await getAccessToken({ authorizationParams: authParams });
       const decode: MyPayload = jwtDecode(token);
@@ -54,6 +57,7 @@ function App() {
   }, [getAccessToken, isAuthenticated]);
 
   const onCreateOrg = async (createOrgRequest: CreateOrganizationRequest) => {
+    // Submit the organization form to the backend and show a simple success/failure message.
     const { data, error } = await postApiOrganization({
       body: createOrgRequest,
     });
