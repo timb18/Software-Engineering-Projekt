@@ -714,6 +714,25 @@ const Tasks: FC = () => {
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
+      {scheduleMsg && (
+        <div className="pointer-events-none fixed right-6 top-6 z-50 w-[min(32rem,calc(100vw-3rem))]">
+          <div className="pointer-events-auto rounded-2xl border border-amber-300/40 bg-slate-950/95 p-4 text-left shadow-2xl shadow-black/40 ring-1 ring-amber-300/20 backdrop-blur-sm">
+            <div className={`text-sm font-semibold ${scheduleMsg.ok ? "text-emerald-300" : "text-amber-200"}`}>
+              {scheduleMsg.text}
+            </div>
+            {scheduleMsg.warnings && scheduleMsg.warnings.length > 0 && (
+              <div className="mt-3 space-y-1 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-50">
+                <div className="font-semibold tracking-wide text-amber-200 uppercase">
+                  Auto-Schedule warning
+                </div>
+                {scheduleMsg.warnings.map((warning) => (
+                  <div key={warning}>{warning}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
@@ -727,7 +746,7 @@ const Tasks: FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => {
                 void triggerSchedule();
@@ -737,25 +756,6 @@ const Tasks: FC = () => {
             >
               {scheduling ? "Scheduling…" : "Auto-Schedule"}
             </button>
-            {scheduleMsg && (
-              <div className="max-w-sm space-y-2 text-right">
-                <div
-                  className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}
-                >
-                  {scheduleMsg.text}
-                </div>
-                {scheduleMsg.warnings && scheduleMsg.warnings.length > 0 && (
-                  <div className="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-left text-xs leading-relaxed text-amber-100 shadow-sm shadow-amber-950/20">
-                    <div className="font-semibold text-amber-200">
-                      Auto-Schedule warning
-                    </div>
-                    {scheduleMsg.warnings.map((warning) => (
-                      <div key={warning}>{warning}</div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           <button
             onClick={() => setView("day")}
