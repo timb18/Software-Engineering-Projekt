@@ -264,13 +264,6 @@ const Tasks: FC = () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const c: RgbColor = task?.org ? getOrgColor(task.org) : getOrgColor("");
       const isDarkTask = isDarkColor(c);
-      const overlapsAnotherTask = scheduledTasks.some((other, otherIndex) => {
-        if (otherIndex === index) return false;
-        return (
-          dayjs(t.startDate).isBefore(other.endDate) &&
-          dayjs(t.endDate).isAfter(other.startDate)
-        );
-      });
       void colorVersion; // reactive dependency
       return {
         id: `${block.taskId}-${block.startDate.toISOString()}`,

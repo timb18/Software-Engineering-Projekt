@@ -254,30 +254,13 @@ public class UserTaskPlanner(
                 var blockEnd = ParseLocalTimeAsUtc(date, block.EndTime, timeZone);
                 if (blockEnd <= blockStart) continue;
 
-                // Remove breaks that fall within this work block
-                var breaks = dayProfile.Breaks
-                    .Select(b => (
-                        Start: ParseLocalTimeAsUtc(date, b.StartTime, timeZone),
-                        End: ParseLocalTimeAsUtc(date, b.EndTime, timeZone)))
-                    .Where(b => b.Start >= blockStart && b.End <= blockEnd && b.End > b.Start)
-                    .OrderBy(b => b.Start)
-                    .ToList();
-
-                var cursor = blockStart;
-                foreach (var brk in breaks)
-                {
-                    if (cursor < brk.Start)
-                        slots.Add(new TimeSlot(cursor, brk.Start, date));
-                    cursor = brk.End;
-                }
-                if (cursor < blockEnd)
-                    slots.Add(new TimeSlot(cursor, blockEnd, date));
+                daySlots.Add(new TimeSlot(blockStart, blockEnd, date));
             }
 
             foreach (var workBreak in dayProfile.Breaks)
             {
-                var breakStart = ParseTime(date, workBreak.StartTime);
-                var breakEnd = ParseTime(date, workBreak.EndTime);
+                var breakStart = ParseLocalTimeAsUtc(date, workBreak.StartTime, timeZone);
+                var breakEnd = ParseLocalTimeAsUtc(date, workBreak.EndTime, timeZone);
                 if (breakEnd <= breakStart) continue;
 
                 SubtractInterval(daySlots, breakStart, breakEnd);
