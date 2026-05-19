@@ -234,6 +234,40 @@
   white-space: nowrap;
 }
 
+/* ── Schedule warning toast ───────────────────────────────────────── */
+.schedule-toast__panel {
+  color: #f8fafc;
+}
+
+.schedule-toast__warnings {
+  color: #fef3c7;
+}
+
+.schedule-toast__warnings-title {
+  color: #fcd34d;
+}
+
+:root[data-theme="light"] .schedule-toast__panel {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(255, 255, 255, 0.96);
+  color: #334155;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
+}
+
+:root[data-theme="light"] .schedule-toast__message {
+  color: #b45309 !important;
+}
+
+:root[data-theme="light"] .schedule-toast__warnings {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.09);
+  color: #78350f;
+}
+
+:root[data-theme="light"] .schedule-toast__warnings-title {
+  color: #92400e;
+}
+
 /* ── Light theme ───────────────────────────────────────────────────── */
 :root[data-theme="light"] .task-calendar .fc {
   --fc-border-color: rgba(100, 116, 139, 0.22);

@@ -715,14 +715,14 @@ const Tasks: FC = () => {
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
       {scheduleMsg && (
-        <div className="pointer-events-none fixed right-6 top-6 z-50 w-[min(32rem,calc(100vw-3rem))]">
-          <div className="pointer-events-auto rounded-2xl border border-amber-300/40 bg-slate-950/95 p-4 text-left shadow-2xl shadow-black/40 ring-1 ring-amber-300/20 backdrop-blur-sm">
-            <div className={`text-sm font-semibold ${scheduleMsg.ok ? "text-emerald-300" : "text-amber-200"}`}>
+        <div className="schedule-toast pointer-events-none fixed right-6 top-6 z-50 w-[min(32rem,calc(100vw-3rem))]">
+          <div className="schedule-toast__panel pointer-events-auto rounded-2xl border border-amber-300/40 bg-slate-950/95 p-4 text-left shadow-2xl shadow-black/40 ring-1 ring-amber-300/20 backdrop-blur-sm">
+            <div className={`schedule-toast__message text-sm font-semibold ${scheduleMsg.ok ? "text-emerald-300" : "text-amber-200"}`}>
               {scheduleMsg.text}
             </div>
             {scheduleMsg.warnings && scheduleMsg.warnings.length > 0 && (
-              <div className="mt-3 space-y-1 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-50">
-                <div className="font-semibold tracking-wide text-amber-200 uppercase">
+              <div className="schedule-toast__warnings mt-3 space-y-1 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-50">
+                <div className="schedule-toast__warnings-title font-semibold tracking-wide text-amber-200 uppercase">
                   Auto-Schedule warning
                 </div>
                 {scheduleMsg.warnings.map((warning) => (
