@@ -1,7 +1,13 @@
 namespace Services;
 
+/// <summary>
+/// SMTP and URL settings used by the email sender implementations.
+/// </summary>
 public class EmailOptions
 {
+    /// <summary>
+    /// Configuration section name used by the options binder.
+    /// </summary>
     public const string SectionName = "EMailOptions";
 
     public string SmtpUsername { get; set; } = string.Empty;
@@ -13,8 +19,14 @@ public class EmailOptions
     public string FrontendBaseUrl { get; set; } = "http://127.0.0.1:5173/";
 }
 
+/// <summary>
+/// Resend-specific settings used by the Resend email sender.
+/// </summary>
 public class ResendOptions
 {
+    /// <summary>
+    /// Configuration section name used by the options binder.
+    /// </summary>
     public const string SectionName = "Resend";
 
     public string ApiKey { get; set; } = string.Empty;

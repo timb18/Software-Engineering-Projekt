@@ -10,8 +10,14 @@ using Microsoft.Extensions.Options;
 
 namespace Services;
 
+/// <summary>
+/// Sends an email message through the configured delivery provider.
+/// </summary>
 public interface IEmailSender
 {
+    /// <summary>
+    /// Sends a plain-text email message to the given recipient.
+    /// </summary>
     Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default);
 }
 

@@ -5,6 +5,9 @@ using Microsoft.Extensions.Options;
 
 namespace Services.Organizations;
 
+/// <summary>
+/// Read and maintenance operations for organizations visible to the current user.
+/// </summary>
 public class OrganizationService(
     IOrganizationRepository organizationRepository,
     IOptions<EmailOptions> emailOptions) : IOrganizationService
@@ -12,6 +15,9 @@ public class OrganizationService(
     private const string PersonalWorkspaceDescription = "Auto-created personal workspace";
     private readonly EmailOptions _emailOptions = emailOptions.Value;
 
+    /// <summary>
+    /// Loads all organizations for a user and projects them into UI-friendly DTOs.
+    /// </summary>
     public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -62,6 +68,9 @@ public class OrganizationService(
 
     private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
 
+    /// <summary>
+    /// Renames an organization after validating organizer permissions and uniqueness.
+    /// </summary>
     public async Task RenameOrganizationAsync(RenameOrganizationCommand command, CancellationToken cancellationToken = default)
     {
         if (command.OrganizationId == Guid.Empty)
@@ -96,6 +105,9 @@ public class OrganizationService(
         await organizationRepository.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Deletes an organization after checking organizer permissions and confirmation text.
+    /// </summary>
     public async Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default)
     {
         if (command.OrganizationId == Guid.Empty)
