@@ -146,7 +146,7 @@ export const normalizeWorkProfile = (profile?: WorkProfile): WorkProfile => {
         .map(cloneBlock)
         .sort((left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime));
 
-      // Collect day-level breaks plus any breaks still nested on legacy blocks
+      // Merge explicit day-level breaks with any legacy nested breaks still present on blocks.
       const legacyBreaks = (stored?.blocks ?? []).flatMap((block) =>
         ((block as WorkBlock & { breaks?: WorkBreak[] }).breaks ?? []).map(cloneBreak),
       );
@@ -209,6 +209,7 @@ export const createWorkProfileFromLegacyUser = (
   }
 
   if (user?.hasPersistedWorkProfile === false) {
+    // A missing persisted profile means the user intentionally started from an empty schedule.
     return createEmptyWorkProfile();
   }
 

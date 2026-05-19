@@ -3,8 +3,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 /** Maps a backend UserTask object to the frontend Task type. */
 const fromApi = (raw: Record<string, unknown>): Task => {
-  // Preserve the authoritative time estimate from the server so that subsequent
-  // updateTask calls never replace it with a derived (and potentially wrong) value.
+  // Preserve the authoritative time estimate from the server so later edits do not
+  // replace it with a derived value from local UI state.
   const timeEstimateMs = raw.timeEstimate
     ? intervalToMs(raw.timeEstimate as string)
     : undefined;
@@ -33,7 +33,7 @@ export async function fetchTasks(workProfileId: string): Promise<Task[]> {
   if (!res.ok) throw new Error(`fetchTasks failed: ${res.status}`);
   const raw = await res.json() as Record<string, unknown>[];
   const tasks = raw.map(fromApi);
-  // Resolve dependency IDs returned from the server to full Task objects
+  // Resolve dependency ids returned from the server to concrete Task objects.
   const byId = new Map(tasks.map(t => [t.id!, t]));
   raw.forEach((r, i) => {
     const ids = (r.dependsOnTaskIds as string[] | undefined) ?? [];
@@ -55,8 +55,8 @@ function buildTaskBody(task: Task) {
   const start = task.startDate.toISOString();
   const deadline = (task.deadline ?? task.endDate).toISOString();
 
-  // Use the stored estimate if available; fall back to deriving it from startDate/endDate
-  // (only reliable for new tasks where the user explicitly set start and end).
+  // Use the stored estimate if available; otherwise derive it from the edited time range.
+  // The fallback is only reliable for newly created tasks where both timestamps were chosen explicitly.
   const estimateMs = task.timeEstimateMinutes !== undefined
     ? task.timeEstimateMinutes * 60_000
     : task.endDate.getTime() - task.startDate.getTime();
@@ -161,7 +161,7 @@ function msToInterval(ms: number): string {
 
 /** Converts a PostgreSQL interval string (HH:MM:SS or D.HH:MM:SS) to milliseconds. */
 function intervalToMs(interval: string): number {
-  // Npgsql serialises TimeSpan as "D.HH:MM:SS" for durations ≥ 1 day, or "HH:MM:SS" otherwise.
+  // Npgsql serializes TimeSpan as "D.HH:MM:SS" for durations >= 1 day, or "HH:MM:SS" otherwise.
   const parts = interval.split(".");
   let days = 0;
   let timePart = interval;
