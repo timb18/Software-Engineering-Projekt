@@ -128,7 +128,12 @@ const ColorPickerCard: FC<{
 
 const User: FC = () => {
   const { logout } = useLoginStore();
-  const { user: userFromDb, setUser } = useUserStore();
+  const {
+    user: userFromDb,
+    activeOrganizationId,
+    setUser,
+    setActiveOrganization,
+  } = useUserStore();
   const { logout: authLogout, user: userFromAuth } = useAuth0();
   const navigate = useNavigate();
   const {
@@ -161,12 +166,15 @@ const User: FC = () => {
     timezone: userFromDb.timezone ?? "Europe/Berlin",
     profileImageUrl: userFromDb.profileImage ?? "",
   });
-  const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] = useState(false);
+  const [showDeleteWorkProfileDialog, setShowDeleteWorkProfileDialog] =
+    useState(false);
   const [isDeletingWorkProfile, setIsDeletingWorkProfile] = useState(false);
 
   // ── Appearance / color state ──────────────────────────────────────────
   const initOrgColors = () => {
-    const savedOrgColors = parseOrgColorPreferences(userFromDb.appearanceOrgColors);
+    const savedOrgColors = parseOrgColorPreferences(
+      userFromDb.appearanceOrgColors,
+    );
     const map: Record<string, RgbColor> = {};
     for (const org of userFromDb.orgs ?? []) {
       map[org.id] = savedOrgColors[org.id] ?? getOrgColor(org.id);
@@ -226,10 +234,18 @@ const User: FC = () => {
 
   useEffect(() => {
     setOrgColorsState(initOrgColors());
-    setBreakColorState(parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()));
-    setBlockerColorState(parseColorPreference(userFromDb.appearanceBlockerColor, getBlockerColor()));
+    setBreakColorState(
+      parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()),
+    );
+    setBlockerColorState(
+      parseColorPreference(userFromDb.appearanceBlockerColor, getBlockerColor()),
+    );
     setIsAppearanceDirty(false);
-  }, [userFromDb.appearanceBreakColor, userFromDb.appearanceBlockerColor, userFromDb.appearanceOrgColors, userFromDb.orgs]);
+  }, [userFromDb.appearanceBlockerColor,
+    userFromDb.appearanceBreakColor,
+    userFromDb.appearanceOrgColors,
+    userFromDb.orgs,
+  ]);
 
   /* const avatarStyle = useMemo(() => {
     if (profileForm.profileImage?.startsWith("http")) {
@@ -252,15 +268,27 @@ const User: FC = () => {
     if (nextUser.workProfile && nextUser.id && hasBackendUserId(nextUser.id)) {
       setIsSavingWorkProfile(true);
       try {
-        const savedWorkProfile = await saveWorkProfile(nextUser.id, {
-          ...nextUser.workProfile,
-          plannerViewStart: nextUser.plannerViewStart,
-          plannerViewEnd: nextUser.plannerViewEnd,
-          maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
-        });
+        const savedWorkProfile = await saveWorkProfile(
+          nextUser.id,
+          {
+            ...nextUser.workProfile,
+            plannerViewStart: nextUser.plannerViewStart,
+            plannerViewEnd: nextUser.plannerViewEnd,
+            maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
+          },
+          activeOrganizationId,
+        );
         const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
+        const orgs = activeOrganizationId
+          ? nextUser.orgs.map((org) =>
+              org.id === activeOrganizationId
+                ? { ...org, workProfileId: savedWorkProfile.id ?? org.workProfileId }
+                : org,
+            )
+          : nextUser.orgs;
         setUser({
           ...nextUser,
+          orgs,
           workProfile: savedWorkProfile,
           hasPersistedWorkProfile: true,
           plannerViewStart:
@@ -685,15 +713,16 @@ const User: FC = () => {
                 {isSavingProfile ? "Saving..." : "Save changes"}
               </button>
             </div>
-
           </div>
         )}
 
         {tab === "work" && (
           <div className="flex flex-col gap-4">
             <WorkProfileConfigurator
-              key={`${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
+              key={`${activeOrganizationId ?? "no-org"}-${userFromDb.workProfile?.id ?? "new"}-${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
               user={userFromDb}
+              activeOrganizationId={activeOrganizationId}
+              onActiveOrganizationChange={setActiveOrganization}
               onSaveUser={persist}
               onStatusChange={setStatus}
               onErrorChange={setError}
@@ -702,7 +731,8 @@ const User: FC = () => {
             <div className="flex justify-end">
               <button
                 onClick={() => setShowDeleteWorkProfileDialog(true)}
-                className="rounded-xl border border-rose-300/60 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-100 shadow-sm transition hover:bg-rose-500/25"
+                disabled={userFromDb.orgs.length < 1}
+                className="cursor-pointer rounded-xl border border-rose-300/60 bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-100 shadow-sm transition hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-rose-500/15"
               >
                 Delete work profile
               </button>
@@ -841,7 +871,7 @@ const User: FC = () => {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-5 text-sm text-rose-50">
               <div className="text-sm font-semibold">Danger area</div>
-              {/* <p className="mt-2 text-rose-100/90">Dies entfernt dein Konto und loggt dich aus. Demo: keine Server-Operation.</p> */}
+              {/* <p className="mt-2 text-rose-100/90">This removes your account and logs you out. Demo: no server operation.</p> */}
               <button
                 onClick={deleteAccount}
                 className="mt-4 w-fit rounded-xl border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/30"

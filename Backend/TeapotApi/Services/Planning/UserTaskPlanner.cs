@@ -44,12 +44,12 @@ public class UserTaskPlanner(
         var openTasks = allTasks.Where(t => t.Status != "done").ToList();
 
         if (openTasks.Count == 0)
-            return new PlanningResult(true, null, 0, []);
+            return new PlanningResult(true, null, 0, [], []);
 
         // Load work profile with day profiles, blocks and breaks
         var workProfile = await workProfileRepository.GetByIdAsync(workProfileId, cancellationToken);
         if (workProfile is null)
-            return new PlanningResult(false, "Kein Arbeitsprofil gefunden.", 0, []);
+            return new PlanningResult(false, "Kein Arbeitsprofil gefunden.", 0, [], []);
 
         // Load blockings (appointments / busy intervals)
         var blockings = await workProfileRepository.GetTimeIntervalsAsync(workProfileId, cancellationToken);
@@ -99,7 +99,7 @@ public class UserTaskPlanner(
         }
         catch (InvalidOperationException ex)
         {
-            return new PlanningResult(false, ex.Message, 0, []);
+            return new PlanningResult(false, ex.Message, 0, [], []);
         }
 
         // Generate free time slots from work profile
@@ -144,6 +144,7 @@ public class UserTaskPlanner(
                     .Sum(b => (b.EndDate - b.StartDate).TotalMinutes);
                 return Math.Max(0, total - alreadyDone);
             });
+        var warnings = BuildShortTaskWarnings(tasksToSchedule, remainingMinutes, schedulingAlgorithm.MinBlockMinutes);
 
         // Initialize daily budgets from MaxDailyLoad
         var dailyBudgets = BuildDailyBudgets(workProfile, freeSlots);
@@ -167,7 +168,8 @@ public class UserTaskPlanner(
                 false,
                 "Kein gültiger Plan innerhalb der aktuellen Rahmenbedingungen gefunden.",
                 state.BacktrackingCounter,
-                []);
+                [],
+                warnings);
 
         // Validate the produced plan
         if (!ValidatePlan(state))
@@ -175,7 +177,8 @@ public class UserTaskPlanner(
                 false,
                 "Der erzeugte Plan ist inkonsistent.",
                 state.BacktrackingCounter,
-                state.PlannedBlocks);
+                state.PlannedBlocks,
+                warnings);
 
         // Persist the plan
         await taskBlockRepository.ReplaceAsync(workProfileId, state.PlannedBlocks, cancellationToken);
@@ -195,14 +198,38 @@ public class UserTaskPlanner(
             await taskRepository.UpdateAsync(task, cancellationToken);
         }
 
-        return new PlanningResult(true, null, state.BacktrackingCounter, state.PlannedBlocks);
+        return new PlanningResult(true, null, state.BacktrackingCounter, state.PlannedBlocks, warnings);
+    }
+
+    private static IReadOnlyList<string> BuildShortTaskWarnings(
+        IReadOnlyList<UserTask> tasksToSchedule,
+        IReadOnlyDictionary<Guid, int> remainingMinutes,
+        int minBlockMinutes)
+    {
+        var shortTasks = tasksToSchedule
+            .Where(t => remainingMinutes.TryGetValue(t.Id, out var minutes)
+                        && minutes > 0
+                        && minutes < minBlockMinutes)
+            .OrderBy(t => t.Name)
+            .Select(t => t.Name)
+            .ToList();
+
+        if (shortTasks.Count == 0)
+            return [];
+
+        var taskList = string.Join(", ", shortTasks);
+        var taskWord = shortTasks.Count == 1 ? "task is" : "tasks are";
+        return
+        [
+            $"Auto-Schedule starts at {minBlockMinutes} minutes. The following {taskWord} too short and will stay unscheduled: {taskList}."
+        ];
     }
 
     // -------------------------------------------------------------------------
     // Time-slot generation
     // -------------------------------------------------------------------------
 
-    private static List<TimeSlot> GenerateTimeSlots(
+    internal static List<TimeSlot> GenerateTimeSlots(
         WorkProfile workProfile, DateTime from, DateTime to)
     {
         var slots = new List<TimeSlot>();
@@ -222,29 +249,26 @@ public class UserTaskPlanner(
                 ? dayProfile.Blocks.Where(b => string.Equals(b.CompanyId, ownOrgId, StringComparison.OrdinalIgnoreCase)).ToList()
                 : dayProfile.Blocks.ToList();
 
+            var daySlots = new List<TimeSlot>();
             foreach (var block in ownBlocks)
             {
                 var blockStart = ParseTime(date, block.StartTime);
                 var blockEnd = ParseTime(date, block.EndTime);
                 if (blockEnd <= blockStart) continue;
 
-                // Remove breaks that fall within this work block
-                var breaks = dayProfile.Breaks
-                    .Select(b => (Start: ParseTime(date, b.StartTime), End: ParseTime(date, b.EndTime)))
-                    .Where(b => b.Start >= blockStart && b.End <= blockEnd && b.End > b.Start)
-                    .OrderBy(b => b.Start)
-                    .ToList();
-
-                var cursor = blockStart;
-                foreach (var brk in breaks)
-                {
-                    if (cursor < brk.Start)
-                        slots.Add(new TimeSlot(cursor, brk.Start));
-                    cursor = brk.End;
-                }
-                if (cursor < blockEnd)
-                    slots.Add(new TimeSlot(cursor, blockEnd));
+                daySlots.Add(new TimeSlot(blockStart, blockEnd));
             }
+
+            foreach (var workBreak in dayProfile.Breaks)
+            {
+                var breakStart = ParseTime(date, workBreak.StartTime);
+                var breakEnd = ParseTime(date, workBreak.EndTime);
+                if (breakEnd <= breakStart) continue;
+
+                SubtractInterval(daySlots, breakStart, breakEnd);
+            }
+
+            slots.AddRange(daySlots.OrderBy(slot => slot.Start));
         }
 
         return slots;

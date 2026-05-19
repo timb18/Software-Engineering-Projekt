@@ -6,6 +6,9 @@ using Auth0.ManagementApi;
 
 namespace Services.Users;
 
+/// <summary>
+/// Implements user profile creation, synchronization, and updates.
+/// </summary>
 public class UserService(
     IUserRepository userRepository,
     IWorkProfileRepository workProfileRepository,
@@ -13,6 +16,9 @@ public class UserService(
 {
     private static readonly EmailAddressAttribute EmailValidator = new();
 
+    /// <summary>
+    /// Ensures a matching user account exists and returns the linked work profile when available.
+    /// </summary>
     public async Task<(Guid UserId, Guid? WorkProfileId)> EnsureUserAsync(
         string email,
         string? authProviderSubject = null,
@@ -23,8 +29,7 @@ public class UserService(
         var normalizedEmail = NormalizeEmail(email);
         ValidateProfileImageUrl(profileImageUrl);
 
-        // Wrap in a transaction to prevent race conditions when two requests
-        // arrive simultaneously for the same new user
+        // Wrap the lookup and creation logic in a transaction to prevent duplicate-user races.
         await using var tx = await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         var user = await FindOrCreateUserAsync(normalizedEmail, authProviderSubject, displayName, profileImageUrl,
@@ -41,6 +46,9 @@ public class UserService(
         return (user.Id, null);
     }
 
+    /// <summary>
+    /// Loads the public profile for the given user id.
+    /// </summary>
     public async Task<UserProfileDto> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await userRepository.FindByIdAsync(userId, cancellationToken)
@@ -49,6 +57,9 @@ public class UserService(
         return MapProfile(user);
     }
 
+    /// <summary>
+    /// Updates the editable profile fields for the given user.
+    /// </summary>
     public async Task<UserProfileDto> UpdateProfileAsync(Guid userId, UpdateUserProfileCommand command,
         CancellationToken cancellationToken = default)
     {
@@ -82,6 +93,9 @@ public class UserService(
         return MapProfile(user);
     }
 
+    /// <summary>
+    /// Finds the existing user or creates a new one from the supplied identity data.
+    /// </summary>
     private async Task<User> FindOrCreateUserAsync(string normalizedEmail, string? authProviderSubject,
         string? displayName, string? profileImageUrl, CancellationToken cancellationToken)
     {

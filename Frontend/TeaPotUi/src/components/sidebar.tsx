@@ -7,6 +7,7 @@ const Sidebar: FC = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
+  // Treat nested routes as active when their prefix matches the current location.
   const isActive = (path: string) =>
     path === "/" ? pathname === "/" : pathname.startsWith(path);
 
@@ -43,12 +44,15 @@ const Sidebar: FC = () => {
 
   const avatarStyle = useMemo(() => {
     if (user?.profileImage?.startsWith("http")) {
+      // Prefer a real user image when one is available.
       return {
         backgroundImage: `url(${user.profileImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundColor: "#ffffff",
       };
     }
+    // Fall back to a small set of stable gradients so the avatar still looks intentional.
     const gradients: Record<string, string> = {
       "gradient-1": "linear-gradient(135deg, #34d399, #2563eb)",
       "gradient-2": "linear-gradient(135deg, #ec4899, #8b5cf6)",
@@ -69,7 +73,7 @@ const Sidebar: FC = () => {
       >
         <div className="flex items-center gap-3">
           <div
-            className="aspect-square h-12 w-12 rounded-full border border-slate-700"
+            className="aspect-square h-12 w-12 rounded-full bg-white shadow-[inset_0_0_0_2px_rgba(255,255,255,0.92),0_8px_18px_rgba(15,23,42,0.16)]"
             style={avatarStyle}
           ></div>
           <div className="flex flex-col">

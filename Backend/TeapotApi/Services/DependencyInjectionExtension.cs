@@ -8,12 +8,19 @@ using Services.WorkProfiles;
 
 namespace Services;
 
+/// <summary>
+/// Registers the service-layer dependencies used by the API.
+/// </summary>
 public static class DependencyInjectionExtension
 {
     extension(IServiceCollection services)
     {
+        /// <summary>
+        /// Adds all Teapot service registrations to the dependency injection container.
+        /// </summary>
         public IServiceCollection AddTeapotServices() {
-            
+
+            // Core infrastructure services.
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddHttpClient<ResendEmailSender>();
             services.AddScoped<SmtpEmailSender>();
@@ -21,6 +28,7 @@ public static class DependencyInjectionExtension
             services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
             services.AddScoped<IRecurringBlockerRepository, RecurringBlockerRepository>();
 
+            // Domain services for user, organization, invitation, and membership workflows.
             services.AddScoped<IUserManagementService, UserManagementService>();
             services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
             services.AddScoped<IOrganizationService, OrganizationService>();
@@ -30,7 +38,7 @@ public static class DependencyInjectionExtension
             services.AddScoped<IUserTaskService, UserTaskService>();
             services.AddScoped<IWorkProfileService, WorkProfileService>();
 
-            // Planning
+            // Planning pipeline components.
             services.AddScoped<DependencyAnalyzer>();
             services.AddScoped<SchedulingAlgorithm>();
             services.AddScoped<IUserTaskPlanner, UserTaskPlanner>();

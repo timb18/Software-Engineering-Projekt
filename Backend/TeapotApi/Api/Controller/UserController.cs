@@ -7,6 +7,10 @@ namespace Api.Controller;
 [ApiController]
 public class UserController(IUserService userService) : ControllerBase
 {
+    /// <summary>
+    /// Retrieves the public profile data for a user.
+    /// The endpoint is used by the profile page and by other UI screens that need display information.
+    /// </summary>
     [HttpGet("")]
     [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -23,6 +27,10 @@ public class UserController(IUserService userService) : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates editable profile fields such as display name, email, avatar URL, and UI preferences.
+    /// Returns the updated profile so the frontend can refresh its local state immediately.
+    /// </summary>
     [HttpPut("")]
     [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

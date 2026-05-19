@@ -87,7 +87,7 @@ export type Task = {
   deadline?: Date;
   dependencies: Task[];
   /** Original work-duration estimate in minutes, kept separate from startDate/endDate so
-   *  editing a scheduled task does not corrupt the estimate. */
+   *  editing a scheduled task does not overwrite the original estimate. */
   timeEstimateMinutes?: number;
 };
 

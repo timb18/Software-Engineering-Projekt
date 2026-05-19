@@ -4,6 +4,7 @@ import "./index.css";
 import App from "./App.tsx";
 import { Auth0Provider } from "@auth0/auth0-react";
 
+// Mount the app inside Auth0 so every component can read the login state and tokens.
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Auth0Provider

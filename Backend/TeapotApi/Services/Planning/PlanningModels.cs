@@ -2,28 +2,47 @@ using DataAccess.Models;
 
 namespace Services.Planning;
 
+/// <summary>
+/// Represents a free time window that can be used for scheduling.
+/// </summary>
 public record TimeSlot(DateTime Start, DateTime End)
 {
+    /// <summary>
+    /// Duration of the slot in whole minutes.
+    /// </summary>
     public int DurationMinutes => (int)(End - Start).TotalMinutes;
 }
 
+/// <summary>
+/// Output of the dependency analysis step used by the planner.
+/// </summary>
 public record DependencyAnalysisResult(
     IReadOnlyList<Guid> TopologicalOrder,
     IReadOnlySet<Guid> CriticalTaskIds,
     IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> Predecessors);
 
+/// <summary>
+/// Result returned by the planning pipeline.
+/// </summary>
 public record PlanningResult(
     bool Success,
     string? ErrorMessage,
     int BacktrackingCount,
-    IReadOnlyList<TaskBlock> PlannedBlocks);
+    IReadOnlyList<TaskBlock> PlannedBlocks,
+    IReadOnlyList<string> Warnings);
 
+/// <summary>
+/// Mutable budget information used by the recursive scheduler.
+/// </summary>
 internal class DailyBudget
 {
     public int RemainingTotalMinutes { get; set; }
     public int RemainingIntensiveMinutes { get; set; }
 }
 
+/// <summary>
+/// In-memory state shared across the scheduling algorithm recursion.
+/// </summary>
 internal class SchedulingState
 {
     public required IReadOnlyList<UserTask> Tasks { get; init; }
@@ -34,8 +53,7 @@ internal class SchedulingState
     public bool NeedsLightTaskAfter { get; set; }
     /// <summary>
     /// The calendar day on which the most recent intensive block was placed.
-    /// Used to reset <see cref="NeedsLightTaskAfter"/> when crossing a day boundary
-    /// (sleep resets cognitive fatigue — Borbély sleep homeostasis model, 1982).
+    /// Used to reset <see cref="NeedsLightTaskAfter"/> when crossing a day boundary.
     /// </summary>
     public DateOnly? LastIntensiveDay { get; set; }
     public int BacktrackingCounter { get; set; }

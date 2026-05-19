@@ -10,7 +10,7 @@ namespace Services.Planning;
 public class SchedulingAlgorithm
 {
     /// <summary>Minimum duration of a single work block in minutes.</summary>
-    public int MinBlockMinutes { get; init; } = 25;
+    public int MinBlockMinutes { get; init; } = 30;
 
     /// <summary>Maximum duration of a single work block in minutes.</summary>
     public int MaxBlockMinutes { get; init; } = 90;

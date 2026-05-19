@@ -34,6 +34,7 @@ const Login: FC = () => {
 
   const beginAuth0Login = useCallback(
     (screenHint?: "signup") => {
+      // Preserve invitation context across the Auth0 redirect.
       if (invitationId) {
         savePendingInvitation({ invitationId, email: invitedEmail });
       }
@@ -54,6 +55,7 @@ const Login: FC = () => {
       return;
     }
 
+    // Synchronize the authenticated Auth0 identity with the local app state first.
     const { userId } = await initForUser(user.sub, user.email, user.name, user.picture);
 
     const pendingInvitation = invitationId
@@ -61,6 +63,7 @@ const Login: FC = () => {
       : getPendingInvitation();
 
     if (pendingInvitation) {
+      // Automatically accept the pending invitation once the account is known locally.
       await acceptInvite(pendingInvitation.invitationId, { userId });
       clearPendingInvitation();
       await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
@@ -160,6 +163,7 @@ const Login: FC = () => {
 
               <div className="flex flex-col gap-3">
                 {inviteMessage && (
+                  // Show invitation or authentication errors inline so the redirect flow stays understandable.
                   <div className="rounded-lg border border-rose-400/40 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
                     {inviteMessage}
                   </div>

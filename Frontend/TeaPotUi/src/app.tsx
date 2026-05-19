@@ -18,6 +18,7 @@ function App() {
   const location = useLocation();
 
   useEffect(() => {
+    // If the user arrived through an invitation link, persist it before any redirect happens.
     const searchParams = new URLSearchParams(location.search);
     const invitationId = searchParams.get("invitationId");
 
@@ -38,6 +39,7 @@ function App() {
   }, [isAuthenticated, isLoading, location.search, navigate]);
 
   useEffect(() => {
+    // Initialize the local store once after Auth0 has resolved the authenticated user.
     if (isAuthenticated && authUser?.sub && authUser?.email && !initialized.current) {
       initialized.current = true;
       initForUser(authUser.sub, authUser.email, authUser.name, authUser.picture).catch(console.error);
@@ -45,6 +47,7 @@ function App() {
   }, [isAuthenticated, authUser?.sub, authUser?.email, authUser?.name, authUser?.picture]);
 
   useEffect(() => {
+    // Accept a pending invitation automatically after login so the user lands in the team view.
     if (!isAuthenticated || !authUser?.sub || !authUser.email) {
       return;
     }
@@ -75,6 +78,7 @@ function App() {
       } catch (error) {
         console.error("acceptInvite failed", error);
         acceptedInvitation.current = null;
+        // Route back to the login page with a readable error message instead of dropping the context.
         const message = error instanceof Error ? error.message : "Einladung konnte nicht angenommen werden.";
         navigate(`/login?inviteStatus=error&message=${encodeURIComponent(message)}`, { replace: true });
       }

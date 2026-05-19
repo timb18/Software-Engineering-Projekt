@@ -8,7 +8,8 @@ public record PlanningResultResponse(
     bool Success,
     string? ErrorMessage,
     int BacktrackingCount,
-    IReadOnlyList<TaskBlock> PlannedBlocks);
+    IReadOnlyList<TaskBlock> PlannedBlocks,
+    IReadOnlyList<string> Warnings);
 
 public record TaskBlockResponse(
     Guid TaskId,
@@ -23,8 +24,9 @@ public record TaskBlockResponse(
 public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockRepository taskBlockRepository) : ControllerBase
 {
     /// <summary>
-    /// Generates a work plan for all open tasks of the given work profile.
-    /// Runs dependency analysis, critical path computation, and recursive scheduling.
+    /// Generates a work plan for all open tasks in the given work profile.
+    /// Internally this runs dependency analysis, critical path calculation, and recursive scheduling
+    /// so the frontend receives a single consolidated planning result.
     /// </summary>
     [HttpPost("schedule")]
     [ProducesResponseType(typeof(PlanningResultResponse), StatusCodes.Status200OK)]
@@ -37,14 +39,15 @@ public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockReposito
             result.Success,
             result.ErrorMessage,
             result.BacktrackingCount,
-            result.PlannedBlocks);
+            result.PlannedBlocks,
+            result.Warnings);
 
         return result.Success
             ? Ok(response)
             : UnprocessableEntity(response);
     }
 
-    /// <summary>Returns all task blocks for the given work profile (for calendar rendering).</summary>
+    /// <summary>Returns all task blocks for the given work profile for calendar rendering and timeline views.</summary>
     [HttpGet("blocks")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskBlockResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBlocks(Guid workProfileId, CancellationToken cancellationToken)
@@ -88,30 +91,36 @@ public record WorkBreakRequest(
 [ApiController]
 public class WorkProfileController(IWorkProfileService workProfileService) : ControllerBase
 {
-    /// <summary>Returns the work profile for a user. Returns 204 No Content if none exists yet.</summary>
+    /// <summary>
+    /// Returns the work profile for a user.
+    /// Returns 204 No Content when the user has not created a work profile yet.
+    /// </summary>
     [HttpGet("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Get(Guid userId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(Guid userId, [FromQuery] Guid? organizationId, CancellationToken cancellationToken)
     {
-        var profile = await workProfileService.GetAsync(userId, cancellationToken);
+        var profile = await workProfileService.GetAsync(userId, organizationId, cancellationToken);
         if (profile is null)
             return NoContent();
 
         return Ok(profile);
     }
 
-    /// <summary>Creates or replaces the work profile for a user.</summary>
+    /// <summary>
+    /// Creates or replaces the work profile for a user.
+    /// The request is mapped into the internal work profile model before persistence.
+    /// </summary>
     [HttpPut("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put(Guid userId, [FromBody] WorkProfileSaveRequest request,
+    public async Task<IActionResult> Put(Guid userId, [FromQuery] Guid? organizationId, [FromBody] WorkProfileSaveRequest request,
         CancellationToken cancellationToken)
     {
         try
         {
             var profile = MapRequestToWorkProfile(request);
-            var saved = await workProfileService.SaveAsync(userId, profile, cancellationToken);
+            var saved = await workProfileService.SaveAsync(userId, profile, organizationId, cancellationToken);
             return Ok(saved);
         }
         catch (ArgumentException ex)
@@ -120,7 +129,10 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
         }
     }
 
-    /// <summary>Deletes the work profile and dependent planning data for a user.</summary>
+    /// <summary>
+    /// Deletes the work profile and any dependent planning data for a user.
+    /// This keeps the user's planning state consistent after profile removal.
+    /// </summary>
     [HttpDelete("")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
