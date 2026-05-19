@@ -128,7 +128,7 @@ const ColorPickerCard: FC<{
 
 const User: FC = () => {
   const { logout } = useLoginStore();
-  const { user: userFromDb, setUser, workProfileId } = useUserStore();
+  const { user: userFromDb, setUser } = useUserStore();
   const { logout: authLogout, user: userFromAuth } = useAuth0();
   const navigate = useNavigate();
   const {
