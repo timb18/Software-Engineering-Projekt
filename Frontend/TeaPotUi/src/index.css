@@ -144,6 +144,28 @@ body {
   color: #475569 !important;
 }
 
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] select {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+:root[data-theme="light"] option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] label,
+:root[data-theme="light"] [class*="uppercase"] {
+  opacity: 1;
+}
+
 :root[data-theme="light"] [class*="text-emerald-100"],
 :root[data-theme="light"] [class*="text-emerald-200"],
 :root[data-theme="light"] [class*="text-emerald-300"] {
@@ -156,13 +178,19 @@ body {
 }
 
 :root[data-theme="light"] [class*="bg-rose-500/"],
-:root[data-theme="light"] [class*="bg-rose-900/"] {
+:root[data-theme="light"] [class*="bg-rose-900/"],
+:root[data-theme="light"] [class*="bg-red-500/"],
+:root[data-theme="light"] [class*="bg-red-900/"] {
   background-color: rgba(244, 63, 94, 0.1) !important;
 }
 
 :root[data-theme="light"] [class*="text-rose-50"],
 :root[data-theme="light"] [class*="text-rose-100"],
 :root[data-theme="light"] [class*="text-rose-200"],
-:root[data-theme="light"] [class*="text-rose-300"] {
+:root[data-theme="light"] [class*="text-rose-300"],
+:root[data-theme="light"] [class*="text-red-50"],
+:root[data-theme="light"] [class*="text-red-100"],
+:root[data-theme="light"] [class*="text-red-200"],
+:root[data-theme="light"] [class*="text-red-300"] {
   color: #be123c !important;
 }
