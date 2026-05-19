@@ -11,9 +11,9 @@ type ApiErrorResponse = {
 };
 
 const getErrorMessage = async (response: Response) => {
-  const payload = (await response.json().catch(() => null)) as
-    | ApiErrorResponse
-    | null;
+  const payload = (await response
+    .json()
+    .catch(() => null)) as ApiErrorResponse | null;
 
   const validationErrors = payload?.errors
     ? Object.values(payload.errors).flat().join(" ")
@@ -29,6 +29,7 @@ const getErrorMessage = async (response: Response) => {
 const acceptInvite = async (
   invitationId: string,
   { email, userId }: AcceptInviteOptions = {},
+  token: string,
 ) => {
   const response = await fetch(
     `${API_BASE}/api/Invitation/${invitationId}/accept`,
@@ -36,6 +37,7 @@ const acceptInvite = async (
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ email, userId }),
     },
