@@ -40,11 +40,11 @@ public class UserManagementController(IUserManagementService managementService) 
         {
             return TypedResults.BadRequest(e.Message);
         }
-        catch (KeyNotFoundException e)
+        catch (KeyNotFoundException)
         {
             return TypedResults.NotFound("User not found");
         }
-        catch (Exception e)
+        catch (Exception)
         {
             return TypedResults.InternalServerError("There was an issue with changing the password");
         }
