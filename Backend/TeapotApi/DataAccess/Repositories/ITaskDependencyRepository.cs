@@ -35,4 +35,12 @@ public interface ITaskDependencyRepository
     /// </remarks>
     Task ReplaceForTaskAsync(
         Guid taskId, IEnumerable<Guid> dependsOnIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes every dependency row that references <paramref name="taskId"/> either as the
+    /// dependent task or as the predecessor. Required before deleting a task so the FK
+    /// constraint does not reject the delete when other tasks still point at it.
+    /// </summary>
+    Task DeleteAllReferencesAsync(
+        Guid taskId, CancellationToken cancellationToken = default);
 }

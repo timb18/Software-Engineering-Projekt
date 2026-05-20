@@ -32,4 +32,19 @@ public class TaskDependencyRepository(TeapotDbContext context) : ITaskDependency
 
         await context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task DeleteAllReferencesAsync(
+        Guid taskId, CancellationToken cancellationToken = default)
+    {
+        // Remove rows where this task is the dependent AND where it is the predecessor,
+        // so a task can be deleted even when other tasks still depend on it.
+        var refs = await context.TaskDependencies
+            .Where(d => d.TaskId == taskId || d.DependsOnTaskId == taskId)
+            .ToListAsync(cancellationToken);
+
+        if (refs.Count == 0) return;
+
+        context.TaskDependencies.RemoveRange(refs);
+        await context.SaveChangesAsync(cancellationToken);
+    }
 }
