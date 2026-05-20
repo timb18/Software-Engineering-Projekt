@@ -114,8 +114,10 @@ const Orgs: FC = () => {
   };
 
   const fetchOrganizationInvites = async (org: Org): Promise<Invitation[]> => {
+    const token = await getAccessTokenSilently();
     const response = await fetch(
       apiUrl(`/api/Invitation/organization/${org.id}`),
+      { headers: { Authorization: `Bearer ${token}` } },
     );
 
     if (!response.ok) {
@@ -164,6 +166,7 @@ const Orgs: FC = () => {
           apiUrl(
             `/api/Invitation/pending?email=${encodeURIComponent(user.email)}`,
           ),
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         const pendingPayload = pendingResponse.ok
           ? ((await pendingResponse.json()) as {
@@ -282,10 +285,12 @@ const Orgs: FC = () => {
     }
 
     try {
+      const token = await getAccessTokenSilently();
       const response = await fetch(
         apiUrl(`/api/Invitation/${invite.id}/reject`),
         {
           method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
 
@@ -314,10 +319,12 @@ const Orgs: FC = () => {
     setIsLeavingOrgId(orgId);
 
     try {
+      const token = await getAccessTokenSilently();
       const response = await fetch(`${apiBaseUrl}/api/Membership/leave`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           userId: user.id,
@@ -491,10 +498,12 @@ const Orgs: FC = () => {
         );
       }
 
+      const token = await getAccessTokenSilently();
       const response = await fetch(apiUrl("/api/Invitation/send"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           organizationId: org.id,
@@ -591,10 +600,12 @@ const Orgs: FC = () => {
     setWithdrawingInviteId(invite.id);
 
     try {
+      const token = await getAccessTokenSilently();
       const response = await fetch(
         apiUrl(`/api/Invitation/${invite.id}/reject`),
         {
           method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
 
