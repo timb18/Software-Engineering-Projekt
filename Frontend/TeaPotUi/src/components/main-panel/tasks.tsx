@@ -256,40 +256,39 @@ const Tasks: FC = () => {
 
   const taskById = new Map((user.tasks ?? []).map((task) => [task.id, task]));
   const visibleTaskIds = new Set(filteredTasks.map((task) => task.id).filter(Boolean));
-  const calendarEvents: EventInput[] = blocks
-    .filter((block) => visibleTaskIds.has(block.taskId))
-    .map((block) => {
-      const task = taskById.get(block.taskId);
-      // The color utilities intentionally depend on external theme state.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const c: RgbColor = task?.org ? getOrgColor(task.org) : getOrgColor("");
-      const isDarkTask = isDarkColor(c);
-      const overlapsAnotherTask = scheduledTasks.some((other, otherIndex) => {
-        if (otherIndex === index) return false;
-        return (
-          dayjs(t.startDate).isBefore(other.endDate) &&
-          dayjs(t.endDate).isAfter(other.startDate)
-        );
-      });
-      void colorVersion; // reactive dependency
-      return {
-        id: `${block.taskId}-${block.startDate.toISOString()}`,
-        title: task?.name ?? block.taskName,
-        start: block.startDate,
-        end: block.endDate,
-        backgroundColor: rgbToCss(c, 0.22),
-        borderColor: block.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
-        textColor: readableTextColor(c),
-        classNames: [
-          "task-event",
-          isDarkTask ? "is-dark-event-color" : "is-light-event-color",
-          block.isFixed ? "task-fixed" : "",
-          (task?.status ?? block.taskStatus ?? "todo") === "done" ? "task-done" : "",
-        ].filter(Boolean),
-        editable: !!task,
-        extendedProps: { task },
-      };
+  const visibleBlocks = blocks.filter((block) => visibleTaskIds.has(block.taskId));
+  const calendarEvents: EventInput[] = visibleBlocks.map((block, index) => {
+    const task = taskById.get(block.taskId);
+    // The color utilities intentionally depend on external theme state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const c: RgbColor = task?.org ? getOrgColor(task.org) : getOrgColor("");
+    const isDarkTask = isDarkColor(c);
+    const overlapsAnotherTask = visibleBlocks.some((other, otherIndex) => {
+      if (otherIndex === index) return false;
+      return (
+        dayjs(block.startDate).isBefore(other.endDate) &&
+        dayjs(block.endDate).isAfter(other.startDate)
+      );
     });
+    void colorVersion; // reactive dependency
+    return {
+      id: `${block.taskId}-${block.startDate.toISOString()}`,
+      title: task?.name ?? block.taskName,
+      start: block.startDate,
+      end: block.endDate,
+      backgroundColor: rgbToCss(c, 0.22),
+      borderColor: block.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
+      textColor: readableTextColor(c),
+      classNames: [
+        "task-event",
+        isDarkTask ? "is-dark-event-color" : "is-light-event-color",
+        block.isFixed ? "task-fixed" : "",
+        (task?.status ?? block.taskStatus ?? "todo") === "done" ? "task-done" : "",
+      ].filter(Boolean),
+      editable: !!task,
+      extendedProps: { task, overlapsAnotherTask },
+    };
+  });
 
   const persistWorkProfile = async (updatedProfile: NonNullable<typeof user.workProfile>) => {
     setUser({ ...user, workProfile: updatedProfile });
