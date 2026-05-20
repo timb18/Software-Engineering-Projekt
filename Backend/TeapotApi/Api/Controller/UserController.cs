@@ -51,6 +51,7 @@ public class UserController(IUserService userService) : ControllerBase
                     request.ProfileImageUrl,
                     request.Timezone,
                     request.BreakColor,
+                    request.BlockerColor,
                     request.OrgColors),
                 cancellationToken);
 
@@ -74,6 +75,7 @@ public class UserController(IUserService userService) : ControllerBase
         profile.ProfileImageUrl,
         profile.Timezone,
         profile.BreakColor,
+        profile.BlockerColor,
         profile.OrgColors);
 }
 
@@ -83,6 +85,7 @@ public sealed record UpdateUserProfileRequest(
     string? ProfileImageUrl,
     string? Timezone,
     string? BreakColor = null,
+    string? BlockerColor = null,
     string? OrgColors = null);
 
 public sealed record UserProfileResponse(
@@ -93,4 +96,5 @@ public sealed record UserProfileResponse(
     string? ProfileImageUrl,
     string Timezone,
     string? BreakColor = null,
+    string? BlockerColor = null,
     string? OrgColors = null);

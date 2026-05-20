@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchTasks, createTask, updateTask, deleteTask } from "./task-api";
+import { fetchTasks, fetchBlocks, createTask, updateTask, deleteTask } from "./task-api";
 import type { Task } from "./types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const WORK_PROFILE_ID = "11111111-0000-0000-0000-000000000000";
 const TASK_ID = "22222222-0000-0000-0000-000000000000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 /** Mock a global fetch that resolves with the given data. */
 const mockFetch = (data: unknown, ok = true, status = 200) =>
@@ -62,7 +63,7 @@ describe("fetchTasks", () => {
     await fetchTasks(WORK_PROFILE_ID);
 
     const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}`);
   });
 
   it("maps backend fields to frontend Task shape", async () => {
@@ -79,10 +80,44 @@ describe("fetchTasks", () => {
     expect(task.startDate).toBeInstanceOf(Date);
   });
 
+  it("keeps backend UTC timestamps as absolute instants", async () => {
+    globalThis.fetch = mockFetch([{
+      ...apiTask,
+      earlyStart: "2026-05-20T07:00:00Z",
+      earlyFinish: "2026-05-20T08:00:00Z",
+    }]);
+
+    const [task] = await fetchTasks(WORK_PROFILE_ID);
+
+    expect(task.startDate.toISOString()).toBe("2026-05-20T07:00:00.000Z");
+    expect(task.endDate.toISOString()).toBe("2026-05-20T08:00:00.000Z");
+  });
+
   it("throws when the response is not ok", async () => {
     globalThis.fetch = mockFetch(null, false, 404);
 
     await expect(fetchTasks(WORK_PROFILE_ID)).rejects.toThrow("fetchTasks failed");
+  });
+});
+
+// ── fetchBlocks ──────────────────────────────────────────────────────────────
+
+describe("fetchBlocks", () => {
+  it("maps planned block timestamps without applying an extra offset", async () => {
+    globalThis.fetch = mockFetch([{
+      taskId: TASK_ID,
+      taskName: "Test Task",
+      taskStatus: "todo",
+      startDate: "2026-05-20T07:00:00Z",
+      endDate: "2026-05-20T08:00:00Z",
+      isFixed: false,
+    }]);
+
+    const blocks = await fetchBlocks(WORK_PROFILE_ID);
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].startDate.toISOString()).toBe("2026-05-20T07:00:00.000Z");
+    expect(blocks[0].endDate.toISOString()).toBe("2026-05-20T08:00:00.000Z");
   });
 });
 
@@ -95,7 +130,7 @@ describe("createTask", () => {
     await createTask(WORK_PROFILE_ID, makeTask());
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}`);
     expect(init?.method).toBe("POST");
   });
 
@@ -162,7 +197,7 @@ describe("updateTask", () => {
     await updateTask(WORK_PROFILE_ID, TASK_ID, makeTask());
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
     expect(init?.method).toBe("PUT");
   });
 
@@ -190,7 +225,7 @@ describe("deleteTask", () => {
     await deleteTask(WORK_PROFILE_ID, TASK_ID);
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(url).toBe(`/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
+    expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
     expect(init?.method).toBe("DELETE");
   });
 

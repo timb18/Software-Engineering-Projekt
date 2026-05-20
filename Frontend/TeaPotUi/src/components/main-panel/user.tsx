@@ -11,10 +11,12 @@ import { updateUserProfile } from "../../util/user-api";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import {
   getBreakColor,
+  getBlockerColor,
   getOrgColor,
   parseColorPreference,
   parseOrgColorPreferences,
   setBreakColor,
+  setBlockerColor,
   setOrgColor,
   rgbToHex,
   hexToRgb,
@@ -22,6 +24,7 @@ import {
   serializeOrgColorPreferences,
   DEFAULT_ORG_COLOR,
   DEFAULT_BREAK_COLOR,
+  DEFAULT_BLOCKER_COLOR,
   type RgbColor,
 } from "../../util/color-prefs";
 import { useForm, type FormValidateResult } from "react-hook-form";
@@ -125,7 +128,10 @@ const ColorPickerCard: FC<{
 
 const User: FC = () => {
   const { logout } = useLoginStore();
-  const { user: userFromDb, setUser } = useUserStore();
+  const {
+    user: userFromDb,
+    setUser,
+  } = useUserStore();
   const {
     logout: authLogout,
     user: userFromAuth,
@@ -147,6 +153,7 @@ const User: FC = () => {
   });
 
   const [tab, setTab] = useState<Tab>("general");
+
   const [isWorkDirty, setIsWorkDirty] = useState(false);
   const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
   const [pendingTabChange, setPendingTabChange] = useState<Tab | undefined>();
@@ -181,6 +188,9 @@ const User: FC = () => {
   const [breakColorState, setBreakColorState] = useState<RgbColor>(() =>
     parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()),
   );
+  const [blockerColorState, setBlockerColorState] = useState<RgbColor>(() =>
+    parseColorPreference(userFromDb.appearanceBlockerColor, getBlockerColor()),
+  );
 
   const updateOrgColor = (orgId: string, color: RgbColor) => {
     setOrgColorsState((prev) => ({ ...prev, [orgId]: color }));
@@ -188,6 +198,10 @@ const User: FC = () => {
   };
   const updateBreakColorState = (color: RgbColor) => {
     setBreakColorState(color);
+    setIsAppearanceDirty(true);
+  };
+  const updateBlockerColorState = (color: RgbColor) => {
+    setBlockerColorState(color);
     setIsAppearanceDirty(true);
   };
   // ─────────────────────────────────────────────────────────────────────
@@ -225,8 +239,11 @@ const User: FC = () => {
     setBreakColorState(
       parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()),
     );
+    setBlockerColorState(
+      parseColorPreference(userFromDb.appearanceBlockerColor, getBlockerColor()),
+    );
     setIsAppearanceDirty(false);
-  }, [
+  }, [userFromDb.appearanceBlockerColor,
     userFromDb.appearanceBreakColor,
     userFromDb.appearanceOrgColors,
     userFromDb.orgs,
@@ -265,8 +282,12 @@ const User: FC = () => {
           token,
         );
         const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
+        const orgs = savedWorkProfile.id
+          ? nextUser.orgs.map((org) => ({ ...org, workProfileId: savedWorkProfile.id }))
+          : nextUser.orgs;
         setUser({
           ...nextUser,
+          orgs,
           workProfile: savedWorkProfile,
           hasPersistedWorkProfile: true,
           plannerViewStart:
@@ -365,6 +386,7 @@ const User: FC = () => {
     }
 
     const breakColor = serializeColorPreference(breakColorState);
+    const blockerColor = serializeColorPreference(blockerColorState);
     const orgColorPrefs = serializeOrgColorPreferences(orgColors);
 
     setIsSavingAppearance(true);
@@ -379,12 +401,13 @@ const User: FC = () => {
           profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
           timezone: profileForm.timezone.trim() || "Europe/Berlin",
           breakColor,
-          orgColors: orgColorPrefs,
+          blockerColor,orgColors: orgColorPrefs,
         },
         token,
       );
 
       setBreakColor(breakColorState);
+      setBlockerColor(blockerColorState);
       for (const [orgId, color] of Object.entries(orgColors)) {
         setOrgColor(orgId, color);
       }
@@ -398,6 +421,7 @@ const User: FC = () => {
         profileImage: savedProfile.profileImageUrl,
         timezone: savedProfile.timezone,
         appearanceBreakColor: savedProfile.breakColor,
+        appearanceBlockerColor: savedProfile.blockerColor,
         appearanceOrgColors: savedProfile.orgColors,
       });
       setIsAppearanceDirty(false);
@@ -707,7 +731,7 @@ const User: FC = () => {
         {tab === "work" && (
           <div className="flex flex-col gap-4">
             <WorkProfileConfigurator
-              key={`${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
+              key={`${userFromDb.workProfile?.id ?? "new"}-${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
               user={userFromDb}
               onSaveUser={persist}
               onStatusChange={setStatus}
@@ -818,6 +842,14 @@ const User: FC = () => {
               color={breakColorState}
               onChange={updateBreakColorState}
               onReset={() => updateBreakColorState({ ...DEFAULT_BREAK_COLOR })}
+            />
+
+            {/* Blocker color */}
+            <ColorPickerCard
+              label="Recurring Blockers"
+              color={blockerColorState}
+              onChange={updateBlockerColorState}
+              onReset={() => updateBlockerColorState({ ...DEFAULT_BLOCKER_COLOR })}
             />
 
             {/* Per-org colors */}

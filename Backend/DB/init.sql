@@ -144,6 +144,19 @@ CREATE TABLE public.task_dependencies (
     depends_on_task_id uuid NOT NULL
 );
 
+CREATE TABLE public.recurring_blockers (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    work_profile_id uuid NOT NULL,
+    name character varying(100) NOT NULL,
+    days_of_week character varying(31) NOT NULL,
+    start_time character varying(5) NOT NULL,
+    end_time character varying(5) NOT NULL,
+    valid_from date,
+    valid_until date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    edited_at timestamp with time zone
+);
+
 -- Primary Keys
 ALTER TABLE ONLY public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.users ADD CONSTRAINT users_email_key UNIQUE (email);
@@ -160,6 +173,7 @@ ALTER TABLE ONLY public.work_blocks ADD CONSTRAINT work_blocks_pkey PRIMARY KEY 
 ALTER TABLE ONLY public.work_breaks ADD CONSTRAINT work_breaks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.user_tasks ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.task_dependencies ADD CONSTRAINT task_dependencies_pkey PRIMARY KEY (task_id, depends_on_task_id);
+ALTER TABLE ONLY public.recurring_blockers ADD CONSTRAINT recurring_blockers_pkey PRIMARY KEY (id);
 
 -- Foreign Keys
 ALTER TABLE ONLY public.memberships ADD CONSTRAINT memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
@@ -175,6 +189,7 @@ ALTER TABLE ONLY public.user_tasks ADD CONSTRAINT tasks_workprofile_id_fkey FORE
 ALTER TABLE ONLY public.task_blocks ADD CONSTRAINT task_timeslots_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.user_tasks(id);
 ALTER TABLE ONLY public.task_dependencies ADD CONSTRAINT task_dependencies_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.user_tasks(id);
 ALTER TABLE ONLY public.task_dependencies ADD CONSTRAINT task_dependencies_depends_on_task_id_fkey FOREIGN KEY (depends_on_task_id) REFERENCES public.user_tasks(id);
+ALTER TABLE ONLY public.recurring_blockers ADD CONSTRAINT recurring_blockers_work_profile_id_fkey FOREIGN KEY (work_profile_id) REFERENCES public.work_profiles(id) ON DELETE CASCADE;
 
 REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 GRANT ALL ON SCHEMA public TO PUBLIC;

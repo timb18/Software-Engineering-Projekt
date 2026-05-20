@@ -30,17 +30,26 @@ public class TaskBlockRepository(TeapotDbContext context) : ITaskBlockRepository
             .ToListAsync(cancellationToken);
 
         // Wrap delete + inserts in a transaction so a partial failure never leaves the profile
-        // without any blocks (delete succeeded but inserts failed).
-        await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
+        // without any blocks (delete succeeded but inserts failed). When the caller already
+        // started an outer transaction (e.g. the planner) we simply join it instead of nesting.
+        var hasOuterTransaction = context.Database.CurrentTransaction is not null;
+        await using var tx = hasOuterTransaction
+            ? null
+            : await context.Database.BeginTransactionAsync(cancellationToken);
 
-        // Delete all non-fixed blocks for these tasks
+        // Delete only FUTURE non-fixed blocks. Past blocks are historical facts (used to
+        // compute already-completed work for partial-progress accounting) and must be kept.
+        // Fixed blocks are user-pinned and never overwritten by the scheduler.
+        var now = DateTime.UtcNow;
         await context.TaskBlocks
-            .Where(b => taskIds.Contains(b.TaskId) && !b.IsFixed)
+            .Where(b => taskIds.Contains(b.TaskId) && !b.IsFixed && b.StartDate >= now)
             .ExecuteDeleteAsync(cancellationToken);
 
         await context.TaskBlocks.AddRangeAsync(newBlocks, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
-        await tx.CommitAsync(cancellationToken);
+        if (tx is not null)
+            await tx.CommitAsync(cancellationToken);
     }
 
     public async Task DeleteForTaskAsync(Guid taskId, CancellationToken cancellationToken = default)

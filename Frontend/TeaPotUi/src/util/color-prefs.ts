@@ -22,6 +22,7 @@ export const DEFAULT_ORG_COLOR: RgbColor = { r: 16, g: 185, b: 129 };   // emera
  * Used when user hasn't set a custom color for breaks.
  */
 export const DEFAULT_BREAK_COLOR: RgbColor = { r: 245, g: 158, b: 11 }; // amber
+export const DEFAULT_BLOCKER_COLOR: RgbColor = { r: 139, g: 92, b: 246 }; // violet
 
 /**
  * Generates localStorage key for organization color preference.
@@ -39,6 +40,7 @@ const orgKey = (orgId: string) => `teapot-color-org-${orgId}`;
  * There's only one break color setting (global across all work profiles).
  */
 const BREAK_KEY = "teapot-color-breaks";
+const BLOCKER_KEY = "teapot-color-blockers";
 
 /**
  * Type guard: Validates if an unknown value is a valid RgbColor.
@@ -165,9 +167,11 @@ export function serializeOrgColorPreferences(
  */
 export function applyStoredColorPreferences(
   breakColor: string | null | undefined,
+  blockerColor: string | null | undefined,
   orgColors: string | null | undefined,
 ): void {
   setBreakColor(parseColorPreference(breakColor, DEFAULT_BREAK_COLOR));
+  setBlockerColor(parseColorPreference(blockerColor, DEFAULT_BLOCKER_COLOR));
   for (const [orgId, color] of Object.entries(parseOrgColorPreferences(orgColors))) {
     setOrgColor(orgId, color);
   }
@@ -246,7 +250,18 @@ export function setBreakColor(color: RgbColor): void {
   window.dispatchEvent(new Event("teapot-colors-changed"));
 }
 
+export function getBlockerColor(): RgbColor {
+  try {
+    const raw = localStorage.getItem(BLOCKER_KEY);
+    if (raw) return JSON.parse(raw) as RgbColor;
+  } catch { /* ignore */ }
+  return { ...DEFAULT_BLOCKER_COLOR };
+}
 
+export function setBlockerColor(color: RgbColor): void {
+  localStorage.setItem(BLOCKER_KEY, JSON.stringify(color));
+  window.dispatchEvent(new Event("teapot-colors-changed"));
+}
 /**
  * Converts RGB color to CSS rgba() string with optional opacity.
  * 

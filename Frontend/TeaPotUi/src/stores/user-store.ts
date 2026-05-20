@@ -28,13 +28,7 @@ const initialState: UserStore = {
   activeOrganizationId: null,
 };
 
-const assignTasksToOrganization = (
-  tasks: Task[],
-  organizationId: string | null | undefined,
-) =>
-  organizationId
-    ? tasks.map((task) => ({ ...task, org: organizationId }))
-    : tasks;
+const assignTasksToOrganization = (tasks: Task[], _organizationId: string | null | undefined) => tasks;
 
 const memoryStorage = {
   getItem: () => null,
@@ -78,22 +72,12 @@ export const initForUser = async (
       token,
     );
     const profile = await fetchUserProfile(userId, token);
-    applyStoredColorPreferences(profile.breakColor, profile.orgColors);
+    applyStoredColorPreferences(profile.breakColor, profile.blockerColor, profile.orgColors);
 
-    const [tasksResult, workProfileResult, organizationsResult] =
-      await Promise.allSettled([
-        workProfileId ? fetchTasks(workProfileId, token) : Promise.resolve([]),
-        fetchWorkProfile(userId, token),
-        fetchOrganizationsByUserEmail(email, token),
-      ]);
+    const [organizationsResult] = await Promise.allSettled([
+      fetchOrganizationsByUserEmail(email, token),
+    ]);
 
-    const initialTasks =
-      tasksResult.status === "fulfilled" ? tasksResult.value : [];
-    const workProfile =
-      workProfileResult.status === "fulfilled" ? workProfileResult.value : null;
-    const legacyWorkSettings = workProfile
-      ? getLegacyWorkSettings(workProfile)
-      : undefined;
     const orgs =
       organizationsResult.status === "fulfilled"
         ? organizationsResult.value
@@ -104,11 +88,24 @@ export const initForUser = async (
       orgs.find((org) => org.id === previousState.activeOrganizationId) ??
       orgs[0] ??
       null;
-    const activeWorkProfileId =
-      activeOrganization?.workProfileId ?? workProfileId ?? null;
+    let activeWorkProfileId =
+     workProfileId ?? activeOrganization?.workProfileId ?? null;
+    let workProfile = null;
 
-    let tasks = assignTasksToOrganization(initialTasks, activeOrganization?.id);
-    if (activeWorkProfileId && activeWorkProfileId !== workProfileId) {
+    try {
+      workProfile = (await fetchWorkProfile(userId)) ?? null;
+      activeWorkProfileId = workProfile?.id ?? activeWorkProfileId;
+    } catch (error) {
+      console.error("fetchWorkProfile failed during initForUser", error);
+    }
+
+    const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
+    const orgsWithWorkProfile = workProfile?.id
+      ? orgs.map((org) => ({ ...org, workProfileId: workProfile.id }))
+      : orgs;
+
+    let tasks: Task[] = [];
+    if (activeWorkProfileId) {
       try {
         tasks = assignTasksToOrganization(
           await fetchTasks(activeWorkProfileId, token),
@@ -123,16 +120,6 @@ export const initForUser = async (
       }
     }
 
-    if (tasksResult.status === "rejected") {
-      console.error("fetchTasks failed during initForUser", tasksResult.reason);
-    }
-    if (workProfileResult.status === "rejected") {
-      console.error(
-        "fetchWorkProfile failed during initForUser",
-        workProfileResult.reason,
-      );
-    }
-
     userStore.setState({
       user: {
         ...defaultUser,
@@ -143,6 +130,7 @@ export const initForUser = async (
         profileImage: profile.profileImageUrl,
         timezone: profile.timezone,
         appearanceBreakColor: profile.breakColor,
+        appearanceBlockerColor: profile.blockerColor,
         appearanceOrgColors: profile.orgColors,
         tasks,
         workProfile: workProfile ?? undefined,
@@ -154,7 +142,7 @@ export const initForUser = async (
         workStart: legacyWorkSettings?.workStart,
         workEnd: legacyWorkSettings?.workEnd,
         breakRules: legacyWorkSettings?.breakRules,
-        orgs,
+        orgs: orgsWithWorkProfile,
       },
       workProfileId: activeWorkProfileId,
       activeOrganizationId: activeOrganization?.id ?? null,
@@ -241,25 +229,37 @@ const useUserStore = () => {
       return;
     }
 
-    if (!selectedOrganization.workProfileId) {
-      userStore.setState({ activeOrganizationId: organizationId });
-      return;
-    }
-
-    if (state.workProfileId === selectedOrganization.workProfileId) {
-      userStore.setState({ activeOrganizationId: organizationId });
-      return;
-    }
-
+    const workProfile = state.user.workProfile ?? (await fetchWorkProfile(state.user.id)) ?? null;
+    const selectedWorkProfileId = workProfile?.id ?? state.workProfileId ?? selectedOrganization.workProfileId ?? null;
     const token = await getAccessTokenSilently();
-    const tasks = assignTasksToOrganization(
-      await fetchTasks(selectedOrganization.workProfileId, token),
-      selectedOrganization.id,
-    );
+    const tasks = selectedWorkProfileId
+      ? assignTasksToOrganization(
+          await fetchTasks(selectedWorkProfileId, token),
+          selectedOrganization.id,
+        )
+      : [];
+    const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
+    const orgs = workProfile?.id
+      ? state.user.orgs.map((org) => ({ ...org, workProfileId: workProfile.id }))
+      : state.user.orgs;
+
     userStore.setState({
       activeOrganizationId: organizationId,
-      workProfileId: selectedOrganization.workProfileId,
-      user: { ...state.user, tasks },
+      workProfileId: selectedWorkProfileId,
+      user: {
+        ...state.user,
+        tasks,
+        orgs,
+        workProfile: workProfile ?? undefined,
+        hasPersistedWorkProfile: workProfile !== null,
+        plannerViewStart: workProfile?.plannerViewStart,
+        plannerViewEnd: workProfile?.plannerViewEnd,
+        workCapacityHours: legacyWorkSettings?.workCapacityHours,
+        workDays: legacyWorkSettings?.workDays,
+        workStart: legacyWorkSettings?.workStart,
+        workEnd: legacyWorkSettings?.workEnd,
+        breakRules: legacyWorkSettings?.breakRules,
+      },
     });
   };
 
@@ -272,6 +272,10 @@ const useUserStore = () => {
       const taskForActiveOrganization = {
         ...saved,
         org: task.org || activeOrganizationId || saved.org,
+        // Single-task fromApi() returns dependencies as [] (no byId context).
+        // Preserve the original input deps so the local state matches what was
+        // persisted on the server.
+        dependencies: task.dependencies,
       };
       userStore.setState((s) => ({
         user: {
@@ -304,7 +308,11 @@ const useUserStore = () => {
     if (workProfileId && task.id) {
       const token = await getAccessTokenSilently();
       const saved = await updateTask(workProfileId, task.id, task, token);
-      updateLocal({ ...saved, org: task.org });
+      // Single-task fromApi() cannot resolve dependency IDs to Task objects
+      // (no byId context). Preserve the input task's dependencies so the local
+      // state reflects what was just persisted, otherwise the next save would
+      // PUT an empty dependsOnTaskIds list and wipe them from the DB.
+      updateLocal({ ...saved, org: task.org, dependencies: task.dependencies });
     } else if (task.id) {
       // Offline fallback: keep local state in sync.
       updateLocal(task);

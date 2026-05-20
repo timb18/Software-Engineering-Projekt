@@ -210,6 +210,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
     kind: "success" | "error";
     text: string;
   } | null>(null);
+  const lastSaveErrorRef = useRef<string | undefined>(undefined);
   const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
   const [saveAfterCopyDay, setSaveAfterCopyDay] = useState(false);
 
@@ -265,7 +266,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
   } = useWorkProfile(user, {
     onSaveUser,
     onStatusChange,
-    onErrorChange,
+    onErrorChange: (value) => {
+      lastSaveErrorRef.current = value;
+      onErrorChange(value);
+    },
     onDirtyChange,
   });
 
@@ -388,6 +392,7 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
   const saveWork = async () => {
     setIsSavingWorkProfile(true);
     setSaveFeedback(null);
+    lastSaveErrorRef.current = undefined;
 
     try {
       const saved = await saveWorkAction(
@@ -399,7 +404,10 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
       setSaveFeedback(
         saved
           ? { kind: "success", text: "Work profile saved." }
-          : { kind: "error", text: "Work profile could not be saved." },
+          : {
+            kind: "error",
+            text: lastSaveErrorRef.current ?? "Work profile could not be saved.",
+          },
       );
     } finally {
       setIsSavingWorkProfile(false);
@@ -559,14 +567,16 @@ const WorkProfileConfigurator: FC<WorkProfileConfiguratorProps> = ({
               weekly view.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={saveWork}
-            disabled={user.orgs.length < 1 || isSavingWorkProfile}
-            className="cursor-pointer rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-emerald-400/15"
-          >
-            {isSavingWorkProfile ? "Saving..." : "Save work profile"}
-          </button>
+          <div className="flex w-full justify-end sm:w-auto">
+            <button
+              type="button"
+              onClick={saveWork}
+              disabled={user.orgs.length < 1 || isSavingWorkProfile}
+              className="cursor-pointer rounded-xl border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-emerald-400/15"
+            >
+              {isSavingWorkProfile ? "Saving..." : "Save"}
+            </button>
+          </div>
         </div>
         {saveFeedback && (
           <div

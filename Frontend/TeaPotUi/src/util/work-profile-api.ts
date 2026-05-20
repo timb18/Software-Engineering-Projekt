@@ -1,4 +1,4 @@
-import type { WorkProfile } from "./types";
+import type {WorkProfile} from "./types";
 
 /**
  * API Base URL for work profile endpoints.
@@ -30,25 +30,33 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
  *
  * @param userId - UUID of user to fetch profile for
  * @param token - accesstoken for the api
+ * @param _organizationId
  * @returns Promise resolving to WorkProfile, or null if none saved
  * @throws Error if fetch fails (excluding 204)
  */
 export async function fetchWorkProfile(
-  userId: string,
-  token: string,
+    userId: string,
+    token: string,
+    _organizationId?: string | null,
 ): Promise<WorkProfile | null> {
-  const res = await fetch(
-    `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+    const url = `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`;
+    let res: Response;
+    try {
+        res = await fetch(url, {headers: {Authorization: `Bearer ${token}`}},);
+    } catch (error) {
+        throw new Error(
+            `Backend not reachable while loading the work profile. Make sure the API is running at ${API_BASE || "the Vite proxy target (http://localhost:5186)"}.`,
+            {cause: error},
+        );
+    }
 
-  if (res.status === 204) return null; // No profile saved yet
+    if (res.status === 204) return null; // No profile saved yet
   if (!res.ok)
     throw new Error(
       `Failed to fetch work profile: ${res.status} ${res.statusText}`,
     );
 
-  return res.json() as Promise<WorkProfile>;
+    return res.json() as Promise<WorkProfile>;
 }
 
 /**
@@ -75,6 +83,7 @@ export async function fetchWorkProfile(
  *
  * @param userId - UUID of user
  * @param profile - Complete WorkProfile to save (all 7 days, all blocks/breaks)
+ * @param _organizationId - id of the organization
  * @param token - accesstoken for the api
  * @returns Promise resolving to saved WorkProfile from server
  * @throws Error with message if save fails
@@ -82,24 +91,31 @@ export async function fetchWorkProfile(
 export async function saveWorkProfile(
   userId: string,
   profile: WorkProfile,
+  _organizationId?: string | null,
   token: string,
 ): Promise<WorkProfile> {
-  const res = await fetch(
-    `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`,
-    {
+  const url = `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
       body: JSON.stringify(profile),
-    },
-  );
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`Failed to save work profile: ${text}`);
+    });
+  } catch (error) {
+    throw new Error(
+      `Backend not reachable while saving the work profile. Make sure the API is running at ${API_BASE || "the Vite proxy target (http://localhost:5186)"}.`,
+      { cause: error },
+    );
   }
 
-  return res.json() as Promise<WorkProfile>;
+    if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(`Failed to save work profile: ${text}`);
+    }
+
+    return res.json() as Promise<WorkProfile>;
 }

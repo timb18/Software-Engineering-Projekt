@@ -10,6 +10,7 @@ namespace Services.Organizations;
 /// </summary>
 public class OrganizationService(
     IOrganizationRepository organizationRepository,
+    IWorkProfileRepository workProfileRepository,
     IOptions<EmailOptions> emailOptions) : IOrganizationService
 {
     private const string PersonalWorkspaceDescription = "Auto-created personal workspace";
@@ -22,6 +23,12 @@ public class OrganizationService(
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var organizations = await organizationRepository.GetForUserAsync(normalizedEmail, cancellationToken);
+        var userMembership = organizations
+            .SelectMany(o => o.Memberships)
+            .FirstOrDefault(m => string.Equals(m.User.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase));
+        var workProfileId = userMembership is null
+            ? null
+            : (await workProfileRepository.FindByUserIdAsync(userMembership.UserId, cancellationToken))?.Id;
 
         return organizations.Select(o => new OrganizationDetailsDto
         {
@@ -29,9 +36,7 @@ public class OrganizationService(
             Name = o.Name,
             Description = o.Description,
             MaxUsers = o.MaxUsers,
-            WorkProfileId = o.Memberships
-                .FirstOrDefault(m => string.Equals(m.User.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
-                ?.WorkProfile?.Id,
+            WorkProfileId = workProfileId,
             Users = o.Memberships
                 .OrderByDescending(m => m.Role == ERole.Organizer)
                 .ThenBy(m => m.User.Username)

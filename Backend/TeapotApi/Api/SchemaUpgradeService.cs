@@ -46,7 +46,44 @@ public static class SchemaUpgradeService
             ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url character varying(500);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone character varying(100);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS break_color text;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS blocker_color text;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS org_colors text;
+
+            -- Work breaks are part of the scheduler contract. Older databases may
+            -- have work profiles and blocks but no persisted break table yet.
+            CREATE TABLE IF NOT EXISTS work_breaks (
+                id uuid DEFAULT gen_random_uuid() NOT NULL,
+                work_day_profile_id uuid NOT NULL,
+                start_time character varying(5) NOT NULL DEFAULT '12:00',
+                end_time character varying(5) NOT NULL DEFAULT '12:30'
+            );
+
+            ALTER TABLE work_breaks ADD COLUMN IF NOT EXISTS start_time character varying(5) NOT NULL DEFAULT '12:00';
+            ALTER TABLE work_breaks ADD COLUMN IF NOT EXISTS end_time character varying(5) NOT NULL DEFAULT '12:30';
+            ALTER TABLE work_breaks ADD COLUMN IF NOT EXISTS work_day_profile_id uuid;
+
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'work_breaks_pkey'
+                ) THEN
+                    ALTER TABLE work_breaks ADD CONSTRAINT work_breaks_pkey PRIMARY KEY (id);
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'work_breaks_work_day_profile_id_fkey'
+                ) THEN
+                    ALTER TABLE work_breaks
+                    ADD CONSTRAINT work_breaks_work_day_profile_id_fkey
+                    FOREIGN KEY (work_day_profile_id)
+                    REFERENCES work_day_profiles(id)
+                    ON DELETE CASCADE;
+                END IF;
+            END $$;
             
             -- Populate new user columns with sensible defaults if empty
             UPDATE users
@@ -140,6 +177,25 @@ public static class SchemaUpgradeService
 
             DELETE FROM organizations
             WHERE id IN (SELECT id FROM teapot_personal_orgs_to_delete);
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS public.recurring_blockers (
+                id uuid DEFAULT gen_random_uuid() NOT NULL,
+                work_profile_id uuid NOT NULL,
+                name character varying(100) NOT NULL,
+                days_of_week character varying(31) NOT NULL,
+                start_time character varying(5) NOT NULL,
+                end_time character varying(5) NOT NULL,
+                valid_from date,
+                valid_until date,
+                created_at timestamp with time zone DEFAULT now() NOT NULL,
+                edited_at timestamp with time zone,
+                CONSTRAINT recurring_blockers_pkey PRIMARY KEY (id),
+                CONSTRAINT recurring_blockers_work_profile_id_fkey
+                    FOREIGN KEY (work_profile_id) REFERENCES public.work_profiles(id) ON DELETE CASCADE
+            );
             """);
     }
 }
