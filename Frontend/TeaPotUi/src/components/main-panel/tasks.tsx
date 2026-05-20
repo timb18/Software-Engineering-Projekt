@@ -182,7 +182,7 @@ const Tasks: FC = () => {
 
   useEffect(() => {
     const fetchRecurringBlocker = async () => {
-      const token = getAccessTokenSilently();
+      const token = await getAccessTokenSilently();
       fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
