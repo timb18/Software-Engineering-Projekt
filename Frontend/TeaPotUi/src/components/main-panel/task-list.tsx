@@ -95,8 +95,16 @@ interface CreateTaskModalProps {
 }
 
 export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValues, workProfileId }) => {
-  const { user, addTask } = useUserStore();
+  const { user, addTask, activeOrganizationId } = useUserStore();
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Organization selector: lists ALL orgs the user belongs to.
+  // The work profile is shared across orgs (per-shift Company tagging),
+  // so we only need to tag the task with the chosen org id.
+  const availableOrgs = user.orgs ?? [];
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(
+    activeOrganizationId ?? availableOrgs[0]?.id ?? "",
+  );
 
   // ── Modal mode ────────────────────────────────────────────────────────────
   const [modalMode, setModalMode] = useState<"task" | "blocker">("task");
@@ -290,7 +298,7 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
       priority: form.priority,
       status: form.status,
       intensity: form.intensity,
-      org: user.orgs?.[0]?.id ?? "",
+      org: selectedOrgId || user.orgs?.[0]?.id || "",
       recurrence: "none",
       dependencies: dependencyOptions.filter((t) =>
         form.dependencies.includes(t.name),
@@ -634,6 +642,27 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
                 className={fieldClass}
               />
             </div>
+          </div>
+        )}
+
+        {/* Organization */}
+        {availableOrgs.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+              Organization
+            </label>
+            <select
+              value={selectedOrgId}
+              onChange={(e) => setSelectedOrgId(e.target.value)}
+              className={fieldClass}
+            >
+              {availableOrgs.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                  {org.id === activeOrganizationId ? " (active)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 

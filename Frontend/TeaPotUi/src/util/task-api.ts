@@ -51,8 +51,7 @@ const fromApi = (raw: Record<string, unknown>): Task => {
     // intensity: Effort/complexity level affecting scheduling algorithm weighting
     intensity: (raw.intensity as TaskIntensity | undefined) ?? "normal",
     status: (raw.status as Task["status"]) ?? "todo",
-    // org: Maps to workProfileId from backend (the organization/profile that owns the task)
-    org: raw.workProfileId as string,
+    org: (raw.organizationId as string | null | undefined) ?? "",
     recurrence: "none",
     dependencies: [],
     // timeEstimateMinutes: Converted from server's interval format; kept in minutes for UI
@@ -146,7 +145,14 @@ export async function fetchTask(workProfileId: string, taskId: string): Promise<
  */
 function buildTaskBody(task: Task) {
   const start = task.startDate.toISOString();
-  const deadline = (task.deadline ?? task.endDate).toISOString();
+  // Only send a deadline when the user actually set one. Falling back to endDate
+  // would mean that after Auto-Schedule (where endDate becomes the planned
+  // earlyFinish) every subsequent save would silently turn the planned finish
+  // into a hard deadline, which then breaks re-planning.
+  const deadline = task.deadline ? task.deadline.toISOString() : null;
+  // Window for the (frontend-only) ES/EF/LS/LF fields: prefer an explicit deadline,
+  // otherwise use the current endDate so the row is still well-formed for the API.
+  const windowEnd = (task.deadline ?? task.endDate).toISOString();
 
   // Use the stored estimate if available; otherwise derive it from the edited time range.
   // The fallback is only reliable for newly created tasks where both timestamps were chosen explicitly.
@@ -164,9 +170,10 @@ function buildTaskBody(task: Task) {
     deadline,
     status: task.status ?? "todo",
     earlyStart: start,
-    earlyFinish: deadline,
+    earlyFinish: windowEnd,
     lateStart: start,
-    lateFinish: deadline,
+    lateFinish: windowEnd,
+    organizationId: task.org && task.org.length > 0 ? task.org : null,
     dependsOnTaskIds: task.dependencies.map(d => d.id).filter((id): id is string => Boolean(id)),
   };
 }
