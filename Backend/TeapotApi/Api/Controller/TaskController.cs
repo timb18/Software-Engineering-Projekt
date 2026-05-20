@@ -1,10 +1,12 @@
 using DataAccess.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controller;
 
 [Route("api/task/{workProfileId:guid}")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class TaskController(IUserTaskService taskService) : ControllerBase
 {
     /// <summary>Loads a single task for editing.</summary>

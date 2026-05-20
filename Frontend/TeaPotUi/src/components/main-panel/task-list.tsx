@@ -1,9 +1,17 @@
 import dayjs from "dayjs";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 import useUserStore from "../../stores/user-store";
 import EditTaskModal from "../EditTaskModal";
 import type { Task } from "../../util/types";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -20,7 +28,13 @@ type RecurringBlocker = {
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const WEEKDAY_LABELS: Record<string, string> = {
-  Mon: "Mo", Tue: "Di", Wed: "Mi", Thu: "Do", Fri: "Fr", Sat: "Sa", Sun: "So",
+  Mon: "Mo",
+  Tue: "Di",
+  Wed: "Mi",
+  Thu: "Do",
+  Fri: "Fr",
+  Sat: "Sa",
+  Sun: "So",
 };
 
 const emptyBlockerForm = (): RecurringBlocker => ({
@@ -94,7 +108,12 @@ interface CreateTaskModalProps {
   workProfileId?: string;
 }
 
-export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValues, workProfileId }) => {
+export const CreateTaskModal: FC<CreateTaskModalProps> = ({
+  onClose,
+  initialValues,
+  workProfileId,
+}) => {
+  const { getAccessTokenSilently } = useAuth0();
   const { user, addTask, activeOrganizationId } = useUserStore();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -132,7 +151,7 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
     // Pre-fill from calendar drag selection (datetime-local → split into date + time)
     if (initialValues?.startDate) {
       base.startTime = initialValues.startDate.slice(11, 16); // "HH:mm"
-      base.validFrom = initialValues.startDate.slice(0, 10);  // "YYYY-MM-DD"
+      base.validFrom = initialValues.startDate.slice(0, 10); // "YYYY-MM-DD"
     }
     if (initialValues?.endDate) {
       base.endTime = initialValues.endDate.slice(11, 16);
@@ -147,10 +166,16 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
   const fetchBlockersList = useCallback(async () => {
     if (!workProfileId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`);
+      const token = await getAccessTokenSilently();
+      const res = await fetch(
+        `${API_BASE}/api/recurring-blocker/${workProfileId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
       if (res.ok) setBlockers((await res.json()) as RecurringBlocker[]);
-    } catch { /* ignore */ }
-  }, [workProfileId]);
+    } catch {
+      /* ignore */
+    }
+  }, [getAccessTokenSilently, workProfileId]);
 
   useEffect(() => {
     if (modalMode === "blocker") void fetchBlockersList();
@@ -167,9 +192,12 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
   const startEditBlocker = (b: RecurringBlocker) => {
     setEditingBlockerId(b.id ?? null);
     setBlockerForm({
-      name: b.name, daysOfWeek: b.daysOfWeek,
-      startTime: b.startTime, endTime: b.endTime,
-      validFrom: b.validFrom ?? "", validUntil: b.validUntil ?? "",
+      name: b.name,
+      daysOfWeek: b.daysOfWeek,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      validFrom: b.validFrom ?? "",
+      validUntil: b.validUntil ?? "",
     });
     setBlockerError(undefined);
     setBlockerStatus(undefined);
@@ -196,13 +224,20 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
       const url = editingBlockerId
         ? `${API_BASE}/api/recurring-blocker/${workProfileId}/${editingBlockerId}`
         : `${API_BASE}/api/recurring-blocker/${workProfileId}`;
+      const token = await getAccessTokenSilently();
       const res = await fetch(url, {
         method: editingBlockerId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error((await res.text()) || "Could not save blocker.");
-      setBlockerStatus(editingBlockerId ? "Blocker updated." : "Blocker created.");
+      if (!res.ok)
+        throw new Error((await res.text()) || "Could not save blocker.");
+      setBlockerStatus(
+        editingBlockerId ? "Blocker updated." : "Blocker created.",
+      );
       cancelBlockerEdit();
       await fetchBlockersList();
     } catch (e) {
@@ -215,7 +250,11 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
   const deleteBlockerById = async (id: string) => {
     if (!workProfileId || !window.confirm("Blocker löschen?")) return;
     try {
-      await fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}/${id}`, { method: "DELETE" });
+      const token = await getAccessTokenSilently();
+      await fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       await fetchBlockersList();
     } catch (e) {
       setBlockerError(e instanceof Error ? e.message : "Could not delete.");
@@ -248,7 +287,9 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
       return;
     }
     if (!form.deadline) {
-      setError(form.isFixed ? "End time is required." : "Deadline is required.");
+      setError(
+        form.isFixed ? "End time is required." : "Deadline is required.",
+      );
       return;
     }
     if (form.isFixed && !form.startDate) {
@@ -331,16 +372,23 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
       onClick={() => {}}
     >
-      <div data-modal-backdrop="static" className="flex w-full max-w-2xl max-h-[90dvh] flex-col gap-4 overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl sm:rounded-3xl">
+      <div
+        data-modal-backdrop="static"
+        className="flex max-h-[90dvh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl sm:rounded-3xl"
+      >
         {/* Header with mode toggle */}
         <div className="flex items-center justify-between">
           <div className="flex gap-1 rounded-full border border-slate-700 bg-slate-950/60 p-1">
             <button
               type="button"
-              onClick={() => { setModalMode("task"); setBlockerError(undefined); setBlockerStatus(undefined); }}
+              onClick={() => {
+                setModalMode("task");
+                setBlockerError(undefined);
+                setBlockerStatus(undefined);
+              }}
               className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 modalMode === "task"
-                  ? "bg-emerald-400/20 text-emerald-100 border border-emerald-300/50"
+                  ? "border border-emerald-300/50 bg-emerald-400/20 text-emerald-100"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
@@ -349,10 +397,13 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
             {workProfileId && (
               <button
                 type="button"
-                onClick={() => { setModalMode("blocker"); void fetchBlockersList(); }}
+                onClick={() => {
+                  setModalMode("blocker");
+                  void fetchBlockersList();
+                }}
                 className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                   modalMode === "blocker"
-                    ? "bg-violet-400/20 text-violet-100 border border-violet-300/50"
+                    ? "border border-violet-300/50 bg-violet-400/20 text-violet-100"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -372,33 +423,47 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
         {/* ─── BLOCKER MODE ─── */}
         {modalMode === "blocker" && (
           <div className="flex flex-col gap-5">
-            <p className="text-xs text-slate-400">Wiederkehrende Blocker werden beim Auto-Schedule automatisch aus den freien Slots herausgerechnet.</p>
+            <p className="text-xs text-slate-400">
+              Wiederkehrende Blocker werden beim Auto-Schedule automatisch aus
+              den freien Slots herausgerechnet.
+            </p>
 
             {/* Form */}
-            <div className="rounded-2xl border border-violet-400/20 bg-violet-500/5 p-4 flex flex-col gap-4">
-              <div className="text-xs font-semibold text-violet-200 tracking-wide">
+            <div className="flex flex-col gap-4 rounded-2xl border border-violet-400/20 bg-violet-500/5 p-4">
+              <div className="text-xs font-semibold tracking-wide text-violet-200">
                 {editingBlockerId ? "Blocker bearbeiten" : "Neuer Blocker"}
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Name</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Name
+                </label>
                 <input
                   value={blockerForm.name}
-                  onChange={(e) => setBlockerForm({ ...blockerForm, name: e.target.value })}
+                  onChange={(e) =>
+                    setBlockerForm({ ...blockerForm, name: e.target.value })
+                  }
                   placeholder="z.B. Team-Standup, Mittagspause…"
-                  className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-sm text-slate-50 ring-violet-400/40 outline-none focus:border-violet-400/60 focus:ring"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Wochentage</label>
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Wochentage
+                </label>
                 <div className="flex flex-wrap gap-1.5">
                   {WEEKDAYS.map((d) => {
-                    const active = blockerForm.daysOfWeek.split(",").includes(d);
+                    const active = blockerForm.daysOfWeek
+                      .split(",")
+                      .includes(d);
                     return (
-                      <button key={d} type="button" onClick={() => toggleBlockerDay(d)}
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => toggleBlockerDay(d)}
                         className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                           active
-                            ? "bg-violet-500/25 text-violet-100 border border-violet-400/60"
-                            : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-slate-200"
+                            ? "border border-violet-400/60 bg-violet-500/25 text-violet-100"
+                            : "border border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500 hover:text-slate-200"
                         }`}
                       >
                         {WEEKDAY_LABELS[d]}
@@ -409,48 +474,108 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Startzeit</label>
-                  <input type="time" value={blockerForm.startTime}
-                    onChange={(e) => setBlockerForm({ ...blockerForm, startTime: e.target.value })}
-                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    Startzeit
+                  </label>
+                  <input
+                    type="time"
+                    value={blockerForm.startTime}
+                    onChange={(e) =>
+                      setBlockerForm({
+                        ...blockerForm,
+                        startTime: e.target.value,
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-sm text-slate-50 ring-violet-400/40 outline-none focus:border-violet-400/60 focus:ring"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Endzeit</label>
-                  <input type="time" value={blockerForm.endTime}
-                    onChange={(e) => setBlockerForm({ ...blockerForm, endTime: e.target.value })}
-                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    Endzeit
+                  </label>
+                  <input
+                    type="time"
+                    value={blockerForm.endTime}
+                    onChange={(e) =>
+                      setBlockerForm({
+                        ...blockerForm,
+                        endTime: e.target.value,
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-sm text-slate-50 ring-violet-400/40 outline-none focus:border-violet-400/60 focus:ring"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Gültig ab (optional)</label>
-                  <input type="date" value={blockerForm.validFrom ?? ""}
-                    min="2000-01-01" max="2099-12-31"
-                    onChange={(e) => setBlockerForm({ ...blockerForm, validFrom: e.target.value })}
-                    onBlur={(e) => setBlockerForm({ ...blockerForm, validFrom: clampYear(e.target.value) })}
-                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    Gültig ab (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={blockerForm.validFrom ?? ""}
+                    min="2000-01-01"
+                    max="2099-12-31"
+                    onChange={(e) =>
+                      setBlockerForm({
+                        ...blockerForm,
+                        validFrom: e.target.value,
+                      })
+                    }
+                    onBlur={(e) =>
+                      setBlockerForm({
+                        ...blockerForm,
+                        validFrom: clampYear(e.target.value),
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-sm text-slate-50 ring-violet-400/40 outline-none focus:border-violet-400/60 focus:ring"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Gültig bis (optional)</label>
-                  <input type="date" value={blockerForm.validUntil ?? ""}
-                    min="2000-01-01" max="2099-12-31"
-                    onChange={(e) => setBlockerForm({ ...blockerForm, validUntil: e.target.value })}
-                    onBlur={(e) => setBlockerForm({ ...blockerForm, validUntil: clampYear(e.target.value) })}
-                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    Gültig bis (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={blockerForm.validUntil ?? ""}
+                    min="2000-01-01"
+                    max="2099-12-31"
+                    onChange={(e) =>
+                      setBlockerForm({
+                        ...blockerForm,
+                        validUntil: e.target.value,
+                      })
+                    }
+                    onBlur={(e) =>
+                      setBlockerForm({
+                        ...blockerForm,
+                        validUntil: clampYear(e.target.value),
+                      })
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-sm text-slate-50 ring-violet-400/40 outline-none focus:border-violet-400/60 focus:ring"
                   />
                 </div>
               </div>
-              {blockerError && <div className="text-xs text-rose-300">{blockerError}</div>}
-              {blockerStatus && <div className="text-xs text-emerald-300">{blockerStatus}</div>}
+              {blockerError && (
+                <div className="text-xs text-rose-300">{blockerError}</div>
+              )}
+              {blockerStatus && (
+                <div className="text-xs text-emerald-300">{blockerStatus}</div>
+              )}
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => void saveBlocker()}
-                  disabled={isSavingBlocker || !blockerForm.name || !blockerForm.daysOfWeek}
+                  disabled={
+                    isSavingBlocker ||
+                    !blockerForm.name ||
+                    !blockerForm.daysOfWeek
+                  }
                   className="flex-1 rounded-xl border border-violet-400/60 bg-violet-500/20 py-2 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/30 disabled:opacity-50"
                 >
-                  {isSavingBlocker ? "Speichern…" : editingBlockerId ? "Aktualisieren" : "Blocker erstellen"}
+                  {isSavingBlocker
+                    ? "Speichern…"
+                    : editingBlockerId
+                      ? "Aktualisieren"
+                      : "Blocker erstellen"}
                 </button>
                 {editingBlockerId && (
                   <button
@@ -471,16 +596,28 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                <div className="text-xs tracking-[0.14em] text-slate-500 uppercase">Bestehende Blocker</div>
+                <div className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Bestehende Blocker
+                </div>
                 {blockers.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3">
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3"
+                  >
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-100 truncate">{b.name}</div>
+                      <div className="truncate text-sm font-semibold text-slate-100">
+                        {b.name}
+                      </div>
                       <div className="text-xs text-slate-400">
-                        {b.daysOfWeek.split(",").map((d) => WEEKDAY_LABELS[d] ?? d).join(", ")}
+                        {b.daysOfWeek
+                          .split(",")
+                          .map((d) => WEEKDAY_LABELS[d] ?? d)
+                          .join(", ")}
                         &nbsp;·&nbsp;{b.startTime}–{b.endTime}
                         {(b.validFrom || b.validUntil) && (
-                          <span className="ml-2 text-slate-500">({b.validFrom ?? "…"} – {b.validUntil ?? "…"})</span>
+                          <span className="ml-2 text-slate-500">
+                            ({b.validFrom ?? "…"} – {b.validUntil ?? "…"})
+                          </span>
                         )}
                       </div>
                     </div>
@@ -489,12 +626,16 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
                         type="button"
                         onClick={() => startEditBlocker(b)}
                         className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100"
-                      >Edit</button>
+                      >
+                        Edit
+                      </button>
                       <button
                         type="button"
                         onClick={() => void deleteBlockerById(b.id!)}
                         className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 hover:bg-rose-500/20"
-                      >Del</button>
+                      >
+                        Del
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -504,290 +645,321 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValu
         )}
 
         {/* ─── TASK MODE ─── */}
-        {modalMode === "task" && (<>
-        {/* Quick templates */}
-        <div>
-          <div className="mb-2 text-xs tracking-[0.14em] text-slate-500 uppercase">
-            Quick templates
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.label}
-                type="button"
-                onClick={() => applyTemplate(tpl)}
-                className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-left transition hover:border-emerald-300/50 hover:bg-slate-700/60 hover:text-emerald-100"
-              >
-                <div className="text-xs font-medium text-slate-200">
-                  {tpl.label}
-                </div>
-                <div className="text-[11px] text-slate-500">{tpl.minutes} min</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Title */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-            Title <span className="text-rose-400">*</span>
-          </label>
-          <input
-            autoFocus
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className={fieldClass}
-            placeholder="What needs to be done?"
-          />
-        </div>
-
-        {/* Description */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-            Description
-          </label>
-          <textarea
-            rows={3}
-            value={form.description}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, description: e.target.value }))
-            }
-            className={`${fieldClass} resize-none`}
-            placeholder="Optional details…"
-          />
-        </div>
-
-        {/* Fixed timeslot toggle */}
-        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-800 bg-slate-800/40 px-3 py-2.5 transition hover:border-emerald-400/30">
-          <input
-            type="checkbox"
-            checked={form.isFixed}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, isFixed: e.target.checked }))
-            }
-            className="size-4 accent-emerald-400"
-          />
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold text-slate-100">
-              Fixed timeslot
-            </span>
-            <span className="text-[11px] text-slate-500">
-              Standups, meetings – must stay at their scheduled time.
-            </span>
-          </div>
-        </label>
-
-        {/* Date fields – adapt based on fixed vs flexible */}
-        {form.isFixed ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                Start <span className="text-rose-400">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                value={form.startDate}
-                min="2000-01-01T00:00"
-                max="2099-12-31T23:59"
-                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                onBlur={(e) => setForm((f) => ({ ...f, startDate: clampYear(e.target.value) }))}
-                className={fieldClass}
-              />
+        {modalMode === "task" && (
+          <>
+            {/* Quick templates */}
+            <div>
+              <div className="mb-2 text-xs tracking-[0.14em] text-slate-500 uppercase">
+                Quick templates
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.label}
+                    type="button"
+                    onClick={() => applyTemplate(tpl)}
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-left transition hover:border-emerald-300/50 hover:bg-slate-700/60 hover:text-emerald-100"
+                  >
+                    <div className="text-xs font-medium text-slate-200">
+                      {tpl.label}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {tpl.minutes} min
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Title */}
             <div className="flex flex-col gap-1">
               <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                End <span className="text-rose-400">*</span>
+                Title <span className="text-rose-400">*</span>
               </label>
               <input
-                type="datetime-local"
-                value={form.deadline}
-                min="2000-01-01T00:00"
-                max="2099-12-31T23:59"
-                onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-                onBlur={(e) => setForm((f) => ({ ...f, deadline: clampYear(e.target.value) }))}
-                className={fieldClass}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                Duration (min) <span className="text-rose-400">*</span>
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={form.durationMinutes}
+                autoFocus
+                value={form.name}
                 onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    durationMinutes: Number(e.target.value),
-                  }))
+                  setForm((f) => ({ ...f, name: e.target.value }))
                 }
                 className={fieldClass}
+                placeholder="What needs to be done?"
               />
+            </div>
+
+            {/* Description */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                Description
+              </label>
+              <textarea
+                rows={3}
+                value={form.description}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
+                className={`${fieldClass} resize-none`}
+                placeholder="Optional details…"
+              />
+            </div>
+
+            {/* Fixed timeslot toggle */}
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-800 bg-slate-800/40 px-3 py-2.5 transition hover:border-emerald-400/30">
+              <input
+                type="checkbox"
+                checked={form.isFixed}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, isFixed: e.target.checked }))
+                }
+                className="size-4 accent-emerald-400"
+              />
+              <div className="flex flex-col leading-tight">
+                <span className="text-sm font-semibold text-slate-100">
+                  Fixed timeslot
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Standups, meetings – must stay at their scheduled time.
+                </span>
+              </div>
+            </label>
+
+            {/* Date fields – adapt based on fixed vs flexible */}
+            {form.isFixed ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    Start <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={form.startDate}
+                    min="2000-01-01T00:00"
+                    max="2099-12-31T23:59"
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, startDate: e.target.value }))
+                    }
+                    onBlur={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        startDate: clampYear(e.target.value),
+                      }))
+                    }
+                    className={fieldClass}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    End <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={form.deadline}
+                    min="2000-01-01T00:00"
+                    max="2099-12-31T23:59"
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, deadline: e.target.value }))
+                    }
+                    onBlur={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        deadline: clampYear(e.target.value),
+                      }))
+                    }
+                    className={fieldClass}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    Duration (min) <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.durationMinutes}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        durationMinutes: Number(e.target.value),
+                      }))
+                    }
+                    className={fieldClass}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                    Deadline <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={form.deadline}
+                    min="2000-01-01T00:00"
+                    max="2099-12-31T23:59"
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, deadline: e.target.value }))
+                    }
+                    onBlur={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        deadline: clampYear(e.target.value),
+                      }))
+                    }
+                    className={fieldClass}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Organization */}
+            {availableOrgs.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Organization
+                </label>
+                <select
+                  value={selectedOrgId}
+                  onChange={(e) => setSelectedOrgId(e.target.value)}
+                  className={fieldClass}
+                >
+                  {availableOrgs.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                      {org.id === activeOrganizationId ? " (active)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Priority + Status + Intensity */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Priority
+                </label>
+                <select
+                  value={form.priority}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      priority: e.target.value as NonNullable<Task["priority"]>,
+                    }))
+                  }
+                  className={fieldClass}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Status
+                </label>
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      status: e.target.value as NonNullable<Task["status"]>,
+                    }))
+                  }
+                  className={fieldClass}
+                >
+                  <option value="todo">To Do</option>
+                  <option value="in-progress">In Progress</option>
+                </select>
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-                Deadline <span className="text-rose-400">*</span>
+                Intensity
               </label>
-              <input
-                type="datetime-local"
-                value={form.deadline}
-                min="2000-01-01T00:00"
-                max="2099-12-31T23:59"
-                onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-                onBlur={(e) => setForm((f) => ({ ...f, deadline: clampYear(e.target.value) }))}
-                className={fieldClass}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Organization */}
-        {availableOrgs.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-              Organization
-            </label>
-            <select
-              value={selectedOrgId}
-              onChange={(e) => setSelectedOrgId(e.target.value)}
-              className={fieldClass}
-            >
-              {availableOrgs.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                  {org.id === activeOrganizationId ? " (active)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Priority + Status + Intensity */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-              Priority
-            </label>
-            <select
-              value={form.priority}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  priority: e.target.value as NonNullable<Task["priority"]>,
-                }))
-              }
-              className={fieldClass}
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-              Status
-            </label>
-            <select
-              value={form.status}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  status: e.target.value as NonNullable<Task["status"]>,
-                }))
-              }
-              className={fieldClass}
-            >
-              <option value="todo">To Do</option>
-              <option value="in-progress">In Progress</option>
-            </select>
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-            Intensity
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {(["light", "normal", "intensive"] as const).map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, intensity: lvl }))}
-                className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                  form.intensity === lvl
-                    ? lvl === "light"
-                      ? "border-sky-400/50 bg-sky-400/15 text-sky-200"
+              <div className="grid grid-cols-3 gap-2">
+                {(["light", "normal", "intensive"] as const).map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, intensity: lvl }))}
+                    className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                      form.intensity === lvl
+                        ? lvl === "light"
+                          ? "border-sky-400/50 bg-sky-400/15 text-sky-200"
+                          : lvl === "normal"
+                            ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-200"
+                            : "border-rose-400/50 bg-rose-400/15 text-rose-200"
+                        : "border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-600 hover:text-slate-200"
+                    }`}
+                  >
+                    {lvl === "light"
+                      ? "🌤 Light"
                       : lvl === "normal"
-                        ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-200"
-                        : "border-rose-400/50 bg-rose-400/15 text-rose-200"
-                    : "border-slate-800 bg-slate-800/40 text-slate-400 hover:border-slate-600 hover:text-slate-200"
-                }`}
-              >
-                {lvl === "light" ? "🌤 Light" : lvl === "normal" ? "⚡ Normal" : "🔥 Intensive"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Dependencies */}
-        {dependencyOptions.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
-              Dependencies
-            </label>
-            <div className="flex max-h-36 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-800/40 p-3">
-              {dependencyOptions.map((dep) => (
-                <label
-                  key={dep.name}
-                  className="flex cursor-pointer items-center gap-2 text-sm text-slate-200"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.dependencies.includes(dep.name)}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...form.dependencies, dep.name]
-                        : form.dependencies.filter((n) => n !== dep.name);
-                      setForm((f) => ({ ...f, dependencies: next }));
-                    }}
-                    className="accent-emerald-400"
-                  />
-                  <span>{dep.name}</span>
-                </label>
-              ))}
+                        ? "⚡ Normal"
+                        : "🔥 Intensive"}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
-            {error}
-          </div>
-        )}
+            {/* Dependencies */}
+            {dependencyOptions.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Dependencies
+                </label>
+                <div className="flex max-h-36 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-800/40 p-3">
+                  {dependencyOptions.map((dep) => (
+                    <label
+                      key={dep.name}
+                      className="flex cursor-pointer items-center gap-2 text-sm text-slate-200"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.dependencies.includes(dep.name)}
+                        onChange={(e) => {
+                          const next = e.target.checked
+                            ? [...form.dependencies, dep.name]
+                            : form.dependencies.filter((n) => n !== dep.name);
+                          setForm((f) => ({ ...f, dependencies: next }));
+                        }}
+                        className="accent-emerald-400"
+                      />
+                      <span>{dep.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* Actions */}
-        <div className="flex gap-3 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-slate-700 py-2 text-sm text-slate-300 transition hover:bg-slate-800"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={saving}
-            className="flex-1 rounded-xl border border-emerald-300/60 bg-emerald-400/15 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Create Task"}
-          </button>
-        </div>
-        </>)}
+            {/* Error */}
+            {error && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+                {error}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-xl border border-slate-700 py-2 text-sm text-slate-300 transition hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submit}
+                disabled={saving}
+                className="flex-1 rounded-xl border border-emerald-300/60 bg-emerald-400/15 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25 disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Create Task"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>,
     document.body,
@@ -842,7 +1014,10 @@ const TaskBoard: FC = () => {
         return false;
       if (statusFilter === "active") {
         if (t.status === "done") return false;
-      } else if (statusFilter !== "done" && (t.status ?? "todo") !== statusFilter) {
+      } else if (
+        statusFilter !== "done" &&
+        (t.status ?? "todo") !== statusFilter
+      ) {
         return false;
       } else if (statusFilter === "done" && t.status !== "done") {
         return false;
@@ -926,7 +1101,7 @@ const TaskBoard: FC = () => {
       {/* Search bar + filter toggle */}
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-slate-500">
             🔍
           </span>
           <input
@@ -934,7 +1109,7 @@ const TaskBoard: FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tasks…"
-            className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 py-2.5 pl-9 pr-4 text-sm text-slate-50 ring-emerald-400/40 outline-none transition focus:border-emerald-400/60 focus:ring"
+            className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 py-2.5 pr-4 pl-9 text-sm text-slate-50 ring-emerald-400/40 transition outline-none focus:border-emerald-400/60 focus:ring"
           />
         </div>
         <button
@@ -1003,32 +1178,37 @@ const TaskBoard: FC = () => {
 
       {/* Status tabs */}
       <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 p-1">
-        {(["active", "todo", "in-progress", "done"] as StatusFilter[]).map((s) => (
-          <button
-            key={s}
-            onClick={() => { setStatusFilter(s); setPage(1); }}
-            className={`flex min-w-max flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
-              statusFilter === s
-                ? s === "done"
-                  ? "bg-slate-600/40 text-slate-300 shadow-sm"
-                  : "bg-emerald-400/20 text-emerald-200 shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {s === "active" ? "Active" : STATUS_LABEL[s]}
-            <span
-              className={`rounded-md px-1.5 py-0.5 text-xs ${
+        {(["active", "todo", "in-progress", "done"] as StatusFilter[]).map(
+          (s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setStatusFilter(s);
+                setPage(1);
+              }}
+              className={`flex min-w-max flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
                 statusFilter === s
                   ? s === "done"
-                    ? "bg-slate-600/40 text-slate-400"
-                    : "bg-emerald-400/20 text-emerald-300"
-                  : "bg-slate-800 text-slate-500"
+                    ? "bg-slate-600/40 text-slate-300 shadow-sm"
+                    : "bg-emerald-400/20 text-emerald-200 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              {statusCounts[s]}
-            </span>
-          </button>
-        ))}
+              {s === "active" ? "Active" : STATUS_LABEL[s]}
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-xs ${
+                  statusFilter === s
+                    ? s === "done"
+                      ? "bg-slate-600/40 text-slate-400"
+                      : "bg-emerald-400/20 text-emerald-300"
+                    : "bg-slate-800 text-slate-500"
+                }`}
+              >
+                {statusCounts[s]}
+              </span>
+            </button>
+          ),
+        )}
       </div>
 
       {/* Sort toolbar */}
@@ -1106,7 +1286,7 @@ const TaskBoard: FC = () => {
               <div
                 key={task.id ?? `${task.name}-${i}`}
                 onClick={() => setSelectedTask(task)}
-                className={`group cursor-pointer rounded-2xl border bg-slate-900/70 p-4 shadow-sm transition hover:shadow-md hover:bg-slate-800/80 ${
+                className={`group cursor-pointer rounded-2xl border bg-slate-900/70 p-4 shadow-sm transition hover:bg-slate-800/80 hover:shadow-md ${
                   isOverdue
                     ? "border-rose-500/30 hover:border-rose-400/50"
                     : isDueToday
@@ -1197,7 +1377,10 @@ const TaskBoard: FC = () => {
       )}
 
       {createOpen && (
-        <CreateTaskModal onClose={() => setCreateOpen(false)} workProfileId={workProfileId ?? undefined} />
+        <CreateTaskModal
+          onClose={() => setCreateOpen(false)}
+          workProfileId={workProfileId ?? undefined}
+        />
       )}
       {selectedTask && (
         <EditTaskModal

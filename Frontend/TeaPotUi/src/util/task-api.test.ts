@@ -60,7 +60,7 @@ describe("fetchTasks", () => {
   it("GETs /api/task/{workProfileId}", async () => {
     globalThis.fetch = mockFetch([apiTask]);
 
-    await fetchTasks(WORK_PROFILE_ID);
+    await fetchTasks(WORK_PROFILE_ID, "test-token");
 
     const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}`);
@@ -69,7 +69,7 @@ describe("fetchTasks", () => {
   it("maps backend fields to frontend Task shape", async () => {
     globalThis.fetch = mockFetch([apiTask]);
 
-    const tasks = await fetchTasks(WORK_PROFILE_ID);
+    const tasks = await fetchTasks(WORK_PROFILE_ID, "test-token");
 
     expect(tasks).toHaveLength(1);
     const task = tasks[0];
@@ -87,7 +87,7 @@ describe("fetchTasks", () => {
       earlyFinish: "2026-05-20T08:00:00Z",
     }]);
 
-    const [task] = await fetchTasks(WORK_PROFILE_ID);
+    const [task] = await fetchTasks(WORK_PROFILE_ID, "test-token");
 
     expect(task.startDate.toISOString()).toBe("2026-05-20T07:00:00.000Z");
     expect(task.endDate.toISOString()).toBe("2026-05-20T08:00:00.000Z");
@@ -96,7 +96,7 @@ describe("fetchTasks", () => {
   it("throws when the response is not ok", async () => {
     globalThis.fetch = mockFetch(null, false, 404);
 
-    await expect(fetchTasks(WORK_PROFILE_ID)).rejects.toThrow("fetchTasks failed");
+    await expect(fetchTasks(WORK_PROFILE_ID, "test-token")).rejects.toThrow("fetchTasks failed");
   });
 });
 
@@ -113,7 +113,7 @@ describe("fetchBlocks", () => {
       isFixed: false,
     }]);
 
-    const blocks = await fetchBlocks(WORK_PROFILE_ID);
+    const blocks = await fetchBlocks(WORK_PROFILE_ID, "test-token");
 
     expect(blocks).toHaveLength(1);
     expect(blocks[0].startDate.toISOString()).toBe("2026-05-20T07:00:00.000Z");
@@ -127,7 +127,7 @@ describe("createTask", () => {
   it("POSTs to /api/task/{workProfileId}", async () => {
     globalThis.fetch = mockFetch(apiTask);
 
-    await createTask(WORK_PROFILE_ID, makeTask());
+    await createTask(WORK_PROFILE_ID, makeTask(), "test-token");
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}`);
@@ -137,7 +137,7 @@ describe("createTask", () => {
   it("returns the saved task with the server-assigned id", async () => {
     globalThis.fetch = mockFetch({ ...apiTask, id: "server-assigned-id" });
 
-    const result = await createTask(WORK_PROFILE_ID, makeTask());
+    const result = await createTask(WORK_PROFILE_ID, makeTask(), "test-token");
 
     expect(result.id).toBe("server-assigned-id");
   });
@@ -146,7 +146,7 @@ describe("createTask", () => {
     globalThis.fetch = mockFetch(apiTask);
     const task = makeTask({ priority: "high", status: "in-progress" });
 
-    await createTask(WORK_PROFILE_ID, task);
+    await createTask(WORK_PROFILE_ID, task, "test-token");
 
     const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]!.body as string);
     expect(body.priority).toBe("high");
@@ -156,7 +156,7 @@ describe("createTask", () => {
   it("always sends intensity as 'normal'", async () => {
     globalThis.fetch = mockFetch(apiTask);
 
-    await createTask(WORK_PROFILE_ID, makeTask());
+    await createTask(WORK_PROFILE_ID, makeTask(), "test-token");
 
     const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]!.body as string);
     expect(body.intensity).toBe("normal");
@@ -170,7 +170,7 @@ describe("createTask", () => {
       endDate: new Date("2026-04-25T10:00:00Z"),
     });
 
-    await createTask(WORK_PROFILE_ID, task);
+    await createTask(WORK_PROFILE_ID, task, "test-token");
 
     const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]!.body as string);
     expect(body.timeEstimate).toBe("01:00:00");
@@ -184,7 +184,7 @@ describe("createTask", () => {
       text: () => Promise.resolve("Validation failed"),
     });
 
-    await expect(createTask(WORK_PROFILE_ID, makeTask())).rejects.toThrow("createTask failed");
+    await expect(createTask(WORK_PROFILE_ID, makeTask(), "test-token")).rejects.toThrow("createTask failed");
   });
 });
 
@@ -194,7 +194,7 @@ describe("updateTask", () => {
   it("PUTs to /api/task/{workProfileId}/{taskId}", async () => {
     globalThis.fetch = mockFetch(apiTask);
 
-    await updateTask(WORK_PROFILE_ID, TASK_ID, makeTask());
+    await updateTask(WORK_PROFILE_ID, TASK_ID, makeTask(), "test-token");
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
@@ -204,7 +204,7 @@ describe("updateTask", () => {
   it("returns the updated task mapped to the frontend Task shape", async () => {
     globalThis.fetch = mockFetch({ ...apiTask, status: "done" });
 
-    const result = await updateTask(WORK_PROFILE_ID, TASK_ID, makeTask({ status: "done" }));
+    const result = await updateTask(WORK_PROFILE_ID, TASK_ID, makeTask({ status: "done" }), "test-token");
 
     expect(result.status).toBe("done");
   });
@@ -212,7 +212,7 @@ describe("updateTask", () => {
   it("throws when response is not ok", async () => {
     globalThis.fetch = mockFetch(null, false, 404);
 
-    await expect(updateTask(WORK_PROFILE_ID, TASK_ID, makeTask())).rejects.toThrow("updateTask failed");
+    await expect(updateTask(WORK_PROFILE_ID, TASK_ID, makeTask(), "test-token")).rejects.toThrow("updateTask failed");
   });
 });
 
@@ -222,7 +222,7 @@ describe("deleteTask", () => {
   it("sends DELETE to /api/task/{workProfileId}/{taskId}", async () => {
     globalThis.fetch = mockFetch(null, true, 204);
 
-    await deleteTask(WORK_PROFILE_ID, TASK_ID);
+    await deleteTask(WORK_PROFILE_ID, TASK_ID, "test-token");
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(url).toBe(`${API_BASE}/api/task/${WORK_PROFILE_ID}/${TASK_ID}`);
@@ -232,12 +232,12 @@ describe("deleteTask", () => {
   it("resolves without a return value on success", async () => {
     globalThis.fetch = mockFetch(null, true, 204);
 
-    await expect(deleteTask(WORK_PROFILE_ID, TASK_ID)).resolves.toBeUndefined();
+    await expect(deleteTask(WORK_PROFILE_ID, TASK_ID, "test-token")).resolves.toBeUndefined();
   });
 
   it("throws when response is not ok", async () => {
     globalThis.fetch = mockFetch(null, false, 404);
 
-    await expect(deleteTask(WORK_PROFILE_ID, TASK_ID)).rejects.toThrow("deleteTask failed");
+    await expect(deleteTask(WORK_PROFILE_ID, TASK_ID, "test-token")).rejects.toThrow("deleteTask failed");
   });
 });

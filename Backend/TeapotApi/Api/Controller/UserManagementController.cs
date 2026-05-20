@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,6 +13,8 @@ namespace Api.Controller;
 /// </remarks>
 /// <param name="managementService">The interface for managing user data and operations.</param>
 [Route("api/users/management")]
+[ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class UserManagementController(IUserManagementService managementService) : ControllerBase
 {
     

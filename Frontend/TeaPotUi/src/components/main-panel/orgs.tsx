@@ -8,6 +8,7 @@ import {
   removeUserFromOrganization,
   updateMembershipRole,
 } from "../../util/org-api";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const tabOptions = ["members", "invites", "invite", "settings"] as const;
 type Tab = (typeof tabOptions)[number];
@@ -49,6 +50,8 @@ const sortMembersByRole = (members: User[]) =>
 const Orgs: FC = () => {
   const { user, setUser, activeOrganizationId, setActiveOrganization } =
     useUserStore();
+
+  const { getAccessTokenSilently } = useAuth0();
 
   const [orgs, setOrgs] = useState<Org[]>(user?.orgs ?? []);
   const [invites, setInvites] = useState<Invitation[]>(user?.invites ?? []);
@@ -94,7 +97,11 @@ const Orgs: FC = () => {
   };
 
   const refreshOrganizationsFromBackend = async () => {
-    const organizations = await fetchOrganizationsByUserEmail(user.email);
+    const token = await getAccessTokenSilently();
+    const organizations = await fetchOrganizationsByUserEmail(
+      user.email,
+      token,
+    );
     const nextOrgs = await Promise.all(
       organizations.map(async (org) => ({
         ...org,
@@ -142,7 +149,11 @@ const Orgs: FC = () => {
       }
 
       try {
-        const organizations = await fetchOrganizationsByUserEmail(user.email);
+        const token = await getAccessTokenSilently();
+        const organizations = await fetchOrganizationsByUserEmail(
+          user.email,
+          token,
+        );
         const nextOrgs = await Promise.all(
           organizations.map(async (org) => ({
             ...org,
@@ -235,7 +246,8 @@ const Orgs: FC = () => {
       return;
     }
     try {
-      await acceptInvite(invite.id, { userId: user.id });
+      const token = await getAccessTokenSilently();
+      await acceptInvite(invite.id, { userId: user.id }, token);
     } catch (error) {
       alert(
         error instanceof Error
@@ -363,12 +375,16 @@ const Orgs: FC = () => {
     setIsChangingRoleKey(memberKey);
 
     try {
-      await updateMembershipRole({
-        initiatorUserId: user.id,
-        userId: memberToUpdate.id,
-        organizationId: org.id,
-        role: nextRole,
-      });
+      const token = await getAccessTokenSilently();
+      await updateMembershipRole(
+        {
+          initiatorUserId: user.id,
+          userId: memberToUpdate.id,
+          organizationId: org.id,
+          role: nextRole,
+        },
+        token,
+      );
 
       const updatedOrg: Org = {
         ...org,
@@ -418,11 +434,15 @@ const Orgs: FC = () => {
     setIsKickingMemberKey(memberKey);
 
     try {
-      await removeUserFromOrganization({
-        initiatorUserId: user.id,
-        userId: memberToKick.id,
-        organizationId: org.id,
-      });
+      const token = await getAccessTokenSilently();
+      await removeUserFromOrganization(
+        {
+          initiatorUserId: user.id,
+          userId: memberToKick.id,
+          organizationId: org.id,
+        },
+        token,
+      );
 
       const updatedOrg: Org = {
         ...org,
@@ -618,11 +638,12 @@ const Orgs: FC = () => {
     setIsRenamingOrg(true);
 
     try {
+      const token = await getAccessTokenSilently();
       await renameOrganization({
         initiatorUserId: user.id,
         organizationId: org.id,
         name: nextName,
-      });
+      }, token);
 
       const updatedOrg: Org = {
         ...org,
@@ -776,7 +797,9 @@ const Orgs: FC = () => {
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
             Teams
           </span>
-          <h1 className="text-4xl leading-tight font-semibold">Organizations</h1>
+          <h1 className="text-4xl leading-tight font-semibold">
+            Organizations
+          </h1>
           <span className="text-sm text-slate-400">
             Members, invitations, and organization settings.
           </span>
@@ -790,7 +813,9 @@ const Orgs: FC = () => {
 
       <div className="grid min-w-0 grid-cols-[1.1fr_0.9fr] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-          <div className="text-lg font-semibold text-slate-50">Organizations</div>
+          <div className="text-lg font-semibold text-slate-50">
+            Organizations
+          </div>
           {orgs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 p-4 text-slate-400">
               You are not in any organization yet.
@@ -898,8 +923,12 @@ const Orgs: FC = () => {
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-300">Organization</div>
-                  <div className="break-words text-2xl font-semibold text-slate-50">{selectedOrg.name}</div>
+                  <div className="text-xs tracking-[0.18em] text-emerald-300 uppercase">
+                    Organization
+                  </div>
+                  <div className="text-2xl font-semibold wrap-break-word text-slate-50">
+                    {selectedOrg.name}
+                  </div>
                 </div>
                 {!isSelectedAdmin && (
                   <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
@@ -947,9 +976,7 @@ const Orgs: FC = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-800 px-2 py-1 text-[11px] tracking-wide text-slate-300 uppercase">
-                          {member.role === "admin"
-                            ? "Admin"
-                            : "Member"}
+                          {member.role === "admin" ? "Admin" : "Member"}
                         </span>
                         {isSelectedAdmin && member.email !== user.email && (
                           <>

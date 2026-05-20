@@ -1,12 +1,13 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Services.Users;
 
 namespace Api.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class AuthController : ControllerBase
 {
     private readonly IUserRepository _userRepository;

@@ -24,6 +24,12 @@ vi.mock("../util/org-api", () => ({
   fetchOrganizationsByUserEmail: vi.fn(),
 }));
 
+vi.mock("@auth0/auth0-react", () => ({
+  useAuth0: () => ({
+    getAccessTokenSilently: vi.fn().mockResolvedValue("test-token"),
+  }),
+}));
+
 import { ensureUser, fetchUserProfile } from "../util/user-api";
 import { fetchTasks } from "../util/task-api";
 import { fetchWorkProfile } from "../util/work-profile-api";
@@ -91,12 +97,13 @@ describe("user-store initForUser", () => {
     const { result } = renderHook(() => useUserStore());
 
     await act(async () => {
-      await initForUser("auth0|abc123", "test@example.com");
+      await initForUser("test-token", "auth0|abc123", "test@example.com");
     });
 
-    expect(vi.mocked(fetchWorkProfile)).toHaveBeenCalledWith(backendUserId);
+    expect(vi.mocked(fetchWorkProfile)).toHaveBeenCalledWith(backendUserId, "test-token");
     expect(vi.mocked(fetchOrganizationsByUserEmail)).toHaveBeenCalledWith(
       "test@example.com",
+      "test-token",
     );
 
     await waitFor(() => {
@@ -241,7 +248,7 @@ describe("user-store initForUser", () => {
       await result.current.setActiveOrganization("org-b");
     });
 
-    expect(fetchTasks).toHaveBeenCalledWith("wp-a");
+    expect(fetchTasks).toHaveBeenCalledWith("wp-a", "test-token");
     expect(result.current.activeOrganizationId).toBe("org-b");
     expect(result.current.workProfileId).toBe("wp-a");
     expect(result.current.user.tasks).toEqual(loadedTasks);
@@ -416,7 +423,7 @@ describe("user-store initForUser", () => {
       await result.current.setActiveOrganization("org-b");
     });
 
-    expect(fetchTasks).toHaveBeenCalledWith("wp-a");
+    expect(fetchTasks).toHaveBeenCalledWith("wp-a", "test-token");
     expect(result.current.activeOrganizationId).toBe("org-b");
     expect(result.current.workProfileId).toBe("wp-a");
   });
@@ -460,8 +467,8 @@ describe("user-store initForUser", () => {
       await result.current.setActiveOrganization("org-b");
     });
 
-    expect(fetchWorkProfile).toHaveBeenCalledWith("u1");
-    expect(fetchTasks).toHaveBeenCalledWith("wp-shared");
+    expect(fetchWorkProfile).toHaveBeenCalledWith("u1", "test-token");
+    expect(fetchTasks).toHaveBeenCalledWith("wp-shared", "test-token");
     expect(result.current.activeOrganizationId).toBe("org-b");
     expect(result.current.workProfileId).toBe("wp-shared");
   });

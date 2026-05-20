@@ -224,6 +224,8 @@ public partial class TeapotDbContext : DbContext
                 .HasColumnName("timezone");
             entity.Property(e => e.BreakColor)
                 .HasColumnName("break_color");
+            entity.Property(e => e.BlockerColor)
+                .HasColumnName("blocker_color");
             entity.Property(e => e.OrgColors)
                 .HasColumnName("org_colors");
             entity.Property(e => e.Username)

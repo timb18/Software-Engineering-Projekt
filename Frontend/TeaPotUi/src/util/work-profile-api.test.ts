@@ -30,7 +30,7 @@ describe("work-profile-api", () => {
         }),
       );
 
-    await saveWorkProfile("user-1", profile);
+    await saveWorkProfile("user-1", profile, null, "test-token");
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [, options] = fetchMock.mock.calls[0];

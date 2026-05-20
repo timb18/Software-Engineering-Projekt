@@ -35,7 +35,7 @@ describe("ensureUser", () => {
       authProviderSubject: "auth0|123",
       displayName: "Anna Example",
       profileImageUrl: "https://example.com/avatar.png",
-    });
+    }, "test-token");
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(url).toBe(`${API_BASE}/api/auth/ensure`);
@@ -53,7 +53,7 @@ describe("fetchUserProfile", () => {
   it("loads the profile by backend user id", async () => {
     globalThis.fetch = mockFetch(profile);
 
-    const result = await fetchUserProfile(USER_ID);
+    const result = await fetchUserProfile(USER_ID, "test-token");
 
     expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toBe(`${API_BASE}/api/user/${USER_ID}/profile`);
     expect(result).toEqual(profile);
@@ -69,7 +69,7 @@ describe("updateUserProfile", () => {
       email: "anna@example.com",
       profileImageUrl: "https://example.com/avatar.png",
       timezone: "Europe/Berlin",
-    });
+    }, "test-token");
 
     const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(url).toBe(`${API_BASE}/api/user/${USER_ID}/profile`);
@@ -92,7 +92,7 @@ describe("updateUserProfile", () => {
         email: "not-an-email",
         profileImageUrl: undefined,
         timezone: "Europe/Berlin",
-      }),
+      }, "test-token"),
     ).rejects.toThrow("Email format is invalid.");
   });
 });

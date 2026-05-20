@@ -1,10 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Services.Users;
 
 namespace Api.Controller;
 
 [Route("api/user/{userId:guid}/profile")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class UserController(IUserService userService) : ControllerBase
 {
     /// <summary>

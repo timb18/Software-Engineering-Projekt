@@ -132,7 +132,11 @@ const User: FC = () => {
     user: userFromDb,
     setUser,
   } = useUserStore();
-  const { logout: authLogout, user: userFromAuth } = useAuth0();
+  const {
+    logout: authLogout,
+    user: userFromAuth,
+    getAccessTokenSilently,
+  } = useAuth0();
   const navigate = useNavigate();
   const {
     register: registerPwChange,
@@ -266,6 +270,7 @@ const User: FC = () => {
     if (nextUser.workProfile && nextUser.id && hasBackendUserId(nextUser.id)) {
       setIsSavingWorkProfile(true);
       try {
+        const token = await getAccessTokenSilently();
         const savedWorkProfile = await saveWorkProfile(
           nextUser.id,
           {
@@ -274,6 +279,8 @@ const User: FC = () => {
             plannerViewEnd: nextUser.plannerViewEnd,
             maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
           },
+          null,
+          token,
         );
         const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
         const orgs = savedWorkProfile.id
@@ -332,12 +339,17 @@ const User: FC = () => {
     setIsSavingProfile(true);
 
     try {
-      const savedProfile = await updateUserProfile(userFromDb.id, {
-        displayName: profileForm.displayName.trim(),
-        email: profileForm.email.trim(),
-        profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
-        timezone: profileForm.timezone.trim() || "Europe/Berlin",
-      });
+      const token = await getAccessTokenSilently();
+      const savedProfile = await updateUserProfile(
+        userFromDb.id,
+        {
+          displayName: profileForm.displayName.trim(),
+          email: profileForm.email.trim(),
+          profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
+          timezone: profileForm.timezone.trim() || "Europe/Berlin",
+        },
+        token,
+      );
 
       setUser({
         ...userFromDb,
@@ -381,15 +393,19 @@ const User: FC = () => {
     setIsSavingAppearance(true);
 
     try {
-      const savedProfile = await updateUserProfile(userFromDb.id, {
-        displayName: profileForm.displayName.trim(),
-        email: profileForm.email.trim(),
-        profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
-        timezone: profileForm.timezone.trim() || "Europe/Berlin",
-        breakColor,
-        blockerColor,
-        orgColors: orgColorPrefs,
-      });
+      const token = await getAccessTokenSilently();
+      const savedProfile = await updateUserProfile(
+        userFromDb.id,
+        {
+          displayName: profileForm.displayName.trim(),
+          email: profileForm.email.trim(),
+          profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
+          timezone: profileForm.timezone.trim() || "Europe/Berlin",
+          breakColor,
+          blockerColor,orgColors: orgColorPrefs,
+        },
+        token,
+      );
 
       setBreakColor(breakColorState);
       setBlockerColor(blockerColorState);
@@ -434,8 +450,10 @@ const User: FC = () => {
         ? `${apiBaseUrl}/api/WorkProfile/${userFromDb.id}`
         : `${apiBaseUrl}/api/WorkProfile/by-email?email=${encodeURIComponent(userFromDb.email)}`;
 
+      const token = await getAccessTokenSilently();
       const response = await fetch(deletePath, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -549,9 +567,11 @@ const User: FC = () => {
       return;
     }
     try {
+      const token = await getAccessTokenSilently();
       const result = await changePassword(
         userFromAuth?.email,
         newPassword.newPassword,
+        token,
       );
       alert(
         result

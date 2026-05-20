@@ -40,7 +40,7 @@ describe("fetchOrganizationsByUserEmail", () => {
       },
     ]);
 
-    const result = await fetchOrganizationsByUserEmail("owner@example.com");
+    const result = await fetchOrganizationsByUserEmail("owner@example.com", "test-token");
 
     expect(result).toEqual([
       {

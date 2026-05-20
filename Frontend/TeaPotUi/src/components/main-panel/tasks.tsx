@@ -28,6 +28,7 @@ import {
   type RgbColor,
 } from "../../util/color-prefs";
 import "./tasks-calendar.css";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -60,6 +61,7 @@ const Tasks: FC = () => {
     removeTask,
     workProfileId,
   } = useUserStore();
+  const { getAccessTokenSilently } = useAuth0();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -105,11 +107,17 @@ const Tasks: FC = () => {
   // These cross-org buckets are merged into the calendar view below.
   const [crossOrgTasks, setCrossOrgTasks] = useState<Task[]>([]);
   const [crossOrgBlocks, setCrossOrgBlocks] = useState<TaskBlock[]>([]);
-  const [recurringBlockers, setRecurringBlockers] = useState<{
-    id?: string; name: string; daysOfWeek: string;
-    startTime: string; endTime: string;
-    validFrom?: string; validUntil?: string;
-  }[]>([]);
+  const [recurringBlockers, setRecurringBlockers] = useState<
+    {
+      id?: string;
+      name: string;
+      daysOfWeek: string;
+      startTime: string;
+      endTime: string;
+      validFrom?: string;
+      validUntil?: string;
+    }[]
+  >([]);
   const [editingBreak, setEditingBreak] = useState<{
     breakId: string;
     weekDay: WorkWeekDay;
@@ -132,20 +140,27 @@ const Tasks: FC = () => {
     endTime: user.plannerViewEnd ?? "22:00",
   });
 
-  const savePlannerView = (startTime: string, endTime: string) => {
+  const savePlannerView = async (startTime: string, endTime: string) => {
     if (!user.workProfile) return;
     const updatedProfile = {
       ...user.workProfile,
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     };
+
+    const token = await getAccessTokenSilently();
     setUser({
       ...user,
       workProfile: updatedProfile,
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    saveWorkProfile(
+      user.id,
+      updatedProfile,
+      selectedFilterOrg?.id,
+      token,
+    ).catch(() => setUser({ ...user }));
   };
 
   useEffect(() => {
@@ -155,19 +170,30 @@ const Tasks: FC = () => {
   }, []);
 
   useEffect(() => {
+    const getBlocks = async (workProfileId: string) => {
+      const token = await getAccessTokenSilently();
+      fetchBlocks(workProfileId, token)
+        .then(setBlocks)
+        .catch(() => setBlocks([]));
+    };
     if (!workProfileId) return;
-    fetchBlocks(workProfileId)
-      .then(setBlocks)
-      .catch(() => setBlocks([]));
-  }, [workProfileId]);
+    getBlocks(workProfileId);
+  }, [getAccessTokenSilently, workProfileId]);
 
   useEffect(() => {
+    const fetchRecurringBlocker = async () => {
+      const token = getAccessTokenSilently();
+      fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setRecurringBlockers)
+        .catch(() => setRecurringBlockers([]));
+    };
+
     if (!workProfileId) return;
-    fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`)
-      .then((r) => r.ok ? r.json() : [])
-      .then(setRecurringBlockers)
-      .catch(() => setRecurringBlockers([]));
-  }, [workProfileId]);
+    fetchRecurringBlocker();
+  }, [getAccessTokenSilently, workProfileId]);
 
   // Fetch the shared work-profile task/blocks when "All assignees" is selected.
   // Organization membership is now a task/block tag, not a separate work-profile board.
@@ -183,13 +209,15 @@ const Tasks: FC = () => {
       try {
         let wpId = workProfileId;
         if (!wpId) {
-          const wp = await fetchWorkProfile(user.id);
+          const token = await getAccessTokenSilently();
+          const wp = await fetchWorkProfile(user.id, token);
           wpId = wp?.id ?? null;
         }
         if (!wpId) return;
+        const token = await getAccessTokenSilently();
         const [tasks, blocks] = await Promise.all([
-          fetchTasks(wpId).catch(() => [] as Task[]),
-          fetchBlocks(wpId).catch(() => [] as TaskBlock[]),
+          fetchTasks(wpId, token).catch(() => [] as Task[]),
+          fetchBlocks(wpId, token).catch(() => [] as TaskBlock[]),
         ]);
         if (cancelled) return;
         const byTaskId = new Map<string, Task>();
@@ -230,9 +258,10 @@ const Tasks: FC = () => {
     setScheduling(true);
     setScheduleMsg(null);
     try {
+      const token = await getAccessTokenSilently();
       const res = await fetch(
         `${API_BASE}/api/planning/${encodeURIComponent(workProfileId)}/schedule`,
-        { method: "POST" },
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
       );
       const json = (await res.json()) as {
         success: boolean;
@@ -244,10 +273,11 @@ const Tasks: FC = () => {
           ok: true,
           text: `Plan created (${json.backtrackingCount ?? 0} backtracks).`,
         });
+        const token = await getAccessTokenSilently();
         // Reload tasks and blocks so the calendar reflects the new schedule
-        const updated = await fetchTasks(workProfileId);
+        const updated = await fetchTasks(workProfileId, token);
         setUser({ ...user, tasks: updated });
-        const updatedBlocks = await fetchBlocks(workProfileId);
+        const updatedBlocks = await fetchBlocks(workProfileId, token);
         setBlocks(updatedBlocks);
       } else {
         setScheduleMsg({
@@ -334,7 +364,10 @@ const Tasks: FC = () => {
             backgroundColor: rgbToCss(breakC, 0.15),
             borderColor: rgbToCss(breakC, 0.45),
             textColor: readableTextColor(breakC),
-            classNames: ["break-event", isDarkBreak ? "is-dark-event-color" : "is-light-event-color"],
+            classNames: [
+              "break-event",
+              isDarkBreak ? "is-dark-event-color" : "is-light-event-color",
+            ],
             editable: true,
             extendedProps: {
               type: "break",
@@ -364,8 +397,14 @@ const Tasks: FC = () => {
         while (date.day() !== targetDow) date = date.add(1, "day");
         while (date.isBefore(windowEnd)) {
           const dateStr = date.format("YYYY-MM-DD");
-          if (b.validFrom && dateStr < b.validFrom) { date = date.add(7, "day"); continue; }
-          if (b.validUntil && dateStr > b.validUntil) { date = date.add(7, "day"); continue; }
+          if (b.validFrom && dateStr < b.validFrom) {
+            date = date.add(7, "day");
+            continue;
+          }
+          if (b.validUntil && dateStr > b.validUntil) {
+            date = date.add(7, "day");
+            continue;
+          }
           blockerEvents.push({
             id: `blocker-${b.id ?? b.name}-${dateStr}`,
             title: b.name,
@@ -376,7 +415,14 @@ const Tasks: FC = () => {
             textColor: readableTextColor(getBlockerColor()),
             classNames: ["blocker-event"],
             editable: false,
-            extendedProps: { type: "blocker", blockerId: b.id, blockerName: b.name, blockerDays: b.daysOfWeek, blockerStart: b.startTime, blockerEnd: b.endTime },
+            extendedProps: {
+              type: "blocker",
+              blockerId: b.id,
+              blockerName: b.name,
+              blockerDays: b.daysOfWeek,
+              blockerStart: b.startTime,
+              blockerEnd: b.endTime,
+            },
           });
           date = date.add(7, "day");
         }
@@ -395,27 +441,31 @@ const Tasks: FC = () => {
     const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
     const isDarkTask = isDarkColor(c);
     void colorVersion; // reactive dependency
-    return [{
-      id: `${b.taskId}-${b.startDate.toISOString()}`,
-      title: t.name,
-      start: b.startDate,
-      end: b.endDate,
-      backgroundColor: rgbToCss(c, 0.22),
-      borderColor: b.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
-      textColor: readableTextColor(c),
-      classNames: [
-        "task-event",
-        isDarkTask ? "is-dark-event-color" : "is-light-event-color",
-        b.isFixed ? "task-fixed" : "",
-        (t.status ?? "todo") === "done" ? "task-done" : "",
-      ].filter(Boolean),
-      editable: true,
-      extendedProps: { task: t },
-    }];
+    return [
+      {
+        id: `${b.taskId}-${b.startDate.toISOString()}`,
+        title: t.name,
+        start: b.startDate,
+        end: b.endDate,
+        backgroundColor: rgbToCss(c, 0.22),
+        borderColor: b.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
+        textColor: readableTextColor(c),
+        classNames: [
+          "task-event",
+          isDarkTask ? "is-dark-event-color" : "is-light-event-color",
+          b.isFixed ? "task-fixed" : "",
+          (t.status ?? "todo") === "done" ? "task-done" : "",
+        ].filter(Boolean),
+        editable: true,
+        extendedProps: { task: t },
+      },
+    ];
   });
 
   const taskFallbackEvents: EventInput[] = filteredTasks
-    .filter((t) => t.startDate && t.endDate && !taskIdsWithBlocks.has(t.id ?? ""))
+    .filter(
+      (t) => t.startDate && t.endDate && !taskIdsWithBlocks.has(t.id ?? ""),
+    )
     .filter((t) => t.isFixed) // only show fixed/manual tasks without blocks
     .map((t) => {
       const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
@@ -493,7 +543,7 @@ const Tasks: FC = () => {
     ...taskFallbackEvents,
   ];
 
-  const updateBreakInProfile = (
+  const updateBreakInProfile = async (
     breakId: string,
     oldWeekDay: WorkWeekDay,
     newWeekDay: WorkWeekDay,
@@ -531,7 +581,14 @@ const Tasks: FC = () => {
     });
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => {
+
+    const token = await getAccessTokenSilently();
+    saveWorkProfile(
+      user.id,
+      updatedProfile,
+      selectedFilterOrg?.id,
+      token,
+    ).catch(() => {
       setUser({ ...user });
       revert();
     });
@@ -565,9 +622,14 @@ const Tasks: FC = () => {
     // blocks for this task are dropped locally so the fallback rendering uses
     // the task's own start/end instead of stale block positions.
     const newStart = arg.event.start!;
-    const newEnd = arg.event.end ?? dayjs(newStart)
-      .add(dayjs(task.endDate).diff(dayjs(task.startDate), "minute"), "minute")
-      .toDate();
+    const newEnd =
+      arg.event.end ??
+      dayjs(newStart)
+        .add(
+          dayjs(task.endDate).diff(dayjs(task.startDate), "minute"),
+          "minute",
+        )
+        .toDate();
     const updatedTask: Task = {
       ...task,
       startDate: newStart,
@@ -616,12 +678,15 @@ const Tasks: FC = () => {
 
   const deleteBlocker = async () => {
     if (!editingBlocker || !workProfileId) return;
+    const token = await getAccessTokenSilently();
     const res = await fetch(
       `${API_BASE}/api/recurring-blocker/${workProfileId}/${editingBlocker.id}`,
-      { method: "DELETE" },
+      { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
     );
     if (res.ok) {
-      setRecurringBlockers((prev) => prev.filter((b) => b.id !== editingBlocker.id));
+      setRecurringBlockers((prev) =>
+        prev.filter((b) => b.id !== editingBlocker.id),
+      );
       setEditingBlocker(null);
     }
   };
@@ -635,13 +700,12 @@ const Tasks: FC = () => {
       const gapMs = arg.event.extendedProps.gapMs as number;
       setBlocks((prev) =>
         prev.map((b) =>
-          b.taskId === nextTaskId &&
-            b.startDate.toISOString() === nextStartIso
+          b.taskId === nextTaskId && b.startDate.toISOString() === nextStartIso
             ? {
-              ...b,
-              startDate: new Date(b.startDate.getTime() - gapMs),
-              endDate: new Date(b.endDate.getTime() - gapMs),
-            }
+                ...b,
+                startDate: new Date(b.startDate.getTime() - gapMs),
+                endDate: new Date(b.endDate.getTime() - gapMs),
+              }
             : b,
         ),
       );
@@ -681,19 +745,25 @@ const Tasks: FC = () => {
     if (task) openEdit(task);
   };
 
-  const deleteBreak = () => {
+  const deleteBreak = async () => {
     if (!editingBreak || !user.workProfile) return;
     const updatedDays = user.workProfile.days.map((day) =>
       day.day === editingBreak.weekDay
         ? {
-          ...day,
-          breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
-        }
+            ...day,
+            breaks: day.breaks.filter((b) => b.id !== editingBreak.breakId),
+          }
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
-    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
+    const token = await getAccessTokenSilently();
+    saveWorkProfile(
+      user.id,
+      updatedProfile,
+      selectedFilterOrg?.id,
+      token,
+    ).catch(() => setUser({ ...user }));
     setEditingBreak(null);
   };
 
@@ -835,13 +905,12 @@ const Tasks: FC = () => {
       intensity: editForm.intensity,
       org: editForm.organizationId,
       isFixed: editForm.isFixed,
-      dependencies: (user.tasks ?? [])
-        .filter(
-          (t) =>
-            t.id
-            && editForm.dependencies.includes(t.id)
-            && (t.org ?? "") === (editForm.organizationId ?? ""),
-        ),
+      dependencies: (user.tasks ?? []).filter(
+        (t) =>
+          t.id &&
+          editForm.dependencies.includes(t.id) &&
+          (t.org ?? "") === (editForm.organizationId ?? ""),
+      ),
     };
 
     saveTask(updatedTask).catch((err: unknown) => setEditError(String(err)));
@@ -883,28 +952,31 @@ const Tasks: FC = () => {
           </div>
           <button
             onClick={() => setView("day")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${view === "day"
+            className={`rounded-full px-4 py-2 font-semibold transition ${
+              view === "day"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-              }`}
+            }`}
           >
             Day
           </button>
           <button
             onClick={() => setView("week")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${view === "week"
+            className={`rounded-full px-4 py-2 font-semibold transition ${
+              view === "week"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-              }`}
+            }`}
           >
             Week
           </button>
           <button
             onClick={() => setView("month")}
-            className={`rounded-full px-4 py-2 font-semibold transition ${view === "month"
+            className={`rounded-full px-4 py-2 font-semibold transition ${
+              view === "month"
                 ? "border border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
                 : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-emerald-300/40 hover:text-emerald-100"
-              }`}
+            }`}
           >
             Month
           </button>
@@ -971,7 +1043,7 @@ const Tasks: FC = () => {
               customButtons={{
                 visibleRange: {
                   text: "",
-                  click: () => { },
+                  click: () => {},
                 },
               }}
               slotMinTime={`${plannerViewForm.startTime}:00`}
@@ -1302,14 +1374,15 @@ const Tasks: FC = () => {
                   {(() => {
                     const depCandidates = (user.tasks ?? []).filter(
                       (t) =>
-                        t.id
-                        && t.id !== editingTask.id
-                        && (t.org ?? "") === (editForm.organizationId ?? ""),
+                        t.id &&
+                        t.id !== editingTask.id &&
+                        (t.org ?? "") === (editForm.organizationId ?? ""),
                     );
                     if (depCandidates.length === 0) {
                       return (
                         <span className="text-xs text-slate-500">
-                          Keine weiteren Aufgaben in dieser Organisation verfügbar.
+                          Keine weiteren Aufgaben in dieser Organisation
+                          verfügbar.
                         </span>
                       );
                     }
@@ -1327,8 +1400,8 @@ const Tasks: FC = () => {
                               const next = e.target.checked
                                 ? [...editForm.dependencies, dep.id!]
                                 : editForm.dependencies.filter(
-                                  (n) => n !== dep.id!,
-                                );
+                                    (n) => n !== dep.id!,
+                                  );
                               setEditForm({
                                 ...editForm,
                                 dependencies: next,
@@ -1405,7 +1478,8 @@ const Tasks: FC = () => {
                   {editingBlocker.name}
                 </div>
                 <div className="mt-0.5 text-sm text-slate-400">
-                  {editingBlocker.days.split(",").join(", ")} &mdash; {editingBlocker.startTime}&ndash;{editingBlocker.endTime}
+                  {editingBlocker.days.split(",").join(", ")} &mdash;{" "}
+                  {editingBlocker.startTime}&ndash;{editingBlocker.endTime}
                 </div>
               </div>
               <button
