@@ -49,6 +49,27 @@ public static class SchemaUpgradeService
             ALTER TABLE users ADD COLUMN IF NOT EXISTS blocker_color text;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS org_colors text;
 
+            -- Tasks may belong to a specific organization (added with the multi-org feature).
+            -- Older databases were created without this column, which breaks every EF query
+            -- against user_tasks (SELECT/INSERT/UPDATE all reference organization_id).
+            ALTER TABLE user_tasks ADD COLUMN IF NOT EXISTS organization_id uuid;
+
+            -- task_blocks originally had no primary key column; the EF model maps
+            -- TaskBlock.Id to the quoted column "Id". Add it (and a PK) when missing so
+            -- queries against task_blocks no longer fail with "column \"Id\" does not exist".
+            ALTER TABLE task_blocks ADD COLUMN IF NOT EXISTS "Id" uuid NOT NULL DEFAULT gen_random_uuid();
+
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'task_blocks_pkey'
+                ) THEN
+                    ALTER TABLE task_blocks ADD CONSTRAINT task_blocks_pkey PRIMARY KEY ("Id");
+                END IF;
+            END $$;
+
             -- Work breaks are part of the scheduler contract. Older databases may
             -- have work profiles and blocks but no persisted break table yet.
             CREATE TABLE IF NOT EXISTS work_breaks (

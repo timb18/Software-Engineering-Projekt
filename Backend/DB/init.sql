@@ -116,6 +116,7 @@ CREATE TABLE public.work_breaks (
 CREATE TABLE public.user_tasks (
     id uuid DEFAULT gen_random_uuid() CONSTRAINT tasks_id_not_null NOT NULL,
     work_profile_id uuid CONSTRAINT tasks_work_profile_id_not_null NOT NULL,
+    organization_id uuid,
     description character varying(255),
     priority public.task_priority CONSTRAINT tasks_priority_not_null NOT NULL,
     is_fixed boolean CONSTRAINT tasks_is_fixed_not_null NOT NULL,
@@ -133,6 +134,7 @@ CREATE TABLE public.user_tasks (
 );
 
 CREATE TABLE public.task_blocks (
+    "Id" uuid DEFAULT gen_random_uuid() NOT NULL,
     task_id uuid CONSTRAINT task_timeblocks_task_id_not_null NOT NULL,
     start_date timestamp with time zone CONSTRAINT task_timeblocks_start_date_not_null NOT NULL,
     end_date timestamp with time zone CONSTRAINT task_timeblocks_end_date_not_null NOT NULL,
@@ -172,6 +174,7 @@ ALTER TABLE ONLY public.work_day_profiles ADD CONSTRAINT work_day_profiles_pkey 
 ALTER TABLE ONLY public.work_blocks ADD CONSTRAINT work_blocks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.work_breaks ADD CONSTRAINT work_breaks_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.user_tasks ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.task_blocks ADD CONSTRAINT task_blocks_pkey PRIMARY KEY ("Id");
 ALTER TABLE ONLY public.task_dependencies ADD CONSTRAINT task_dependencies_pkey PRIMARY KEY (task_id, depends_on_task_id);
 ALTER TABLE ONLY public.recurring_blockers ADD CONSTRAINT recurring_blockers_pkey PRIMARY KEY (id);
 
