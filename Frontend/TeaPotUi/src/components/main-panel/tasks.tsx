@@ -346,7 +346,7 @@ const Tasks: FC = () => {
     .map((t) => {
       const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
       const isDarkTask = isDarkColor(c);
-      void colorVersion;
+      void colorVersion; // reactive dependency
       return {
         id: t.id ?? `task-${t.name}`,
         title: t.name,
