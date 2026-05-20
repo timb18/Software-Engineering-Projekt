@@ -155,9 +155,12 @@ const Tasks: FC = () => {
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile, token).catch(() =>
-      setUser({ ...user }),
-    );
+    saveWorkProfile(
+      user.id,
+      updatedProfile,
+      selectedFilterOrg?.id,
+      token,
+    ).catch(() => setUser({ ...user }));
   };
 
   useEffect(() => {
@@ -206,13 +209,15 @@ const Tasks: FC = () => {
       try {
         let wpId = workProfileId;
         if (!wpId) {
-          const wp = await fetchWorkProfile(user.id);
+          const token = await getAccessTokenSilently();
+          const wp = await fetchWorkProfile(user.id, token);
           wpId = wp?.id ?? null;
         }
         if (!wpId) return;
+        const token = await getAccessTokenSilently();
         const [tasks, blocks] = await Promise.all([
-          fetchTasks(wpId).catch(() => [] as Task[]),
-          fetchBlocks(wpId).catch(() => [] as TaskBlock[]),
+          fetchTasks(wpId, token).catch(() => [] as Task[]),
+          fetchBlocks(wpId, token).catch(() => [] as TaskBlock[]),
         ]);
         if (cancelled) return;
         const byTaskId = new Map<string, Task>();
@@ -578,7 +583,12 @@ const Tasks: FC = () => {
     setUser({ ...user, workProfile: updatedProfile });
 
     const token = await getAccessTokenSilently();
-    saveWorkProfile(user.id, updatedProfile, token).catch(() => {
+    saveWorkProfile(
+      user.id,
+      updatedProfile,
+      selectedFilterOrg?.id,
+      token,
+    ).catch(() => {
       setUser({ ...user });
       revert();
     });
@@ -748,9 +758,12 @@ const Tasks: FC = () => {
     const updatedProfile = { ...user.workProfile, days: updatedDays };
     setUser({ ...user, workProfile: updatedProfile });
     const token = await getAccessTokenSilently();
-    saveWorkProfile(user.id, updatedProfile, token).catch(() =>
-      setUser({ ...user }),
-    );
+    saveWorkProfile(
+      user.id,
+      updatedProfile,
+      selectedFilterOrg?.id,
+      token,
+    ).catch(() => setUser({ ...user }));
     setEditingBreak(null);
   };
 
