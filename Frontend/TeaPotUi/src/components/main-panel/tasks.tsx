@@ -55,7 +55,6 @@ const Tasks: FC = () => {
   const {
     user,
     setUser,
-    activeOrganizationId,
     setActiveOrganization,
     saveTask,
     removeTask,
@@ -93,9 +92,11 @@ const Tasks: FC = () => {
   const [filterStatus, setFilterStatus] = useState<
     "all" | "todo" | "in-progress" | "done"
   >("all");
-  const [filterOrgId, setFilterOrgId] = useState<string | "all">(
-    activeOrganizationId ?? "all",
-  );
+  // Planner filter is independent from the Orgs page selection: it defaults to
+  // "all assignees" on every mount and is only changed via the planner-local
+  // org dropdown. (Previously this tracked `activeOrganizationId`, which made
+  // switching orgs on the Teams page hijack the planner view.)
+  const [filterOrgId, setFilterOrgId] = useState<string | "all">("all");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMsg, setScheduleMsg] = useState<{
     ok: boolean;
@@ -241,10 +242,6 @@ const Tasks: FC = () => {
       cancelled = true;
     };
   }, [filterOrgId, user.id, workProfileId]);
-
-  useEffect(() => {
-    setFilterOrgId(activeOrganizationId ?? "all");
-  }, [activeOrganizationId]);
 
   if (!user) {
     return <></>;
@@ -869,7 +866,7 @@ const Tasks: FC = () => {
     });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     setEditError(undefined);
     if (!editingTask) return;
 
@@ -913,8 +910,19 @@ const Tasks: FC = () => {
       ),
     };
 
-    saveTask(updatedTask).catch((err: unknown) => setEditError(String(err)));
-    setEditingTask(null);
+    try {
+      await saveTask(updatedTask);
+      // Refetch blocks so the calendar reflects the new start/end/title for
+      // already-scheduled tasks (saveTask only updates user.tasks, not blocks).
+      if (workProfileId) {
+        const token = await getAccessTokenSilently();
+        const updatedBlocks = await fetchBlocks(workProfileId, token);
+        setBlocks(updatedBlocks);
+      }
+      setEditingTask(null);
+    } catch (err: unknown) {
+      setEditError(String(err));
+    }
   };
 
   return (
@@ -1423,11 +1431,19 @@ const Tasks: FC = () => {
 
             <div className="mt-4 flex justify-between gap-3">
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (editingTask?.id) {
-                    removeTask(editingTask.id).catch((err: unknown) =>
-                      setEditError(String(err)),
-                    );
+                    try {
+                      await removeTask(editingTask.id);
+                      // Also drop any scheduled blocks for this task so the
+                      // calendar updates immediately without a page reload.
+                      setBlocks((prev) =>
+                        prev.filter((b) => b.taskId !== editingTask.id),
+                      );
+                      setEditingTask(null);
+                    } catch (err: unknown) {
+                      setEditError(String(err));
+                    }
                   } else {
                     setUser({
                       ...user,
@@ -1435,8 +1451,8 @@ const Tasks: FC = () => {
                         (t) => t !== editingTask,
                       ),
                     });
+                    setEditingTask(null);
                   }
-                  setEditingTask(null);
                 }}
                 className="rounded-full border border-rose-800/60 bg-rose-900/30 px-4 py-2 text-sm text-rose-300 hover:bg-rose-900/50"
               >
