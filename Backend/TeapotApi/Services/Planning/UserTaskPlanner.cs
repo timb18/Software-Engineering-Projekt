@@ -1,5 +1,6 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
+using DataAccess;
 
 namespace Services.Planning;
 
@@ -13,12 +14,9 @@ public class UserTaskPlanner(
     ITaskBlockRepository taskBlockRepository,
     IRecurringBlockerRepository recurringBlockerRepository,
     DependencyAnalyzer dependencyAnalyzer,
-    SchedulingAlgorithm schedulingAlgorithm) : IUserTaskPlanner
+    GreedyScheduler greedyScheduler,
+    IUnitOfWork unitOfWork) : IUserTaskPlanner
 {
-    /// <summary>
-    /// Percentage of the daily total budget reserved for intensive tasks.
-    /// </summary>
-    private const int IntensiveBudgetPercent = 50;
 
     public async Task<PlanningResult> ScheduleAsync(
         Guid workProfileId, CancellationToken cancellationToken = default)
@@ -92,18 +90,37 @@ public class UserTaskPlanner(
                 x => (Start: x.Blocks.Min(b => b.StartDate), End: x.Blocks.Max(b => b.EndDate)));
 
         // --- Diagram 1: Dependency analysis ---
+        // Compute effective remaining duration (estimate minus past completed work) so the analyzer
+        // does not over-estimate finish times for tasks that already have past blocks.
+        var effectiveDurations = openTasks.ToDictionary(
+            t => t.Id,
+            t =>
+            {
+                var total = (int)t.TimeEstimate.TotalMinutes;
+                if (!blocksByTask.TryGetValue(t.Id, out var pastBlocks))
+                    return TimeSpan.FromMinutes(total);
+                var alreadyDone = (int)pastBlocks
+                    .Where(b => b.EndDate <= now)
+                    .Sum(b => (b.EndDate - b.StartDate).TotalMinutes);
+                return TimeSpan.FromMinutes(Math.Max(0, total - alreadyDone));
+            });
+
         DependencyAnalysisResult analysis;
         try
         {
-            analysis = dependencyAnalyzer.Analyze(openTasks, dependencies, projectStart, fixedTaskTimes);
+            analysis = dependencyAnalyzer.Analyze(openTasks, dependencies, projectStart, fixedTaskTimes, effectiveDurations);
         }
         catch (InvalidOperationException ex)
         {
             return new PlanningResult(false, ex.Message, 0, [], []);
         }
 
-        // Generate free time slots from work profile
-        var freeSlots = GenerateTimeSlots(workProfile, projectStart, projectEnd);
+        // Generate free time slots from work profile.
+        // Work-block strings ("09:00") are stored as the user's local wall-clock time
+        // (see users.timezone DB column, default 'Europe/Berlin'). We resolve them against
+        // that timezone and emit slots in UTC so all downstream comparisons stay timezone-safe.
+        var userTz = ResolveUserTimezone(workProfile);
+        var freeSlots = GenerateTimeSlots(workProfile, projectStart, projectEnd, userTz);
 
         // Ensure slots are sorted chronologically. GenerateTimeSlots produces them in order,
         // but explicit sorting guards against any edge-case (e.g., overlapping work blocks on the
@@ -115,7 +132,7 @@ public class UserTaskPlanner(
         for (var i = 0; i < freeSlots.Count; i++)
         {
             if (freeSlots[i].Start < now)
-                freeSlots[i] = new TimeSlot(now, freeSlots[i].End);
+                freeSlots[i] = new TimeSlot(now, freeSlots[i].End, freeSlots[i].OrganizationId);
         }
 
         // Remove blocking intervals from free slots
@@ -123,69 +140,67 @@ public class UserTaskPlanner(
             SubtractInterval(freeSlots, blocking.StartDate, blocking.EndDate);
 
         // Remove recurring blocker intervals from free slots
-        foreach (var (start, end) in ExpandRecurringBlockers(recurringBlockers, projectStart, projectEnd))
+        foreach (var (start, end) in ExpandRecurringBlockers(recurringBlockers, projectStart, projectEnd, userTz))
             SubtractInterval(freeSlots, start, end);
 
         // Remove fixed task blocks from free slots so dynamic tasks cannot overlap them
         foreach (var fb in fixedBlocks)
             SubtractInterval(freeSlots, fb.StartDate, fb.EndDate);
 
-        // Initialize remaining durations for dynamically-scheduled tasks only.
-        // Subtract minutes already covered by past blocks so partial progress is respected.
-        // Fixed-task predecessors are absent from this dict; AllPredecessorsDone treats them as done via GetValueOrDefault
+        // Remove tiny slot fragments that are too short to be useful
+        freeSlots.RemoveAll(s => s.DurationMinutes < greedyScheduler.MinBlockMinutes);
+
+        // Initialize remaining durations for dynamically-scheduled tasks only,
+        // reusing the effective durations already computed for the dependency analyzer.
         var remainingMinutes = tasksToSchedule.ToDictionary(
             t => t.Id,
-            t =>
-            {
-                var total = (int)t.TimeEstimate.TotalMinutes;
-                if (!blocksByTask.TryGetValue(t.Id, out var pastBlocks)) return total;
-                var alreadyDone = (int)pastBlocks
-                    .Where(b => b.EndDate <= now)
-                    .Sum(b => (b.EndDate - b.StartDate).TotalMinutes);
-                return Math.Max(0, total - alreadyDone);
-            });
-        var warnings = BuildShortTaskWarnings(tasksToSchedule, remainingMinutes, schedulingAlgorithm.MinBlockMinutes);
+            t => (int)effectiveDurations[t.Id].TotalMinutes);
 
-        // Initialize daily budgets from MaxDailyLoad
-        var dailyBudgets = BuildDailyBudgets(workProfile, freeSlots);
+        // Fixed tasks and done tasks count as scheduled for dependency resolution
+        var alreadyScheduledIds = openTasks
+            .Where(t => t.IsFixed || t.Status == "done")
+            .Select(t => t.Id)
+            .ToHashSet();
 
-        var state = new SchedulingState
+        // --- Greedy scheduling ---
+        var originalRemaining = remainingMinutes.ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        var plannedBlocks = greedyScheduler.Schedule(
+            tasksToSchedule, remainingMinutes, alreadyScheduledIds, freeSlots, analysis);
+
+        // Deadline feasibility check: collect every task with a deadline that could not be fully scheduled.
+        var infeasible = new List<string>();
+        foreach (var task in tasksToSchedule.Where(t => t.Deadline.HasValue))
         {
-            Tasks = tasksToSchedule,
-            RemainingMinutes = remainingMinutes,
-            FreeSlots = freeSlots,
-            DailyBudgets = dailyBudgets,
-            Analysis = analysis,
-            NeedsLightTaskAfter = false,
-            BacktrackingCounter = 0
-        };
+            var needed = originalRemaining.GetValueOrDefault(task.Id, 0);
+            if (needed <= 0) continue;
 
-        // --- Diagram 2: Recursive scheduling ---
-        var success = schedulingAlgorithm.TrySchedule(state);
+            var scheduled = plannedBlocks
+                .Where(b => b.TaskId == task.Id)
+                .Sum(b => (int)(b.EndDate - b.StartDate).TotalMinutes);
 
-        if (!success)
-            return new PlanningResult(
-                false,
-                "Kein gültiger Plan innerhalb der aktuellen Rahmenbedingungen gefunden.",
-                state.BacktrackingCounter,
-                [],
-                warnings);
+            if (scheduled < needed)
+                infeasible.Add($"\"{task.Name}\" (Deadline {task.Deadline!.Value:dd.MM.yyyy HH:mm})");
+        }
 
-        // Validate the produced plan
-        if (!ValidatePlan(state))
-            return new PlanningResult(
-                false,
-                "Der erzeugte Plan ist inkonsistent.",
-                state.BacktrackingCounter,
-                state.PlannedBlocks,
-                warnings);
+        if (infeasible.Count > 0)
+        {
+            // Do NOT overwrite the existing plan in the DB. Report which tasks could not be planned.
+            var msg = "Folgende Aufgaben konnten nicht vor ihrer Deadline eingeplant werden: "
+                     + string.Join(", ", infeasible);
+            return new PlanningResult(false, msg, 0, plannedBlocks, []);
+        }
 
-        // Persist the plan
-        await taskBlockRepository.ReplaceAsync(workProfileId, state.PlannedBlocks, cancellationToken);
+        // Persist the plan and the per-task EarlyStart/Finish in a single transaction so a
+        // failure mid-way never leaves the profile with new blocks but stale task fields
+        // (or vice versa).
+        await using var tx = await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        await taskBlockRepository.ReplaceAsync(workProfileId, plannedBlocks, cancellationToken);
 
         // Sync EarlyStart / EarlyFinish on each task to its scheduled block window so the
         // frontend calendar can read the actual scheduled times from the task endpoint.
-        var plannedBlocksByTask = state.PlannedBlocks
+        var plannedBlocksByTask = plannedBlocks
             .GroupBy(b => b.TaskId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -198,101 +213,121 @@ public class UserTaskPlanner(
             await taskRepository.UpdateAsync(task, cancellationToken);
         }
 
-        return new PlanningResult(true, null, state.BacktrackingCounter, state.PlannedBlocks, warnings);
-    }
+        await tx.CommitAsync(cancellationToken);
 
-    private static IReadOnlyList<string> BuildShortTaskWarnings(
-        IReadOnlyList<UserTask> tasksToSchedule,
-        IReadOnlyDictionary<Guid, int> remainingMinutes,
-        int minBlockMinutes)
-    {
-        var shortTasks = tasksToSchedule
-            .Where(t => remainingMinutes.TryGetValue(t.Id, out var minutes)
-                        && minutes > 0
-                        && minutes < minBlockMinutes)
-            .OrderBy(t => t.Name)
-            .Select(t => t.Name)
-            .ToList();
-
-        if (shortTasks.Count == 0)
-            return [];
-
-        var taskList = string.Join(", ", shortTasks);
-        var taskWord = shortTasks.Count == 1 ? "task is" : "tasks are";
-        return
-        [
-            $"Auto-Schedule starts at {minBlockMinutes} minutes. The following {taskWord} too short and will stay unscheduled: {taskList}."
-        ];
+        return new PlanningResult(true, null, 0, plannedBlocks, []);
     }
 
     // -------------------------------------------------------------------------
     // Time-slot generation
     // -------------------------------------------------------------------------
 
-    internal static List<TimeSlot> GenerateTimeSlots(
-        WorkProfile workProfile, DateTime from, DateTime to)
+    /// <summary>
+    /// Resolves the timezone for interpreting work-block wall-clock strings.
+    /// Falls back to Europe/Berlin (the DB default) and finally UTC if even that fails.
+    /// </summary>
+    private static TimeZoneInfo ResolveUserTimezone(WorkProfile workProfile)
+    {
+        var tzId = workProfile.Membership?.User?.Timezone;
+        if (!string.IsNullOrWhiteSpace(tzId))
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(tzId); }
+            catch (TimeZoneNotFoundException) { /* fall through */ }
+            catch (InvalidTimeZoneException) { /* fall through */ }
+        }
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin"); }
+        catch { return TimeZoneInfo.Utc; }
+    }
+
+    private static List<TimeSlot> GenerateTimeSlots(
+        WorkProfile workProfile, DateTime fromUtc, DateTime toUtc, TimeZoneInfo tz)
     {
         var slots = new List<TimeSlot>();
         var dayMap = workProfile.Days.ToDictionary(d => d.Day, StringComparer.OrdinalIgnoreCase);
 
-        // Only use work blocks that belong to this profile's own organization.
-        // Other companies' blocks represent committed time for those organizations, not free slots.
-        var ownOrgId = workProfile.Membership?.OrganizationId.ToString();
+        // Each work block is tagged with the company it belongs to (WorkBlock.CompanyId,
+        // stored as the org's UUID-as-string). Slots inherit that tag so the scheduler can
+        // match tasks to the correct org's shifts.
+        var ownOrgId = workProfile.Membership?.OrganizationId;
 
-        for (var date = from.Date; date < to.Date; date = date.AddDays(1))
+        // Iterate over LOCAL calendar dates because work blocks are interpreted in the user's
+        // local wall-clock time. UTC-day iteration would either miss or duplicate a day depending
+        // on the user's offset (and is wrong at DST boundaries).
+        var localFrom = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc), tz).Date;
+        var localTo = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(toUtc, DateTimeKind.Utc), tz).Date;
+
+        for (var localDate = localFrom; localDate < localTo; localDate = localDate.AddDays(1))
         {
-            var dayAbbrev = ToDayAbbreviation(date.DayOfWeek);
+            var dayAbbrev = ToDayAbbreviation(localDate.DayOfWeek);
             if (!dayMap.TryGetValue(dayAbbrev, out var dayProfile))
                 continue;
 
-            var ownBlocks = ownOrgId is not null
-                ? dayProfile.Blocks.Where(b => string.Equals(b.CompanyId, ownOrgId, StringComparison.OrdinalIgnoreCase)).ToList()
-                : dayProfile.Blocks.ToList();
+            var ownBlocks = dayProfile.Blocks.ToList();
 
-            var daySlots = new List<TimeSlot>();
             foreach (var block in ownBlocks)
             {
-                var blockStart = ParseTime(date, block.StartTime);
-                var blockEnd = ParseTime(date, block.EndTime);
+                var blockStart = ParseLocalTimeAsUtc(localDate, block.StartTime, tz);
+                var blockEnd = ParseLocalTimeAsUtc(localDate, block.EndTime, tz);
                 if (blockEnd <= blockStart) continue;
 
-                daySlots.Add(new TimeSlot(blockStart, blockEnd));
+                // Resolve the block's org tag. Empty/unparsable CompanyId falls back to the
+                // workprofile's own (personal) org so legacy blocks behave as before.
+                Guid? blockOrgId = ownOrgId;
+                if (!string.IsNullOrWhiteSpace(block.CompanyId)
+                    && Guid.TryParse(block.CompanyId, out var parsed))
+                    blockOrgId = parsed;
+
+                // Remove breaks that fall within this work block
+                var breaks = dayProfile.Breaks
+                    .Select(b => (
+                        Start: ParseLocalTimeAsUtc(localDate, b.StartTime, tz),
+                        End: ParseLocalTimeAsUtc(localDate, b.EndTime, tz)))
+                    .Where(b => b.Start >= blockStart && b.End <= blockEnd && b.End > b.Start)
+                    .OrderBy(b => b.Start)
+                    .ToList();
+
+                var cursor = blockStart;
+                foreach (var brk in breaks)
+                {
+                    if (cursor < brk.Start)
+                        slots.Add(new TimeSlot(cursor, brk.Start, blockOrgId));
+                    cursor = brk.End;
+                }
+                if (cursor < blockEnd)
+                    slots.Add(new TimeSlot(cursor, blockEnd, blockOrgId));
             }
-
-            foreach (var workBreak in dayProfile.Breaks)
-            {
-                var breakStart = ParseTime(date, workBreak.StartTime);
-                var breakEnd = ParseTime(date, workBreak.EndTime);
-                if (breakEnd <= breakStart) continue;
-
-                SubtractInterval(daySlots, breakStart, breakEnd);
-            }
-
-            slots.AddRange(daySlots.OrderBy(slot => slot.Start));
         }
 
         return slots;
     }
 
-    private static DateTime ParseTime(DateTime date, string hhMm)
+    /// <summary>
+    /// Converts a wall-clock "HH:mm" string on the given local date into a UTC <see cref="DateTime"/>
+    /// using the supplied timezone. Result has Kind=Utc so it compares safely with UtcNow and DB timestamps.
+    /// </summary>
+    private static DateTime ParseLocalTimeAsUtc(DateTime localDate, string hhMm, TimeZoneInfo tz)
     {
         var parts = hhMm.Split(':');
-        return date.Date
-            .AddHours(int.Parse(parts[0]))
-            .AddMinutes(int.Parse(parts[1]));
+        var localDateTime = DateTime.SpecifyKind(
+            localDate.Date.AddHours(int.Parse(parts[0])).AddMinutes(int.Parse(parts[1])),
+            DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(localDateTime, tz);
     }
 
     private static IEnumerable<(DateTime Start, DateTime End)> ExpandRecurringBlockers(
-        IReadOnlyList<RecurringBlocker> blockers, DateTime from, DateTime to)
+        IReadOnlyList<RecurringBlocker> blockers, DateTime fromUtc, DateTime toUtc, TimeZoneInfo tz)
     {
-        for (var date = from.Date; date < to.Date; date = date.AddDays(1))
+        var localFrom = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc), tz).Date;
+        var localTo = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(toUtc, DateTimeKind.Utc), tz).Date;
+
+        for (var localDate = localFrom; localDate < localTo; localDate = localDate.AddDays(1))
         {
-            var dayAbbrev = ToDayAbbreviation(date.DayOfWeek);
+            var dayAbbrev = ToDayAbbreviation(localDate.DayOfWeek);
             foreach (var blocker in blockers)
             {
-                if (blocker.ValidFrom.HasValue && date < blocker.ValidFrom.Value.ToDateTime(TimeOnly.MinValue))
+                if (blocker.ValidFrom.HasValue && localDate < blocker.ValidFrom.Value.ToDateTime(TimeOnly.MinValue))
                     continue;
-                if (blocker.ValidUntil.HasValue && date > blocker.ValidUntil.Value.ToDateTime(TimeOnly.MinValue))
+                if (blocker.ValidUntil.HasValue && localDate > blocker.ValidUntil.Value.ToDateTime(TimeOnly.MinValue))
                     continue;
 
                 var days = blocker.DaysOfWeek.Split(',',
@@ -300,8 +335,8 @@ public class UserTaskPlanner(
                 if (!days.Contains(dayAbbrev, StringComparer.OrdinalIgnoreCase))
                     continue;
 
-                var start = ParseTime(date, blocker.StartTime);
-                var end = ParseTime(date, blocker.EndTime);
+                var start = ParseLocalTimeAsUtc(localDate, blocker.StartTime, tz);
+                var end = ParseLocalTimeAsUtc(localDate, blocker.EndTime, tz);
                 if (end > start)
                     yield return (start, end);
             }
@@ -331,90 +366,10 @@ public class UserTaskPlanner(
 
             slots.RemoveAt(i);
             if (s.Start < busyStart)
-                slots.Insert(i, new TimeSlot(s.Start, busyStart));
+                slots.Insert(i, new TimeSlot(s.Start, busyStart, s.OrganizationId));
             if (busyEnd < s.End)
-                slots.Insert(i + (s.Start < busyStart ? 1 : 0), new TimeSlot(busyEnd, s.End));
+                slots.Insert(i + (s.Start < busyStart ? 1 : 0), new TimeSlot(busyEnd, s.End, s.OrganizationId));
         }
     }
 
-    private static Dictionary<DateOnly, DailyBudget> BuildDailyBudgets(
-        WorkProfile workProfile, List<TimeSlot> slots)
-    {
-        var configuredMax = (int)workProfile.MaxDailyLoad.TotalMinutes;
-        if (configuredMax <= 0) configuredMax = 480; // fallback: 8 h
-
-        // Sum available slot minutes per day
-        var slotMinutesPerDay = slots
-            .GroupBy(s => DateOnly.FromDateTime(s.Start))
-            .ToDictionary(g => g.Key, g => g.Sum(s => s.DurationMinutes));
-
-        var result = new Dictionary<DateOnly, DailyBudget>();
-        foreach (var (day, slotMinutes) in slotMinutesPerDay)
-        {
-            var effectiveMax = Math.Min(configuredMax, slotMinutes);
-            var maxIntensive = effectiveMax * IntensiveBudgetPercent / 100;
-            result[day] = new DailyBudget
-            {
-                RemainingTotalMinutes = effectiveMax,
-                RemainingIntensiveMinutes = maxIntensive
-            };
-        }
-        return result;
-    }
-
-    // -------------------------------------------------------------------------
-    // Plan validation
-    // -------------------------------------------------------------------------
-
-    private bool ValidatePlan(SchedulingState state)
-    {
-        // No overlapping blocks across different tasks on the same day.
-        // Blocks of the SAME task cannot overlap each other by construction (each block consumes
-        // a unique free slot), so we only check cross-task overlaps.
-        var sorted = state.PlannedBlocks.OrderBy(b => b.StartDate).ToList();
-        for (var i = 1; i < sorted.Count; i++)
-            if (sorted[i].TaskId != sorted[i - 1].TaskId &&
-                sorted[i].StartDate < sorted[i - 1].EndDate)
-                return false;
-
-        // Dependencies respected: first block of successor starts after last block of predecessor
-        var taskLastFinish = state.PlannedBlocks
-            .GroupBy(b => b.TaskId)
-            .ToDictionary(g => g.Key, g => g.Max(b => b.EndDate));
-
-        var taskFirstStart = state.PlannedBlocks
-            .GroupBy(b => b.TaskId)
-            .ToDictionary(g => g.Key, g => g.Min(b => b.StartDate));
-
-        foreach (var (taskId, preds) in state.Analysis.Predecessors)
-        {
-            if (!taskFirstStart.TryGetValue(taskId, out var succStart)) continue;
-            foreach (var predId in preds)
-            {
-                if (!taskLastFinish.TryGetValue(predId, out var predFinish)) continue;
-                if (succStart < predFinish)
-                    return false;
-            }
-        }
-
-        // Block durations within min/max bounds
-        foreach (var block in state.PlannedBlocks)
-        {
-            var duration = (int)(block.EndDate - block.StartDate).TotalMinutes;
-            if (duration < schedulingAlgorithm.MinBlockMinutes ||
-                duration > schedulingAlgorithm.MaxBlockMinutes)
-                return false;
-        }
-
-        // All task blocks finish before or on the task's deadline (end-of-day)
-        var taskMap = state.Tasks.ToDictionary(t => t.Id);
-        foreach (var (taskId, lastFinish) in taskLastFinish)
-        {
-            if (!taskMap.TryGetValue(taskId, out var task)) continue;
-            if (task.Deadline.HasValue && lastFinish > task.Deadline.Value.Date.AddDays(1))
-                return false;
-        }
-
-        return true;
-    }
 }

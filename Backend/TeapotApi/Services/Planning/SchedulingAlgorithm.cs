@@ -3,304 +3,199 @@ using DataAccess.Models;
 namespace Services.Planning;
 
 /// <summary>
-/// Diagram 2: Recursive planning function with implicit backtracking.
-/// Assigns tasks to free time slots respecting dependencies, block-size constraints,
-/// daily budgets, and intensity rules.
+/// Greedy slot assignment: tasks are processed in dependency → deadline → priority order,
+/// each filled into the earliest available free slots without backtracking.
 /// </summary>
-public class SchedulingAlgorithm
+public class GreedyScheduler
 {
-    /// <summary>Minimum duration of a single work block in minutes.</summary>
-    public int MinBlockMinutes { get; init; } = 30;
-
-    /// <summary>Maximum duration of a single work block in minutes.</summary>
-    public int MaxBlockMinutes { get; init; } = 90;
+    /// <summary>Minimum duration of a single work block in minutes. Slots shorter than this are skipped.</summary>
+    public int MinBlockMinutes { get; init; } = 25;
 
     /// <summary>
-    /// Maximum number of backtracking steps before giving up.
-    /// Prevents combinatorial explosion with many tasks and tight constraints.
+    /// Maximum sustained focus duration per intensity level (minutes), based on:
+    /// Ultradian rhythms / BRAC (Kleitman) → ~90 min, DeskTime study (2014) → 52 min,
+    /// Pomodoro (Cirillo) → 25 min for highest intensity. Long focus blocks are split into
+    /// multiple shorter blocks with breaks inserted in between.
+    /// Light tasks are low cognitive load (admin work, routine) and need no enforced break,
+    /// so the cap is effectively unlimited and the break is 0.
     /// </summary>
-    public int MaxBacktrackingSteps { get; init; } = 100_000;
+    public int LightMaxFocusMinutes { get; init; } = int.MaxValue;
+    public int NormalMaxFocusMinutes { get; init; } = 90;
+    public int IntensiveMaxFocusMinutes { get; init; } = 50;
 
     /// <summary>
-    /// Maximum number of free slots to attempt for a single task placement before giving up.
-    /// A value of 1 means greedy (original behaviour): only the earliest valid slot is tried.
-    /// Higher values allow the algorithm to skip a slot that causes a downstream conflict and
-    /// try a later one — at the cost of O(MaxSlotAttempts) more work per backtracking step.
-    /// Default of 5 handles the common case (e.g. deadline-constrained task blocked by an
-    /// intensive-budget clash) without triggering combinatorial blowup.
+    /// Recovery break (minutes) inserted after each placed block of this task — covers both
+    /// intra-task pacing (same task continues after break) and inter-task context switching
+    /// (next task starts after break). Light = 0 (no enforced break).
+    /// Sources: BRAC recommends 15-20 min recovery between ultradian cycles; DeskTime → 17 min.
     /// </summary>
-    public int MaxSlotAttempts { get; init; } = 5;
+    public int LightBreakMinutes { get; init; } = 0;
+    public int NormalBreakMinutes { get; init; } = 15;
+    public int IntensiveBreakMinutes { get; init; } = 15;
 
-    /// <summary>
-    /// Tries to schedule all tasks into the state's free slots.
-    /// Returns true on success (state.PlannedBlocks is populated), false on failure.
-    /// </summary>
-    internal bool TrySchedule(SchedulingState state) =>
-        RunRecursive(state) == RecursionResult.Success;
-
-    private enum RecursionResult { Success, Conflict }
-
-    private RecursionResult RunRecursive(SchedulingState state)
+    private int MaxFocusFor(ETaskIntensity intensity) => intensity switch
     {
-        // Hard limit: prevent infinite loops
-        if (state.BacktrackingCounter >= MaxBacktrackingSteps)
-            return RecursionResult.Conflict;
+        ETaskIntensity.Light => LightMaxFocusMinutes,
+        ETaskIntensity.Intensive => IntensiveMaxFocusMinutes,
+        _ => NormalMaxFocusMinutes,
+    };
 
-        // All tasks fully scheduled?
-        if (state.RemainingMinutes.Values.All(m => m == 0))
-            return RecursionResult.Success;
+    private int BreakFor(ETaskIntensity intensity) => intensity switch
+    {
+        ETaskIntensity.Light => LightBreakMinutes,
+        ETaskIntensity.Intensive => IntensiveBreakMinutes,
+        _ => NormalBreakMinutes,
+    };
 
-        // Determine plannable tasks: remaining > 0 and all predecessors done
-        var plannable = GetPlannableTasks(state);
+    /// <summary>
+    /// Schedules <paramref name="tasksToSchedule"/> greedily into <paramref name="freeSlots"/>.
+    /// Tasks are processed one at a time in dependency → deadline → priority order.
+    /// Each task is filled into the earliest available free slots until complete (no backtracking).
+    /// </summary>
+    /// <param name="tasksToSchedule">Dynamic (non-fixed) open tasks to schedule.</param>
+    /// <param name="remainingMinutes">Minutes still needed per task (caller adjusts for partial past work).</param>
+    /// <param name="alreadyScheduledIds">IDs that count as done for dependency resolution (fixed tasks, done tasks).</param>
+    /// <param name="freeSlots">Available time slots sorted chronologically. Modified in place as slots are consumed.</param>
+    /// <param name="analysis">Dependency graph produced by <see cref="DependencyAnalyzer"/>.</param>
+    public List<TaskBlock> Schedule(
+        IReadOnlyList<UserTask> tasksToSchedule,
+        Dictionary<Guid, int> remainingMinutes,
+        IReadOnlySet<Guid> alreadyScheduledIds,
+        List<TimeSlot> freeSlots,
+        DependencyAnalysisResult analysis)
+    {
+        var plannedBlocks = new List<TaskBlock>();
+        var scheduledIds = new HashSet<Guid>(alreadyScheduledIds);
+        // Tasks the greedy run touched but could not place *any* block for. They are removed
+        // from `ready` (via remainingMinutes=0) but are NOT added to scheduledIds, so their
+        // dependents remain blocked — otherwise the planner would happily place a successor
+        // before its predecessor is actually done.
+        var unschedulable = new HashSet<Guid>();
 
-        if (plannable.Count == 0)
+        while (true)
         {
-            // Some tasks remain but none are plannable → dependency deadlock or all remaining are done
-            if (state.RemainingMinutes.Values.All(m => m == 0))
-                return RecursionResult.Success;
-            state.BacktrackingCounter++;
-            return RecursionResult.Conflict;
-        }
+            // Ready = all predecessors done, still has remaining work
+            var ready = tasksToSchedule
+                .Where(t => remainingMinutes.TryGetValue(t.Id, out var rem) && rem > 0
+                            && !unschedulable.Contains(t.Id)
+                            && AllPredecessorsDone(t.Id, analysis.Predecessors, scheduledIds))
+                .ToList();
 
-        // Reset the cognitive-fatigue flag when the next available slot is on a new calendar day.
-        // Research basis: Borbély sleep homeostasis model (1982) — a night's sleep fully restores
-        // cognitive capacity, so the "schedule a light task after intensive work" heuristic
-        // must not cross day boundaries.
-        if (state.NeedsLightTaskAfter && state.LastIntensiveDay.HasValue && state.FreeSlots.Count > 0)
-        {
-            var nextSlotDay = DateOnly.FromDateTime(state.FreeSlots[0].Start);
-            if (nextSlotDay > state.LastIntensiveDay.Value)
-                state.NeedsLightTaskAfter = false;
-        }
+            if (ready.Count == 0) break;
 
-        // Try tasks in priority order. For each task: find its earliest valid slot and commit.
-        // If the recursive continuation fails, undo and try the next task (bounded task-level backtracking).
-        foreach (var selectedTask in state.NeedsLightTaskAfter
-            ? OrderPreferLight(plannable, state)
-            : OrderByPriority(plannable, state))
-        {
-            var remaining = state.RemainingMinutes[selectedTask.Id];
+            // Pick: earliest deadline first (null → far future), then highest priority, then oldest
+            var task = ready
+                .OrderBy(t => t.Deadline ?? DateTime.MaxValue)
+                .ThenByDescending(t => (int)t.Priority)
+                .ThenBy(t => t.CreatedAt)
+                .First();
 
-            // Tiny leftover: mark as done and continue
-            if (remaining < MinBlockMinutes)
+            var blocksPlacedThisTask = 0;
+
+            // Fill this task greedily into the earliest available slots
+            for (var i = 0; i < freeSlots.Count && remainingMinutes[task.Id] > 0;)
             {
-                state.RemainingMinutes[selectedTask.Id] = 0;
-                var quickResult = RunRecursive(state);
-                if (quickResult == RecursionResult.Success) return RecursionResult.Success;
-                state.RemainingMinutes[selectedTask.Id] = remaining;
-                state.BacktrackingCounter++;
-                continue;
-            }
+                var slot = freeSlots[i];
+                // Org constraint: a task tagged with an OrganizationId may only consume slots
+                // tagged with the same org. Tasks without an org (legacy) accept any slot.
+                if (task.OrganizationId.HasValue && slot.OrganizationId.HasValue
+                    && task.OrganizationId.Value != slot.OrganizationId.Value)
+                { i++; continue; }
+                // The minimum useful block size is MinBlockMinutes, but tasks that are shorter
+                // than that (or have less than that remaining) should still be schedulable.
+                var minRequired = Math.Min(MinBlockMinutes, remainingMinutes[task.Id]);
+                if (slot.DurationMinutes < minRequired) { i++; continue; }
 
-            // Desired block = min(remaining, maxBlock)
-            var candidate = Math.Min(remaining, MaxBlockMinutes);
+                // Skip slots that start at or after the task's deadline (deadline is inclusive timestamp)
+                if (task.Deadline.HasValue && slot.Start >= task.Deadline.Value)
+                { i++; continue; }
 
-            // If the rest after this block would be (0, minBlock), shrink to leave exactly minBlock
-            var restAfter = remaining - candidate;
-            if (restAfter > 0 && restAfter < MinBlockMinutes)
-                candidate = remaining - MinBlockMinutes;
+                var blockMinutes = Math.Min(remainingMinutes[task.Id], slot.DurationMinutes);
 
-            // After adjustment, candidate might have dropped below minBlock
-            if (candidate < MinBlockMinutes)
-            {
-                if (remaining >= MinBlockMinutes && remaining <= MaxBlockMinutes)
-                    candidate = remaining;
-                else if (remaining < MinBlockMinutes)
+                // Cap block to deadline boundary (deadline is the exact end timestamp, inclusive)
+                if (task.Deadline.HasValue)
                 {
-                    state.RemainingMinutes[selectedTask.Id] = 0;
-                    var quickResult = RunRecursive(state);
-                    if (quickResult == RecursionResult.Success) return RecursionResult.Success;
-                    state.RemainingMinutes[selectedTask.Id] = remaining;
-                    state.BacktrackingCounter++;
-                    continue;
+                    var deadlineEnd = task.Deadline.Value;
+                    blockMinutes = Math.Min(blockMinutes, (int)(deadlineEnd - slot.Start).TotalMinutes);
+                }
+
+                // Cap block to the intensity-specific max sustained focus duration. Anything
+                // longer than this gets split into multiple blocks with breaks in between
+                // (see break-insertion logic below).
+                var maxFocus = MaxFocusFor(task.Intensity);
+                blockMinutes = Math.Min(blockMinutes, maxFocus);
+
+                if (blockMinutes < minRequired) { i++; continue; }
+
+                var blockEnd = slot.Start.AddMinutes(blockMinutes);
+                plannedBlocks.Add(new TaskBlock
+                {
+                    TaskId = task.Id,
+                    StartDate = slot.Start,
+                    EndDate = blockEnd,
+                    IsFixed = false,
+                    Task = task
+                });
+                remainingMinutes[task.Id] -= blockMinutes;
+                blocksPlacedThisTask++;
+
+                // Consume slot. Insert a recovery break of BreakFor(intensity) minutes after
+                // every block — covers intra-task pacing AND inter-task context switching.
+                // Light tasks have break=0 so no gap is inserted.
+                if (blockEnd < slot.End)
+                {
+                    var taskHasMoreWork = remainingMinutes[task.Id] > 0;
+                    var breakLen = BreakFor(task.Intensity);
+                    var nextStart = blockEnd;
+
+                    if (breakLen > 0)
+                    {
+                        var withBreak = blockEnd.AddMinutes(breakLen);
+                        if (withBreak < slot.End
+                            && (int)(slot.End - withBreak).TotalMinutes >= MinBlockMinutes)
+                        {
+                            nextStart = withBreak;
+                        }
+                        else if (taskHasMoreWork)
+                        {
+                            // Not enough room in this slot for break + a usable next block.
+                            // Drop the rest of the slot so the task continues fresh in the
+                            // next slot (which provides a natural break across day/shift).
+                            freeSlots.RemoveAt(i);
+                            continue;
+                        }
+                        // else: task done, no room for full break — drop the leftover so the
+                        // next task in the queue doesn't start back-to-back without recovery.
+                        else
+                        {
+                            freeSlots.RemoveAt(i);
+                            continue;
+                        }
+                    }
+
+                    freeSlots[i] = new TimeSlot(nextStart, slot.End, slot.OrganizationId);
                 }
                 else
-                {
-                    state.BacktrackingCounter++;
-                    continue;
-                }
+                    freeSlots.RemoveAt(i); // i stays — next slot is now at index i
             }
 
-            var result = TrySlots(state, selectedTask, candidate);
-            if (result == RecursionResult.Success) return RecursionResult.Success;
-        }
-
-        state.BacktrackingCounter++;
-        return RecursionResult.Conflict;
-    }
-
-    /// <summary>
-    /// Finds a valid free slot for <paramref name="candidateMinutes"/> of the given task and commits it.
-    /// Tries up to <see cref="MaxSlotAttempts"/> valid slots before giving up (bounded slot-level
-    /// backtracking). Trying more than one slot avoids false negatives caused by the earliest slot
-    /// creating a downstream conflict that a slightly later slot would not.
-    /// <para>
-    /// Intensive-minutes budget is a <b>soft constraint</b>: the algorithm first tries to respect the
-    /// daily intensive-work cap (research: Ericsson et al. 1993 deliberate-practice limit ~4 h/day;
-    /// Newport 2016 deep-work ceiling). If no slot passes that gate, it falls back to ignoring the cap
-    /// so the overall plan still succeeds.
-    /// </para>
-    /// </summary>
-    private RecursionResult TrySlots(
-        SchedulingState state, UserTask task, int candidateMinutes)
-    {
-        // First pass: respect the intensive-minutes daily cap (scientifically grounded soft limit).
-        // Second pass: relax the cap so a plan can always be found when the day only has intensive tasks.
-        return TrySlotsInternal(state, task, candidateMinutes, enforceIntensiveBudget: true)
-            ?? TrySlotsInternal(state, task, candidateMinutes, enforceIntensiveBudget: false)
-            ?? ConflictAndCount(state);
-    }
-
-    private RecursionResult? TrySlotsInternal(
-        SchedulingState state, UserTask task, int candidateMinutes,
-        bool enforceIntensiveBudget = false)
-    {
-        var attemptsLeft = MaxSlotAttempts;
-
-        for (var i = 0; i < state.FreeSlots.Count; i++)
-        {
-            var slot = state.FreeSlots[i];
-            if (slot.DurationMinutes < MinBlockMinutes)
-                continue;
-
-            var effectiveDuration = Math.Min(candidateMinutes, slot.DurationMinutes);
-            if (effectiveDuration < MinBlockMinutes)
-                continue;
-
-            var day = DateOnly.FromDateTime(slot.Start);
-            if (!state.DailyBudgets.TryGetValue(day, out var budget))
-                continue;
-
-            // Hard limit: total daily work budget
-            if (budget.RemainingTotalMinutes < effectiveDuration)
-                continue;
-
-            // Soft limit: intensive-minutes cap per day (Ericsson 1993 deliberate-practice research
-            // shows ~4 h/day is the ceiling for sustained intensive cognitive work).
-            // On the first pass this is enforced; on the second pass it is relaxed so the plan
-            // can still be completed when all remaining tasks are intensive.
-            if (enforceIntensiveBudget
-                && task.Intensity == ETaskIntensity.Intensive
-                && budget.RemainingIntensiveMinutes < effectiveDuration)
-                continue;
-
-            var blockEnd = slot.Start.AddMinutes(effectiveDuration);
-
-            // Skip slots that would push the block past the task's deadline.
-            // Deadline is treated as end-of-day: work may be scheduled up to midnight of the day after the deadline.
-            if (task.Deadline.HasValue && blockEnd > task.Deadline.Value.Date.AddDays(1))
-                continue;
-
-            // --- Commit this slot ---
-            var savedRemaining = state.RemainingMinutes[task.Id];
-            var savedBudgetTotal = budget.RemainingTotalMinutes;
-            var savedBudgetIntensive = budget.RemainingIntensiveMinutes;
-            var savedNeedsLight = state.NeedsLightTaskAfter;
-            var savedLastIntensiveDay = state.LastIntensiveDay;
-
-            var block = new TaskBlock
-            {
-                TaskId = task.Id,
-                StartDate = slot.Start,
-                EndDate = blockEnd,
-                IsFixed = false,
-                Task = task
-            };
-            state.PlannedBlocks.Add(block);
-
-            state.RemainingMinutes[task.Id] -= effectiveDuration;
-            budget.RemainingTotalMinutes -= effectiveDuration;
-            if (task.Intensity == ETaskIntensity.Intensive)
-            {
-                budget.RemainingIntensiveMinutes -= effectiveDuration;
-                // Record which day the intensive block landed on for day-boundary reset logic
-                state.NeedsLightTaskAfter = true;
-                state.LastIntensiveDay = day;
-            }
+            // Take this task out of the ready pool. If at least one block was placed we treat the
+            // task as "done enough" to unblock its dependents (partial scheduling is allowed for
+            // tasks without deadline). If nothing fit at all, mark it unschedulable so dependents
+            // stay blocked — otherwise we'd schedule successors before their predecessor.
+            remainingMinutes[task.Id] = 0;
+            if (blocksPlacedThisTask > 0)
+                scheduledIds.Add(task.Id);
             else
-            {
-                state.NeedsLightTaskAfter = false;
-            }
-
-            // Shrink or remove used slot
-            state.FreeSlots.RemoveAt(i);
-            TimeSlot? trimmedSlot = null;
-            if (blockEnd < slot.End)
-            {
-                trimmedSlot = new TimeSlot(blockEnd, slot.End);
-                state.FreeSlots.Insert(i, trimmedSlot);
-            }
-
-            var result = RunRecursive(state);
-            if (result == RecursionResult.Success)
-                return RecursionResult.Success;
-
-            // Recursive call failed: undo this placement.
-            // Try the next valid slot (bounded by MaxSlotAttempts) before giving up.
-            // This avoids false negatives where the earliest slot causes a downstream conflict
-            // that a slightly later slot would not — without full slot-level exponential blowup.
-            state.BacktrackingCounter++;
-            state.PlannedBlocks.Remove(block);
-            state.RemainingMinutes[task.Id] = savedRemaining;
-            budget.RemainingTotalMinutes = savedBudgetTotal;
-            budget.RemainingIntensiveMinutes = savedBudgetIntensive;
-            state.NeedsLightTaskAfter = savedNeedsLight;
-            state.LastIntensiveDay = savedLastIntensiveDay;
-
-            // Restore slot
-            if (trimmedSlot is not null)
-                state.FreeSlots.RemoveAt(i);
-            state.FreeSlots.Insert(i, slot);
-
-            if (--attemptsLeft == 0)
-                return null; // slot budget exhausted for this pass
+                unschedulable.Add(task.Id);
         }
 
-        return null; // no slot found under current constraints
+        return plannedBlocks;
     }
 
-    private RecursionResult ConflictAndCount(SchedulingState state)
-    {
-        state.BacktrackingCounter++;
-        return RecursionResult.Conflict;
-    }
-
-    private List<UserTask> GetPlannableTasks(SchedulingState state)
-    {
-        return state.Tasks
-            .Where(t =>
-                state.RemainingMinutes[t.Id] > 0 &&
-                AllPredecessorsDone(t.Id, state))
-            .ToList();
-    }
-
-    private bool AllPredecessorsDone(Guid taskId, SchedulingState state)
-    {
-        if (!state.Analysis.Predecessors.TryGetValue(taskId, out var preds))
-            return true;
-        return preds.All(p => state.RemainingMinutes.GetValueOrDefault(p, 0) == 0);
-    }
-
-    private IEnumerable<UserTask> OrderByPriority(IEnumerable<UserTask> candidates, SchedulingState state)
-    {
-        var critical = state.Analysis.CriticalTaskIds;
-        return candidates
-            .OrderBy(t => t.Deadline ?? DateTime.MaxValue)            // most urgent deadline first
-            .ThenByDescending(t => critical.Contains(t.Id))           // critical as tiebreaker
-            .ThenByDescending(t => (int)t.Priority)                   // higher priority first
-            .ThenBy(t => state.RemainingMinutes[t.Id]);               // shorter remaining first
-    }
-
-    private IEnumerable<UserTask> OrderPreferLight(IEnumerable<UserTask> candidates, SchedulingState state)
-    {
-        var list = candidates.ToList();
-        var lightCandidates = list.Where(t => t.Intensity == ETaskIntensity.Light).ToList();
-        var otherCandidates = list.Where(t => t.Intensity != ETaskIntensity.Light).ToList();
-
-        // Soft preference: try light tasks first, but fall through to others if they can't be placed.
-        // This prevents the algorithm from getting stuck when no light tasks fit the current slot.
-        return lightCandidates.Count > 0
-            ? OrderByPriority(lightCandidates, state).Concat(OrderByPriority(otherCandidates, state))
-            : OrderByPriority(list, state);
-    }
+    private static bool AllPredecessorsDone(
+        Guid taskId,
+        IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> predecessors,
+        HashSet<Guid> scheduled) =>
+        !predecessors.TryGetValue(taskId, out var preds) || preds.All(scheduled.Contains);
 }

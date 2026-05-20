@@ -260,6 +260,7 @@ public partial class TeapotDbContext : DbContext
                 .HasColumnName("name");
             entity.Property(e => e.TimeEstimate).HasColumnName("time_estimate");
             entity.Property(e => e.WorkProfileId).HasColumnName("work_profile_id");
+            entity.Property(e => e.OrganizationId).HasColumnName("organization_id");
 
             entity.HasOne(d => d.WorkProfile).WithMany(p => p.UserTasks)
                 .HasForeignKey(d => d.WorkProfileId)

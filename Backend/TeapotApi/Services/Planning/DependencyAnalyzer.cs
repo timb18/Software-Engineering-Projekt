@@ -23,8 +23,14 @@ public class DependencyAnalyzer
         IReadOnlyList<UserTask> tasks,
         IReadOnlyList<TaskDependency> dependencies,
         DateTime projectStart,
-        IReadOnlyDictionary<Guid, (DateTime Start, DateTime End)>? fixedTaskTimes = null)
+        IReadOnlyDictionary<Guid, (DateTime Start, DateTime End)>? fixedTaskTimes = null,
+        IReadOnlyDictionary<Guid, TimeSpan>? effectiveDurations = null)
     {
+        TimeSpan DurationOf(UserTask t) =>
+            effectiveDurations != null && effectiveDurations.TryGetValue(t.Id, out var d)
+                ? d
+                : t.TimeEstimate;
+
         if (tasks.Count == 0)
             return new DependencyAnalysisResult([], new HashSet<Guid>(), new Dictionary<Guid, IReadOnlyList<Guid>>());
 
@@ -92,10 +98,10 @@ public class DependencyAnalyzer
                     ? preds.Max(p => earlyFinish[p])
                     : projectStart;
 
-                earlyFinish[taskId] = earlyStart[taskId] + task.TimeEstimate;
+                earlyFinish[taskId] = earlyStart[taskId] + DurationOf(task);
 
-                // Check deadline feasibility (deadline = end-of-day, so midnight of the next day is the exclusive bound)
-                if (task.Deadline.HasValue && earlyFinish[taskId] > task.Deadline.Value.Date.AddDays(1))
+                // Check deadline feasibility: deadline is an exact timestamp (inclusive).
+                if (task.Deadline.HasValue && earlyFinish[taskId] > task.Deadline.Value)
                     throw new InvalidOperationException(
                         $"Abhängigkeiten und Deadlines nicht vereinbar: " +
                         $"Aufgabe '{task.Name}' kann frühestens um {earlyFinish[taskId]:g} fertig werden, " +
@@ -108,8 +114,8 @@ public class DependencyAnalyzer
         // with the scheduler and ValidatePlan checks.
         var projectEnd = earlyFinish.Values.Max();
         foreach (var task in tasks)
-            if (task.Deadline.HasValue && task.Deadline.Value.Date.AddDays(1) > projectEnd)
-                projectEnd = task.Deadline.Value.Date.AddDays(1);
+            if (task.Deadline.HasValue && task.Deadline.Value > projectEnd)
+                projectEnd = task.Deadline.Value;
 
         // Backward pass: compute latest start/finish times
         var lateFinish = new Dictionary<Guid, DateTime>(tasks.Count);
@@ -125,7 +131,7 @@ public class DependencyAnalyzer
                 lateFinish[taskId] = ft.End;
             else
                 lateFinish[taskId] = task.Deadline.HasValue
-                    ? task.Deadline.Value.Date.AddDays(1)
+                    ? task.Deadline.Value
                     : projectEnd;
         }
 
@@ -144,7 +150,7 @@ public class DependencyAnalyzer
             if (fixedTaskTimes != null && fixedTaskTimes.TryGetValue(taskId, out var fixedT))
                 lateStart[taskId] = fixedT.Start;
             else
-                lateStart[taskId] = lateFinish[taskId] - taskMap[taskId].TimeEstimate;
+                lateStart[taskId] = lateFinish[taskId] - DurationOf(taskMap[taskId]);
         }
 
         // Identify critical tasks: slack (lateStart - earlyStart) <= 0

@@ -40,7 +40,7 @@ public static class DependencyInjectionExtension
 
             // Planning pipeline components.
             services.AddScoped<DependencyAnalyzer>();
-            services.AddScoped<SchedulingAlgorithm>();
+            services.AddScoped<GreedyScheduler>();
             services.AddScoped<IUserTaskPlanner, UserTaskPlanner>();
 
             return services;
