@@ -1,9 +1,36 @@
 import dayjs from "dayjs";
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState, type FC } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
 import useUserStore from "../../stores/user-store";
 import EditTaskModal from "../EditTaskModal";
 import type { Task } from "../../util/types";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
+type RecurringBlocker = {
+  id?: string;
+  workProfileId?: string;
+  name: string;
+  daysOfWeek: string;
+  startTime: string;
+  endTime: string;
+  validFrom?: string;
+  validUntil?: string;
+};
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const WEEKDAY_LABELS: Record<string, string> = {
+  Mon: "Mo", Tue: "Di", Wed: "Mi", Thu: "Do", Fri: "Fr", Sat: "Sa", Sun: "So",
+};
+
+const emptyBlockerForm = (): RecurringBlocker => ({
+  name: "",
+  daysOfWeek: "Mon,Tue,Wed,Thu,Fri",
+  startTime: "09:00",
+  endTime: "10:00",
+  validFrom: "",
+  validUntil: "",
+});
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,12 +84,32 @@ const TEMPLATES = [
 
 interface CreateTaskModalProps {
   onClose: () => void;
+  /** Prefill form values (e.g. from calendar drag selection) */
+  initialValues?: {
+    startDate?: string;
+    endDate?: string;
+    isFixed?: boolean;
+  };
+  /** Work-profile ID – enables the Recurring Blocker tab */
+  workProfileId?: string;
 }
 
-const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
-  const { user, addTask } = useUserStore();
+export const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose, initialValues, workProfileId }) => {
+  const { user, addTask, activeOrganizationId } = useUserStore();
   const overlayRef = useRef<HTMLDivElement>(null);
 
+  // Organization selector: lists ALL orgs the user belongs to.
+  // The work profile is shared across orgs (per-shift Company tagging),
+  // so we only need to tag the task with the chosen org id.
+  const availableOrgs = user.orgs ?? [];
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(
+    activeOrganizationId ?? availableOrgs[0]?.id ?? "",
+  );
+
+  // ── Modal mode ────────────────────────────────────────────────────────────
+  const [modalMode, setModalMode] = useState<"task" | "blocker">("task");
+
+  // ── Task form ─────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -70,13 +117,110 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
     priority: "medium" as NonNullable<Task["priority"]>,
     status: "todo" as NonNullable<Task["status"]>,
     intensity: "normal" as NonNullable<Task["intensity"]>,
-    deadline: "",
-    startDate: "",
-    isFixed: false,
+    deadline: initialValues?.endDate ?? "",
+    startDate: initialValues?.startDate ?? "",
+    isFixed: initialValues?.isFixed ?? false,
     dependencies: [] as string[],
   });
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+
+  // ── Recurring blocker state ───────────────────────────────────────────────
+  const [blockers, setBlockers] = useState<RecurringBlocker[]>([]);
+  const [blockerForm, setBlockerForm] = useState<RecurringBlocker>(() => {
+    const base = emptyBlockerForm();
+    // Pre-fill from calendar drag selection (datetime-local → split into date + time)
+    if (initialValues?.startDate) {
+      base.startTime = initialValues.startDate.slice(11, 16); // "HH:mm"
+      base.validFrom = initialValues.startDate.slice(0, 10);  // "YYYY-MM-DD"
+    }
+    if (initialValues?.endDate) {
+      base.endTime = initialValues.endDate.slice(11, 16);
+    }
+    return base;
+  });
+  const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null);
+  const [blockerError, setBlockerError] = useState<string | undefined>();
+  const [blockerStatus, setBlockerStatus] = useState<string | undefined>();
+  const [isSavingBlocker, setIsSavingBlocker] = useState(false);
+
+  const fetchBlockersList = useCallback(async () => {
+    if (!workProfileId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`);
+      if (res.ok) setBlockers((await res.json()) as RecurringBlocker[]);
+    } catch { /* ignore */ }
+  }, [workProfileId]);
+
+  useEffect(() => {
+    if (modalMode === "blocker") void fetchBlockersList();
+  }, [modalMode, fetchBlockersList]);
+
+  const toggleBlockerDay = (day: string) => {
+    const current = blockerForm.daysOfWeek.split(",").filter(Boolean);
+    const next = current.includes(day)
+      ? current.filter((d) => d !== day)
+      : [...current, day];
+    setBlockerForm({ ...blockerForm, daysOfWeek: next.join(",") });
+  };
+
+  const startEditBlocker = (b: RecurringBlocker) => {
+    setEditingBlockerId(b.id ?? null);
+    setBlockerForm({
+      name: b.name, daysOfWeek: b.daysOfWeek,
+      startTime: b.startTime, endTime: b.endTime,
+      validFrom: b.validFrom ?? "", validUntil: b.validUntil ?? "",
+    });
+    setBlockerError(undefined);
+    setBlockerStatus(undefined);
+  };
+
+  const cancelBlockerEdit = () => {
+    setEditingBlockerId(null);
+    setBlockerForm(emptyBlockerForm());
+    setBlockerError(undefined);
+    setBlockerStatus(undefined);
+  };
+
+  const saveBlocker = async () => {
+    if (!workProfileId) return;
+    setIsSavingBlocker(true);
+    setBlockerError(undefined);
+    setBlockerStatus(undefined);
+    try {
+      const body = {
+        ...blockerForm,
+        validFrom: blockerForm.validFrom || undefined,
+        validUntil: blockerForm.validUntil || undefined,
+      };
+      const url = editingBlockerId
+        ? `${API_BASE}/api/recurring-blocker/${workProfileId}/${editingBlockerId}`
+        : `${API_BASE}/api/recurring-blocker/${workProfileId}`;
+      const res = await fetch(url, {
+        method: editingBlockerId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.text()) || "Could not save blocker.");
+      setBlockerStatus(editingBlockerId ? "Blocker updated." : "Blocker created.");
+      cancelBlockerEdit();
+      await fetchBlockersList();
+    } catch (e) {
+      setBlockerError(e instanceof Error ? e.message : "Unknown error.");
+    } finally {
+      setIsSavingBlocker(false);
+    }
+  };
+
+  const deleteBlockerById = async (id: string) => {
+    if (!workProfileId || !window.confirm("Blocker löschen?")) return;
+    try {
+      await fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}/${id}`, { method: "DELETE" });
+      await fetchBlockersList();
+    } catch (e) {
+      setBlockerError(e instanceof Error ? e.message : "Could not delete.");
+    }
+  };
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
@@ -154,7 +298,7 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
       priority: form.priority,
       status: form.status,
       intensity: form.intensity,
-      org: user.orgs?.[0]?.id ?? "",
+      org: selectedOrgId || user.orgs?.[0]?.id || "",
       recurrence: "none",
       dependencies: dependencyOptions.filter((t) =>
         form.dependencies.includes(t.name),
@@ -175,16 +319,47 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
   const fieldClass =
     "rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring transition text-sm";
 
+  /** Clamp year to 4 digits – called onBlur, not during typing. */
+  const clampYear = (val: string): string => {
+    if (!val) return val;
+    return val.replace(/^(\d{5,})/, (y) => y.slice(0, 4));
+  };
+
   return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
-      onClick={ () => {} }
+      onClick={() => {}}
     >
       <div data-modal-backdrop="static" className="flex w-full max-w-2xl max-h-[90dvh] flex-col gap-4 overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl sm:rounded-3xl">
-        {/* Header */}
+        {/* Header with mode toggle */}
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-50">New Task</h2>
+          <div className="flex gap-1 rounded-full border border-slate-700 bg-slate-950/60 p-1">
+            <button
+              type="button"
+              onClick={() => { setModalMode("task"); setBlockerError(undefined); setBlockerStatus(undefined); }}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                modalMode === "task"
+                  ? "bg-emerald-400/20 text-emerald-100 border border-emerald-300/50"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              📅 Task
+            </button>
+            {workProfileId && (
+              <button
+                type="button"
+                onClick={() => { setModalMode("blocker"); void fetchBlockersList(); }}
+                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                  modalMode === "blocker"
+                    ? "bg-violet-400/20 text-violet-100 border border-violet-300/50"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                🔁 Recurring Blocker
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
@@ -194,6 +369,142 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
           </button>
         </div>
 
+        {/* ─── BLOCKER MODE ─── */}
+        {modalMode === "blocker" && (
+          <div className="flex flex-col gap-5">
+            <p className="text-xs text-slate-400">Wiederkehrende Blocker werden beim Auto-Schedule automatisch aus den freien Slots herausgerechnet.</p>
+
+            {/* Form */}
+            <div className="rounded-2xl border border-violet-400/20 bg-violet-500/5 p-4 flex flex-col gap-4">
+              <div className="text-xs font-semibold text-violet-200 tracking-wide">
+                {editingBlockerId ? "Blocker bearbeiten" : "Neuer Blocker"}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Name</label>
+                <input
+                  value={blockerForm.name}
+                  onChange={(e) => setBlockerForm({ ...blockerForm, name: e.target.value })}
+                  placeholder="z.B. Team-Standup, Mittagspause…"
+                  className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Wochentage</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {WEEKDAYS.map((d) => {
+                    const active = blockerForm.daysOfWeek.split(",").includes(d);
+                    return (
+                      <button key={d} type="button" onClick={() => toggleBlockerDay(d)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                          active
+                            ? "bg-violet-500/25 text-violet-100 border border-violet-400/60"
+                            : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-slate-200"
+                        }`}
+                      >
+                        {WEEKDAY_LABELS[d]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Startzeit</label>
+                  <input type="time" value={blockerForm.startTime}
+                    onChange={(e) => setBlockerForm({ ...blockerForm, startTime: e.target.value })}
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Endzeit</label>
+                  <input type="time" value={blockerForm.endTime}
+                    onChange={(e) => setBlockerForm({ ...blockerForm, endTime: e.target.value })}
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Gültig ab (optional)</label>
+                  <input type="date" value={blockerForm.validFrom ?? ""}
+                    min="2000-01-01" max="2099-12-31"
+                    onChange={(e) => setBlockerForm({ ...blockerForm, validFrom: e.target.value })}
+                    onBlur={(e) => setBlockerForm({ ...blockerForm, validFrom: clampYear(e.target.value) })}
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">Gültig bis (optional)</label>
+                  <input type="date" value={blockerForm.validUntil ?? ""}
+                    min="2000-01-01" max="2099-12-31"
+                    onChange={(e) => setBlockerForm({ ...blockerForm, validUntil: e.target.value })}
+                    onBlur={(e) => setBlockerForm({ ...blockerForm, validUntil: clampYear(e.target.value) })}
+                    className="rounded-xl border border-slate-800 bg-slate-800/60 px-3 py-2 text-slate-50 outline-none ring-violet-400/40 focus:border-violet-400/60 focus:ring text-sm"
+                  />
+                </div>
+              </div>
+              {blockerError && <div className="text-xs text-rose-300">{blockerError}</div>}
+              {blockerStatus && <div className="text-xs text-emerald-300">{blockerStatus}</div>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void saveBlocker()}
+                  disabled={isSavingBlocker || !blockerForm.name || !blockerForm.daysOfWeek}
+                  className="flex-1 rounded-xl border border-violet-400/60 bg-violet-500/20 py-2 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/30 disabled:opacity-50"
+                >
+                  {isSavingBlocker ? "Speichern…" : editingBlockerId ? "Aktualisieren" : "Blocker erstellen"}
+                </button>
+                {editingBlockerId && (
+                  <button
+                    type="button"
+                    onClick={cancelBlockerEdit}
+                    className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-slate-500"
+                  >
+                    Abbrechen
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* List */}
+            {blockers.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-5 text-center text-sm text-slate-500">
+                Noch keine wiederkehrenden Blocker.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="text-xs tracking-[0.14em] text-slate-500 uppercase">Bestehende Blocker</div>
+                {blockers.map((b) => (
+                  <div key={b.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-100 truncate">{b.name}</div>
+                      <div className="text-xs text-slate-400">
+                        {b.daysOfWeek.split(",").map((d) => WEEKDAY_LABELS[d] ?? d).join(", ")}
+                        &nbsp;·&nbsp;{b.startTime}–{b.endTime}
+                        {(b.validFrom || b.validUntil) && (
+                          <span className="ml-2 text-slate-500">({b.validFrom ?? "…"} – {b.validUntil ?? "…"})</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => startEditBlocker(b)}
+                        className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100"
+                      >Edit</button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteBlockerById(b.id!)}
+                        className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 hover:bg-rose-500/20"
+                      >Del</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── TASK MODE ─── */}
+        {modalMode === "task" && (<>
         {/* Quick templates */}
         <div>
           <div className="mb-2 text-xs tracking-[0.14em] text-slate-500 uppercase">
@@ -276,9 +587,10 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
               <input
                 type="datetime-local"
                 value={form.startDate}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, startDate: e.target.value }))
-                }
+                min="2000-01-01T00:00"
+                max="2099-12-31T23:59"
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                onBlur={(e) => setForm((f) => ({ ...f, startDate: clampYear(e.target.value) }))}
                 className={fieldClass}
               />
             </div>
@@ -289,9 +601,10 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
               <input
                 type="datetime-local"
                 value={form.deadline}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, deadline: e.target.value }))
-                }
+                min="2000-01-01T00:00"
+                max="2099-12-31T23:59"
+                onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
+                onBlur={(e) => setForm((f) => ({ ...f, deadline: clampYear(e.target.value) }))}
                 className={fieldClass}
               />
             </div>
@@ -322,12 +635,34 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
               <input
                 type="datetime-local"
                 value={form.deadline}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, deadline: e.target.value }))
-                }
+                min="2000-01-01T00:00"
+                max="2099-12-31T23:59"
+                onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
+                onBlur={(e) => setForm((f) => ({ ...f, deadline: clampYear(e.target.value) }))}
                 className={fieldClass}
               />
             </div>
+          </div>
+        )}
+
+        {/* Organization */}
+        {availableOrgs.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+              Organization
+            </label>
+            <select
+              value={selectedOrgId}
+              onChange={(e) => setSelectedOrgId(e.target.value)}
+              className={fieldClass}
+            >
+              {availableOrgs.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                  {org.id === activeOrganizationId ? " (active)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -452,6 +787,7 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
             {saving ? "Saving…" : "Create Task"}
           </button>
         </div>
+        </>)}
       </div>
     </div>,
     document.body,
@@ -461,7 +797,7 @@ const CreateTaskModal: FC<CreateTaskModalProps> = ({ onClose }) => {
 // ── Task Board ────────────────────────────────────────────────────────────────
 
 const TaskBoard: FC = () => {
-  const { user } = useUserStore();
+  const { user, workProfileId } = useUserStore();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -861,7 +1197,7 @@ const TaskBoard: FC = () => {
       )}
 
       {createOpen && (
-        <CreateTaskModal onClose={() => setCreateOpen(false)} />
+        <CreateTaskModal onClose={() => setCreateOpen(false)} workProfileId={workProfileId ?? undefined} />
       )}
       {selectedTask && (
         <EditTaskModal

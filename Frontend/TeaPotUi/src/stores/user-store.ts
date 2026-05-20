@@ -60,7 +60,7 @@ export const initForUser = async (
       profileImageUrl,
     });
     const profile = await fetchUserProfile(userId);
-    applyStoredColorPreferences(profile.breakColor, profile.orgColors);
+    applyStoredColorPreferences(profile.breakColor, profile.blockerColor, profile.orgColors);
 
     const [organizationsResult] = await Promise.allSettled([
       fetchOrganizationsByUserEmail(email),
@@ -119,6 +119,7 @@ export const initForUser = async (
         profileImage: profile.profileImageUrl,
         timezone: profile.timezone,
         appearanceBreakColor: profile.breakColor,
+        appearanceBlockerColor: profile.blockerColor,
         appearanceOrgColors: profile.orgColors,
         tasks,
         workProfile: workProfile ?? undefined,
@@ -252,6 +253,10 @@ const useUserStore = () => {
       const taskForActiveOrganization = {
         ...saved,
         org: task.org || activeOrganizationId || saved.org,
+        // Single-task fromApi() returns dependencies as [] (no byId context).
+        // Preserve the original input deps so the local state matches what was
+        // persisted on the server.
+        dependencies: task.dependencies,
       };
       userStore.setState((s) => ({
         user: { ...s.user, tasks: [...(s.user.tasks ?? []), taskForActiveOrganization] },
@@ -280,7 +285,11 @@ const useUserStore = () => {
 
     if (workProfileId && task.id) {
       const saved = await updateTask(workProfileId, task.id, task);
-      updateLocal({ ...saved, org: task.org });
+      // Single-task fromApi() cannot resolve dependency IDs to Task objects
+      // (no byId context). Preserve the input task's dependencies so the local
+      // state reflects what was just persisted, otherwise the next save would
+      // PUT an empty dependsOnTaskIds list and wipe them from the DB.
+      updateLocal({ ...saved, org: task.org, dependencies: task.dependencies });
     } else if (task.id) {
       // Offline fallback: keep local state in sync.
       updateLocal(task);

@@ -26,6 +26,12 @@ public class UserTask
     /// <summary>Foreign key: the work profile this task belongs to</summary>
     public Guid WorkProfileId { get; set; }
 
+    /// <summary>
+    /// Optional organization the task is assigned to. The scheduler will only use shifts
+    /// tagged with this org. Null means: use the workprofile's owning (personal) org.
+    /// </summary>
+    public Guid? OrganizationId { get; set; }
+
     /// <summary>Task name/title displayed in the UI</summary>
     public string Name { get; set; } = null!;
 

@@ -26,6 +26,7 @@ public static class DependencyInjectionExtension
             services.AddScoped<SmtpEmailSender>();
             services.AddScoped<IEmailSender, ConfiguredEmailSender>();
             services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
+            services.AddScoped<IRecurringBlockerRepository, RecurringBlockerRepository>();
 
             // Domain services for user, organization, invitation, and membership workflows.
             services.AddScoped<IUserManagementService, UserManagementService>();
@@ -39,7 +40,7 @@ public static class DependencyInjectionExtension
 
             // Planning pipeline components.
             services.AddScoped<DependencyAnalyzer>();
-            services.AddScoped<SchedulingAlgorithm>();
+            services.AddScoped<GreedyScheduler>();
             services.AddScoped<IUserTaskPlanner, UserTaskPlanner>();
 
             return services;

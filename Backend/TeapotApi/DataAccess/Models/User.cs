@@ -36,6 +36,7 @@ public class User
     /// <summary>Color preference for work breaks (hex color code like "#FF5733")</summary>
     public string? BreakColor { get; set; }
 
+    public string? BlockerColor { get; set; }
     /// <summary>Serialized organization color preferences (JSON mapping organization IDs to colors)</summary>
     public string? OrgColors { get; set; }
 

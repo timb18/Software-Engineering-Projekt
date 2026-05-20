@@ -11,10 +11,12 @@ import { updateUserProfile } from "../../util/user-api";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import {
   getBreakColor,
+  getBlockerColor,
   getOrgColor,
   parseColorPreference,
   parseOrgColorPreferences,
   setBreakColor,
+  setBlockerColor,
   setOrgColor,
   rgbToHex,
   hexToRgb,
@@ -22,6 +24,7 @@ import {
   serializeOrgColorPreferences,
   DEFAULT_ORG_COLOR,
   DEFAULT_BREAK_COLOR,
+  DEFAULT_BLOCKER_COLOR,
   type RgbColor,
 } from "../../util/color-prefs";
 import { useForm, type FormValidateResult } from "react-hook-form";
@@ -148,6 +151,7 @@ const User: FC = () => {
   });
 
   const [tab, setTab] = useState<Tab>("general");
+
   const [isWorkDirty, setIsWorkDirty] = useState(false);
   const [isSavingWorkProfile, setIsSavingWorkProfile] = useState(false);
   const [pendingTabChange, setPendingTabChange] = useState<Tab | undefined>();
@@ -182,6 +186,9 @@ const User: FC = () => {
   const [breakColorState, setBreakColorState] = useState<RgbColor>(() =>
     parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()),
   );
+  const [blockerColorState, setBlockerColorState] = useState<RgbColor>(() =>
+    parseColorPreference(userFromDb.appearanceBlockerColor, getBlockerColor()),
+  );
 
   const updateOrgColor = (orgId: string, color: RgbColor) => {
     setOrgColorsState((prev) => ({ ...prev, [orgId]: color }));
@@ -189,6 +196,10 @@ const User: FC = () => {
   };
   const updateBreakColorState = (color: RgbColor) => {
     setBreakColorState(color);
+    setIsAppearanceDirty(true);
+  };
+  const updateBlockerColorState = (color: RgbColor) => {
+    setBlockerColorState(color);
     setIsAppearanceDirty(true);
   };
   // ─────────────────────────────────────────────────────────────────────
@@ -226,8 +237,11 @@ const User: FC = () => {
     setBreakColorState(
       parseColorPreference(userFromDb.appearanceBreakColor, getBreakColor()),
     );
+    setBlockerColorState(
+      parseColorPreference(userFromDb.appearanceBlockerColor, getBlockerColor()),
+    );
     setIsAppearanceDirty(false);
-  }, [
+  }, [userFromDb.appearanceBlockerColor,
     userFromDb.appearanceBreakColor,
     userFromDb.appearanceOrgColors,
     userFromDb.orgs,
@@ -368,6 +382,7 @@ const User: FC = () => {
     }
 
     const breakColor = serializeColorPreference(breakColorState);
+    const blockerColor = serializeColorPreference(blockerColorState);
     const orgColorPrefs = serializeOrgColorPreferences(orgColors);
 
     setIsSavingAppearance(true);
@@ -379,10 +394,12 @@ const User: FC = () => {
         profileImageUrl: profileForm.profileImageUrl.trim() || undefined,
         timezone: profileForm.timezone.trim() || "Europe/Berlin",
         breakColor,
+        blockerColor,
         orgColors: orgColorPrefs,
       });
 
       setBreakColor(breakColorState);
+      setBlockerColor(blockerColorState);
       for (const [orgId, color] of Object.entries(orgColors)) {
         setOrgColor(orgId, color);
       }
@@ -396,6 +413,7 @@ const User: FC = () => {
         profileImage: savedProfile.profileImageUrl,
         timezone: savedProfile.timezone,
         appearanceBreakColor: savedProfile.breakColor,
+        appearanceBlockerColor: savedProfile.blockerColor,
         appearanceOrgColors: savedProfile.orgColors,
       });
       setIsAppearanceDirty(false);
@@ -814,6 +832,14 @@ const User: FC = () => {
               color={breakColorState}
               onChange={updateBreakColorState}
               onReset={() => updateBreakColorState({ ...DEFAULT_BREAK_COLOR })}
+            />
+
+            {/* Blocker color */}
+            <ColorPickerCard
+              label="Recurring Blockers"
+              color={blockerColorState}
+              onChange={updateBlockerColorState}
+              onReset={() => updateBlockerColorState({ ...DEFAULT_BLOCKER_COLOR })}
             />
 
             {/* Per-org colors */}

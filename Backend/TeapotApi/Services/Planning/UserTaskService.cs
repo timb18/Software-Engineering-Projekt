@@ -77,6 +77,7 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         existing.LateStart = updated.LateStart;
         existing.LateFinish = updated.LateFinish;
         existing.Intensity = updated.Intensity;
+        existing.OrganizationId = updated.OrganizationId;
         existing.EditedAt = DateTime.UtcNow;
 
         await userTaskRepository.UpdateAsync(existing, cancellationToken);
@@ -99,7 +100,9 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
             ?? throw new KeyNotFoundException($"Task {taskId} not found.");
 
         await taskBlockRepository.DeleteForTaskAsync(taskId, cancellationToken);
-        await taskDependencyRepository.ReplaceForTaskAsync(taskId, [], cancellationToken);
+        // Wipe every dependency row that mentions this task – both directions – so the
+        // FK constraint does not block the delete when other tasks still depend on it.
+        await taskDependencyRepository.DeleteAllReferencesAsync(taskId, cancellationToken);
         await userTaskRepository.DeleteAsync(task, cancellationToken);
     }
 }

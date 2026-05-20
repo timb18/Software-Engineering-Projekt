@@ -13,12 +13,14 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState, type FC } from "react";
+import { CreateTaskModal } from "./task-list";
 import useUserStore from "../../stores/user-store";
 import { fetchBlocks, fetchTasks, type TaskBlock } from "../../util/task-api";
 import type { Task, WorkBreak, WorkWeekDay } from "../../util/types";
 import { saveWorkProfile } from "../../util/work-profile-api";
 import {
   getBreakColor,
+  getBlockerColor,
   getOrgColor,
   isDarkColor,
   readableTextColor,
@@ -54,7 +56,6 @@ const Tasks: FC = () => {
     setUser,
     activeOrganizationId,
     setActiveOrganization,
-    addTask,
     saveTask,
     removeTask,
     workProfileId,
@@ -80,12 +81,12 @@ const Tasks: FC = () => {
     end: "",
     priority: "medium" as Task["priority"],
     status: "todo" as Task["status"],
+    intensity: "normal" as Task["intensity"],
     organizationId: "",
     isFixed: false,
+    dependencies: [] as string[],
   });
   const [editError, setEditError] = useState<string | undefined>();
-  const [status, setStatus] = useState<string | undefined>();
-  const [error, setError] = useState<string | undefined>();
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [filterStatus, setFilterStatus] = useState<
     "all" | "todo" | "in-progress" | "done"
@@ -97,9 +98,13 @@ const Tasks: FC = () => {
   const [scheduleMsg, setScheduleMsg] = useState<{
     ok: boolean;
     text: string;
-    warnings?: string[];
   } | null>(null);
   const [blocks, setBlocks] = useState<TaskBlock[]>([]);
+  const [recurringBlockers, setRecurringBlockers] = useState<{
+    id?: string; name: string; daysOfWeek: string;
+    startTime: string; endTime: string;
+    validFrom?: string; validUntil?: string;
+  }[]>([]);
   const [editingBreak, setEditingBreak] = useState<{
     breakId: string;
     weekDay: WorkWeekDay;
@@ -108,7 +113,15 @@ const Tasks: FC = () => {
   } | null>(null);
   const [editBreakForm, setEditBreakForm] = useState({ start: "", end: "" });
   const [editBreakError, setEditBreakError] = useState<string | undefined>();
+  const [editingBlocker, setEditingBlocker] = useState<{
+    id: string;
+    name: string;
+    days: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
   const [colorVersion, setColorVersion] = useState(0);
+
   const [plannerViewForm, setPlannerViewForm] = useState({
     startTime: user.plannerViewStart ?? "06:00",
     endTime: user.plannerViewEnd ?? "22:00",
@@ -127,9 +140,7 @@ const Tasks: FC = () => {
       plannerViewStart: startTime,
       plannerViewEnd: endTime,
     });
-    saveWorkProfile(user.id, updatedProfile, activeOrganizationId).catch(() =>
-      setUser({ ...user }),
-    );
+    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
   };
 
   useEffect(() => {
@@ -143,6 +154,14 @@ const Tasks: FC = () => {
     fetchBlocks(workProfileId)
       .then(setBlocks)
       .catch(() => setBlocks([]));
+  }, [workProfileId]);
+
+  useEffect(() => {
+    if (!workProfileId) return;
+    fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then(setRecurringBlockers)
+      .catch(() => setRecurringBlockers([]));
   }, [workProfileId]);
 
   useEffect(() => {
@@ -169,15 +188,13 @@ const Tasks: FC = () => {
         success: boolean;
         errorMessage?: string;
         backtrackingCount?: number;
-        warnings?: string[];
       };
       if (json.success) {
         setScheduleMsg({
           ok: true,
           text: `Plan created (${json.backtrackingCount ?? 0} backtracks).`,
-          warnings: json.warnings ?? [],
         });
-        // Reload tasks and blocks so the calendar reflects the newly generated plan.
+        // Reload tasks and blocks so the calendar reflects the new schedule
         const updated = await fetchTasks(workProfileId);
         setUser({ ...user, tasks: updated });
         const updatedBlocks = await fetchBlocks(workProfileId);
@@ -186,7 +203,6 @@ const Tasks: FC = () => {
         setScheduleMsg({
           ok: false,
           text: json.errorMessage ?? "Scheduling failed.",
-          warnings: json.warnings ?? [],
         });
       }
     } catch {
@@ -213,9 +229,14 @@ const Tasks: FC = () => {
     return byStatus && byOrg;
   });
 
+  // Index filtered tasks so blocks can be joined back to their task for color/title/status.
+  const filteredTaskById = new Map(
+    filteredTasks.filter((t) => t.id).map((t) => [t.id!, t]),
+  );
+
   const calendarRef = useRef<FullCalendar>(null);
 
-  // Generate recurring break events from the work profile for a wide calendar window.
+  // Generate recurring break events from work profile for a ±8 week window
   const breakEvents: EventInput[] = [];
   if (user.workProfile) {
     const windowStart = dayjs().subtract(14, "day").startOf("day");
@@ -230,7 +251,6 @@ const Tasks: FC = () => {
         while (date.isBefore(windowEnd)) {
           const breakC = getBreakColor();
           const isDarkBreak = isDarkColor(breakC);
-          // Keep color-dependent event styling reactive without rebuilding the entire calendar state.
           void colorVersion;
           breakEvents.push({
             id: `break-${workBreak.id}-${date.format("YYYY-MM-DD")}`,
@@ -254,56 +274,150 @@ const Tasks: FC = () => {
     }
   }
 
-  const taskById = new Map((user.tasks ?? []).map((task) => [task.id, task]));
-  const visibleTaskIds = new Set(filteredTasks.map((task) => task.id).filter(Boolean));
-  const calendarEvents: EventInput[] = blocks
-    .filter((block) => visibleTaskIds.has(block.taskId))
-    .map((block) => {
-      const task = taskById.get(block.taskId);
-      // The color utilities intentionally depend on external theme state.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const c: RgbColor = task?.org ? getOrgColor(task.org) : getOrgColor("");
+  // Generate recurring blocker events for ±8 week window
+  const blockerEvents: EventInput[] = [];
+  {
+    const windowStart = dayjs().subtract(14, "day").startOf("day");
+    const windowEnd = dayjs().add(42, "day").startOf("day");
+    for (const b of recurringBlockers) {
+      const days = b.daysOfWeek.split(",").filter(Boolean);
+      const [sh, sm] = b.startTime.split(":").map(Number);
+      const [eh, em] = b.endTime.split(":").map(Number);
+      for (const dayName of days) {
+        const targetDow = DAY_TO_JS[dayName as WorkWeekDay];
+        if (targetDow === undefined) continue;
+        let date = windowStart.clone();
+        while (date.day() !== targetDow) date = date.add(1, "day");
+        while (date.isBefore(windowEnd)) {
+          const dateStr = date.format("YYYY-MM-DD");
+          if (b.validFrom && dateStr < b.validFrom) { date = date.add(7, "day"); continue; }
+          if (b.validUntil && dateStr > b.validUntil) { date = date.add(7, "day"); continue; }
+          blockerEvents.push({
+            id: `blocker-${b.id ?? b.name}-${dateStr}`,
+            title: b.name,
+            start: date.hour(sh!).minute(sm!).second(0).toDate(),
+            end: date.hour(eh!).minute(em!).second(0).toDate(),
+            backgroundColor: rgbToCss(getBlockerColor(), 0.15),
+            borderColor: rgbToCss(getBlockerColor(), 0.5),
+            textColor: readableTextColor(getBlockerColor()),
+            classNames: ["blocker-event"],
+            editable: false,
+            extendedProps: { type: "blocker", blockerId: b.id, blockerName: b.name, blockerDays: b.daysOfWeek, blockerStart: b.startTime, blockerEnd: b.endTime },
+          });
+          date = date.add(7, "day");
+        }
+      }
+    }
+  }
+
+  // Render one calendar event per scheduled task_block. Tasks without blocks
+  // (e.g. newly created, not yet scheduled) only appear in the Upcoming list.
+  // Fallback: if no blocks were fetched at all, render tasks the old way so the
+  // calendar still shows something (e.g. for is_fixed tasks set manually).
+  const taskIdsWithBlocks = new Set(blocks.map((b) => b.taskId));
+  const blockEvents: EventInput[] = blocks.flatMap((b) => {
+    const t = filteredTaskById.get(b.taskId);
+    if (!t) return [];
+    const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
+    const isDarkTask = isDarkColor(c);
+    void colorVersion; // reactive dependency
+    return [{
+      id: `${b.taskId}-${b.startDate.toISOString()}`,
+      title: t.name,
+      start: b.startDate,
+      end: b.endDate,
+      backgroundColor: rgbToCss(c, 0.22),
+      borderColor: b.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
+      textColor: readableTextColor(c),
+      classNames: [
+        "task-event",
+        isDarkTask ? "is-dark-event-color" : "is-light-event-color",
+        b.isFixed ? "task-fixed" : "",
+        (t.status ?? "todo") === "done" ? "task-done" : "",
+      ].filter(Boolean),
+      editable: true,
+      extendedProps: { task: t },
+    }];
+  });
+
+  const taskFallbackEvents: EventInput[] = filteredTasks
+    .filter((t) => t.startDate && t.endDate && !taskIdsWithBlocks.has(t.id ?? ""))
+    .filter((t) => t.isFixed) // only show fixed/manual tasks without blocks
+    .map((t) => {
+      const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
       const isDarkTask = isDarkColor(c);
       void colorVersion; // reactive dependency
       return {
-        id: `${block.taskId}-${block.startDate.toISOString()}`,
-        title: task?.name ?? block.taskName,
-        start: block.startDate,
-        end: block.endDate,
+        id: t.id ?? `task-${t.name}`,
+        title: t.name,
+        start: t.startDate,
+        end: t.endDate,
         backgroundColor: rgbToCss(c, 0.22),
-        borderColor: block.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
+        borderColor: t.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
         textColor: readableTextColor(c),
         classNames: [
           "task-event",
           isDarkTask ? "is-dark-event-color" : "is-light-event-color",
-          block.isFixed ? "task-fixed" : "",
-          (task?.status ?? block.taskStatus ?? "todo") === "done" ? "task-done" : "",
+          t.isFixed ? "task-fixed" : "",
+          (t.status ?? "todo") === "done" ? "task-done" : "",
         ].filter(Boolean),
-        editable: !!task,
-        extendedProps: { task },
+        editable: true,
+        extendedProps: { task: t },
       };
     });
 
-  const persistWorkProfile = async (updatedProfile: NonNullable<typeof user.workProfile>) => {
-    setUser({ ...user, workProfile: updatedProfile });
-    try {
-      const savedProfile = await saveWorkProfile(user.id, updatedProfile);
-      setUser({
-        ...user,
-        workProfile: savedProfile,
-        hasPersistedWorkProfile: true,
-        plannerViewStart: savedProfile.plannerViewStart ?? user.plannerViewStart,
-        plannerViewEnd: savedProfile.plannerViewEnd ?? user.plannerViewEnd,
-      });
-      if (workProfileId) {
-        const updatedBlocks = await fetchBlocks(workProfileId);
-        setBlocks(updatedBlocks);
-      }
-    } catch {
-      setUser({ ...user });
-      throw new Error("Could not save work profile.");
-    }
-  };
+  // Auto-detect scheduled break gaps between consecutive task blocks (same day,
+  // small gap <= 30 min) and render them as a plain block event showing only
+  // the time range. The break end is shrunk by 1 second so it never *touches*
+  // the next task block — that avoids FullCalendar treating the break and the
+  // following task as overlapping and splitting their column into halves.
+  const sortedBlocksForBreaks = [...blocks].sort(
+    (a, b) => a.startDate.getTime() - b.startDate.getTime(),
+  );
+  const scheduledBreakEvents: EventInput[] = [];
+  for (let i = 1; i < sortedBlocksForBreaks.length; i++) {
+    const prev = sortedBlocksForBreaks[i - 1]!;
+    const curr = sortedBlocksForBreaks[i]!;
+    const gapMs = curr.startDate.getTime() - prev.endDate.getTime();
+    const gapMin = Math.round(gapMs / 60000);
+    if (gapMin < 5 || gapMin > 30) continue; // skip no-break and cross-slot gaps
+    if (prev.endDate.toDateString() !== curr.startDate.toDateString()) continue;
+    const breakC = getBreakColor();
+    const isDarkBreak = isDarkColor(breakC);
+    void colorVersion;
+    scheduledBreakEvents.push({
+      id: `auto-break-${prev.taskId}-${prev.endDate.toISOString()}`,
+      title: "",
+      start: prev.endDate,
+      end: curr.startDate,
+      // Background events render as a coloured stripe inside the time grid
+      // without taking up a lane — that prevents FullCalendar from squeezing
+      // the surrounding task blocks into half-width columns. Background
+      // events still fire eventClick, so the pause can be clicked away.
+      display: "background",
+      backgroundColor: rgbToCss(breakC, 0.35),
+      classNames: [
+        "scheduled-break-event",
+        isDarkBreak ? "is-dark-event-color" : "is-light-event-color",
+      ],
+      editable: false,
+      overlap: false,
+      displayEventTime: false,
+      extendedProps: {
+        type: "scheduled-break",
+        durationMinutes: gapMin,
+        nextTaskId: curr.taskId,
+        nextStartIso: curr.startDate.toISOString(),
+        gapMs: curr.startDate.getTime() - prev.endDate.getTime(),
+      },
+    });
+  }
+
+  const calendarEvents: EventInput[] = [
+    ...blockEvents,
+    ...scheduledBreakEvents,
+    ...taskFallbackEvents,
+  ];
 
   const updateBreakInProfile = (
     breakId: string,
@@ -342,7 +456,9 @@ const Tasks: FC = () => {
       return day;
     });
     const updatedProfile = { ...user.workProfile, days: updatedDays };
-    persistWorkProfile(updatedProfile).catch(() => {
+    setUser({ ...user, workProfile: updatedProfile });
+    saveWorkProfile(user.id, updatedProfile).catch(() => {
+      setUser({ ...user });
       revert();
     });
   };
@@ -365,20 +481,28 @@ const Tasks: FC = () => {
       return;
     }
     const task = arg.event.extendedProps.task as Task | undefined;
-    if (!task) {
+    if (!task || !task.id) {
       arg.revert();
       return;
     }
+    // When the user drags a task block, treat that as an explicit placement:
+    // mark the task as fixed (so Auto-Schedule won't move it again) and use the
+    // dragged event's new start/end as the task's window. Any auto-generated
+    // blocks for this task are dropped locally so the fallback rendering uses
+    // the task's own start/end instead of stale block positions.
     const newStart = arg.event.start!;
-    const duration = dayjs(task.endDate).diff(dayjs(task.startDate), "minute");
-    const newEnd = dayjs(newStart).add(duration, "minute").toDate();
+    const newEnd = arg.event.end ?? dayjs(newStart)
+      .add(dayjs(task.endDate).diff(dayjs(task.startDate), "minute"), "minute")
+      .toDate();
     const updatedTask: Task = {
       ...task,
       startDate: newStart,
       endDate: newEnd,
-      deadline: newEnd,
+      isFixed: true,
     };
-    saveTask(updatedTask).catch(() => arg.revert());
+    saveTask(updatedTask)
+      .then(() => setBlocks((prev) => prev.filter((b) => b.taskId !== task.id)))
+      .catch(() => arg.revert());
   };
 
   const handleEventResize = (arg: EventResizeDoneArg) => {
@@ -399,7 +523,7 @@ const Tasks: FC = () => {
       return;
     }
     const task = arg.event.extendedProps.task as Task | undefined;
-    if (!task) {
+    if (!task || !task.id) {
       arg.revert();
       return;
     }
@@ -409,12 +533,58 @@ const Tasks: FC = () => {
       ...task,
       startDate: newStart,
       endDate: newEnd,
-      deadline: newEnd,
+      isFixed: true,
     };
-    saveTask(updatedTask).catch(() => arg.revert());
+    saveTask(updatedTask)
+      .then(() => setBlocks((prev) => prev.filter((b) => b.taskId !== task.id)))
+      .catch(() => arg.revert());
+  };
+
+  const deleteBlocker = async () => {
+    if (!editingBlocker || !workProfileId) return;
+    const res = await fetch(
+      `${API_BASE}/api/recurring-blocker/${workProfileId}/${editingBlocker.id}`,
+      { method: "DELETE" },
+    );
+    if (res.ok) {
+      setRecurringBlockers((prev) => prev.filter((b) => b.id !== editingBlocker.id));
+      setEditingBlocker(null);
+    }
   };
 
   const handleEventClick = (arg: EventClickArg) => {
+    if (arg.event.extendedProps.type === "scheduled-break") {
+      // Clicking an auto-generated break collapses the gap: shift the next
+      // task block forward so it starts right where the previous one ended.
+      const nextTaskId = arg.event.extendedProps.nextTaskId as string;
+      const nextStartIso = arg.event.extendedProps.nextStartIso as string;
+      const gapMs = arg.event.extendedProps.gapMs as number;
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.taskId === nextTaskId &&
+            b.startDate.toISOString() === nextStartIso
+            ? {
+              ...b,
+              startDate: new Date(b.startDate.getTime() - gapMs),
+              endDate: new Date(b.endDate.getTime() - gapMs),
+            }
+            : b,
+        ),
+      );
+      return;
+    }
+    if (arg.event.extendedProps.type === "blocker") {
+      const id = arg.event.extendedProps.blockerId as string | undefined;
+      if (!id) return;
+      setEditingBlocker({
+        id,
+        name: arg.event.extendedProps.blockerName as string,
+        days: arg.event.extendedProps.blockerDays as string,
+        startTime: arg.event.extendedProps.blockerStart as string,
+        endTime: arg.event.extendedProps.blockerEnd as string,
+      });
+      return;
+    }
     if (arg.event.extendedProps.type === "break") {
       const breakId = arg.event.extendedProps.breakId as string;
       const weekDay = arg.event.extendedProps.weekDay as WorkWeekDay;
@@ -448,7 +618,8 @@ const Tasks: FC = () => {
         : day,
     );
     const updatedProfile = { ...user.workProfile, days: updatedDays };
-    void persistWorkProfile(updatedProfile);
+    setUser({ ...user, workProfile: updatedProfile });
+    saveWorkProfile(user.id, updatedProfile).catch(() => setUser({ ...user }));
     setEditingBreak(null);
   };
 
@@ -525,8 +696,6 @@ const Tasks: FC = () => {
         new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
     );
 
-  const dependencyOptions = useMemo(() => user.tasks ?? [], [user.tasks]);
-
   const changeOrganizationContext = (organizationId: string | "all") => {
     if (organizationId === "all") {
       setFilterOrgId("all");
@@ -534,132 +703,7 @@ const Tasks: FC = () => {
     }
 
     setFilterOrgId(organizationId);
-    void setActiveOrganization(organizationId).catch((err: unknown) => {
-      setError(String(err));
-    });
-  };
-  const submitTask = () => {
-    setError(undefined);
-    setStatus(undefined);
-
-    if (!form.name.trim()) {
-      setError("Title is required.");
-      return;
-    }
-    if (!form.deadline) {
-      setError(
-        form.isFixed ? "End time is required." : "Deadline is required.",
-      );
-      return;
-    }
-    if (form.isFixed && !form.fixedStart) {
-      setError("Start time is required for fixed tasks.");
-      return;
-    }
-    if (!form.isFixed && form.durationMinutes <= 0) {
-      setError("Duration must be greater than 0 minutes.");
-      return;
-    }
-    if (form.durationMinutes > 10000){
-      setError("Duration is too long.");
-      return;
-    }
-
-    const deadline = dayjs(form.deadline);
-    if (!deadline.isValid()) {
-      setError(form.isFixed ? "End time is invalid." : "Deadline is invalid.");
-      return;
-    }
-
-    let endDate: Date;
-    let startDate: Date;
-    if (form.isFixed) {
-      const fixedStartDayjs = dayjs(form.fixedStart);
-      if (!fixedStartDayjs.isValid()) {
-        setError("Start time is invalid.");
-        return;
-      }
-      if (!deadline.isAfter(fixedStartDayjs)) {
-        setError("End time must be after start time.");
-        return;
-      }
-      startDate = fixedStartDayjs.toDate();
-      endDate = deadline.toDate();
-    } else {
-      endDate = deadline.toDate();
-      startDate = deadline.subtract(form.durationMinutes, "minute").toDate();
-    }
-
-    const dependencies = dependencyOptions.filter((t) =>
-      form.dependencies.includes(t.name),
-    );
-
-    const selectedOrg =
-      orgOptions.find((org) => org.id === activeOrganizationId) ||
-      (filterOrgId !== "all" &&
-        orgOptions.find((org) => org.id === filterOrgId)) ||
-      orgOptions[0];
-
-    if (!selectedOrg) {
-      setError("No organization available for this task.");
-      return;
-    }
-
-    const newTask: Task = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      startDate,
-      endDate,
-      deadline: endDate,
-      isFixed: form.isFixed,
-      priority: form.priority,
-      intensity: form.intensity,
-      status: form.status ?? "todo",
-      org: selectedOrg.id,
-      recurrence: "none",
-      dependencies,
-    };
-
-    const conflicts = (user.tasks ?? []).filter((t) => {
-      if (t.org !== selectedOrg.id) return false;
-      const s = dayjs(t.startDate);
-      const e = dayjs(t.endDate);
-      return s.isBefore(endDate) && e.isAfter(startDate);
-    });
-    if (conflicts.length > 0) {
-      setError(
-        `Overlap with ${conflicts.length} task(s). Consider rescheduling.`,
-      );
-    }
-
-    setStatus("Saving…");
-    addTask(newTask)
-      .then(async () => {
-        setForm({
-          name: "",
-          description: "",
-          durationMinutes: 60,
-          priority: "medium",
-          intensity: "normal",
-          status: "todo",
-          deadline: "",
-          fixedStart: "",
-          dependencies: [],
-          isFixed: false,
-        });
-        setStatus("Task created");
-        setCalendarDialogOpen(false);
-        if (workProfileId) {
-          const updatedBlocks = await fetchBlocks(workProfileId).catch(
-            () => null,
-          );
-          if (updatedBlocks) setBlocks(updatedBlocks);
-        }
-      })
-      .catch((err: unknown) => {
-        setError(String(err));
-        setStatus(undefined);
-      });
+    void setActiveOrganization(organizationId).catch(() => {});
   };
 
   const openEdit = (task: Task) => {
@@ -672,8 +716,12 @@ const Tasks: FC = () => {
       end: dayjs(task.endDate).format("YYYY-MM-DDTHH:mm"),
       priority: task.priority ?? "medium",
       status: task.status ?? "todo",
+      intensity: (task.intensity ?? "normal") as Task["intensity"],
       organizationId: task.org,
       isFixed: !!task.isFixed,
+      dependencies: (task.dependencies ?? [])
+        .map((d) => d.id)
+        .filter((id): id is string => !!id),
     });
   };
 
@@ -703,11 +751,23 @@ const Tasks: FC = () => {
       description: editForm.description.trim(),
       startDate: start.toDate(),
       endDate: end.toDate(),
-      deadline: end.toDate(),
+      // Preserve the user-defined deadline. The "End" field in the modal represents
+      // the planned/fixed window (== earlyFinish after Auto-Schedule), not the deadline.
+      // Overwriting deadline here would shrink it every time the user edits a task
+      // after planning, so re-planning could never move the task earlier again.
+      deadline: editingTask.deadline,
       priority: editForm.priority,
       status: editForm.status,
+      intensity: editForm.intensity,
       org: editForm.organizationId,
       isFixed: editForm.isFixed,
+      dependencies: (user.tasks ?? [])
+        .filter(
+          (t) =>
+            t.id
+            && editForm.dependencies.includes(t.id)
+            && (t.org ?? "") === (editForm.organizationId ?? ""),
+        ),
     };
 
     saveTask(updatedTask).catch((err: unknown) => setEditError(String(err)));
@@ -716,25 +776,6 @@ const Tasks: FC = () => {
 
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
-      {scheduleMsg && (
-        <div className="schedule-toast pointer-events-none fixed right-6 top-6 z-50 w-[min(32rem,calc(100vw-3rem))]">
-          <div className="schedule-toast__panel pointer-events-auto rounded-2xl border border-amber-300/40 bg-slate-950/95 p-4 text-left shadow-2xl shadow-black/40 ring-1 ring-amber-300/20 backdrop-blur-sm">
-            <div className={`schedule-toast__message text-sm font-semibold ${scheduleMsg.ok ? "text-emerald-300" : "text-amber-200"}`}>
-              {scheduleMsg.text}
-            </div>
-            {scheduleMsg.warnings && scheduleMsg.warnings.length > 0 && (
-              <div className="schedule-toast__warnings mt-3 space-y-1 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-50">
-                <div className="schedule-toast__warnings-title font-semibold tracking-wide text-amber-200 uppercase">
-                  Auto-Schedule warning
-                </div>
-                {scheduleMsg.warnings.map((warning) => (
-                  <div key={warning}>{warning}</div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <span className="text-xs tracking-[0.28em] text-emerald-300 uppercase">
@@ -748,7 +789,7 @@ const Tasks: FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-1">
+          <div className="flex flex-col items-end gap-1">
             <button
               onClick={() => {
                 void triggerSchedule();
@@ -758,6 +799,13 @@ const Tasks: FC = () => {
             >
               {scheduling ? "Scheduling…" : "Auto-Schedule"}
             </button>
+            {scheduleMsg && (
+              <span
+                className={`text-xs ${scheduleMsg.ok ? "text-emerald-400" : "text-red-400"}`}
+              >
+                {scheduleMsg.text}
+              </span>
+            )}
           </div>
           <button
             onClick={() => setView("day")}
@@ -825,7 +873,7 @@ const Tasks: FC = () => {
               plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
               initialView={fcView}
               key={fcView}
-              events={[...calendarEvents, ...breakEvents]}
+              events={[...calendarEvents, ...breakEvents, ...blockerEvents]}
               editable
               eventStartEditable
               eventDurationEditable
@@ -833,7 +881,6 @@ const Tasks: FC = () => {
               selectable
               selectMirror
               selectMinDistance={10}
-              slotEventOverlap={false}
               slotDuration="00:30:00"
               snapDuration="00:15:00"
               slotLabelInterval="01:00:00"
@@ -912,8 +959,6 @@ const Tasks: FC = () => {
                   dependencies: [],
                   isFixed: false,
                 });
-                setError(undefined);
-                setStatus(undefined);
                 setCalendarDialogOpen(true);
               }}
             >
@@ -977,8 +1022,6 @@ const Tasks: FC = () => {
                 dependencies: [],
                 isFixed: false,
               });
-              setError(undefined);
-              setStatus(undefined);
               setCalendarDialogOpen(true);
             }}
             className="mt-2 w-full rounded-2xl border border-dashed border-emerald-300/30 bg-emerald-400/5 py-3 text-xs font-semibold text-emerald-200/70 transition hover:border-emerald-300/60 hover:text-emerald-100"
@@ -989,316 +1032,17 @@ const Tasks: FC = () => {
       </div>
 
       {calendarDialogOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
-          onClick={() => {
-            setError(undefined);
-            setStatus(undefined);
+        <CreateTaskModal
+          onClose={() => {
+            setCalendarDialogOpen(false);
           }}
-        >
-          <div data-modal-backdrop="static"
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl border border-slate-800 bg-slate-900 p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-sm font-semibold text-slate-100">
-                  New Task
-                </div>
-                <p className="mt-1 text-xs text-slate-400">
-                  {form.fixedStart
-                    ? `${dayjs(form.fixedStart).format("ddd DD MMM, HH:mm")} – ${dayjs(form.deadline).format("HH:mm")}`
-                    : "Fill in the task details below."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setCalendarDialogOpen(false);
-                  setError(undefined);
-                  setStatus(undefined);
-                }}
-                className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-500 hover:text-slate-100"
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <div className="mt-5 flex flex-col gap-4">
-              {/* Quick templates */}
-              <div>
-                <div className="mb-2 text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                  Quick templates
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-400">
-                  {[
-                    { label: "Daily standup", minutes: 15, fixed: true },
-                    { label: "Weekly review", minutes: 60, fixed: true },
-                    { label: "Focus block", minutes: 90, fixed: false },
-                    { label: "1:1", minutes: 45, fixed: true },
-                  ].map((tpl) => (
-                    <button
-                      key={tpl.label}
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          name: tpl.label,
-                          durationMinutes: tpl.minutes,
-                          description: "",
-                          isFixed: tpl.fixed ?? false,
-                        })
-                      }
-                      className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-left text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-100"
-                    >
-                      {tpl.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                  Title
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  placeholder="Task title"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                  Description
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                  className="min-h-20 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  placeholder="What needs to be done"
-                />
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                {!form.isFixed && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                      Duration (min)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={form.durationMinutes}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          durationMinutes: Number(e.target.value),
-                        })
-                      }
-                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                    />
-                  </div>
-                )}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                    Priority
-                  </label>
-                  <select
-                    value={form.priority}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        priority: e.target.value as Task["priority"],
-                      })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                    Intensity
-                  </label>
-                  <select
-                    value={form.intensity}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        intensity: e.target.value as Task["intensity"],
-                      })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  >
-                    <option value="light">Light</option>
-                    <option value="normal">Normal</option>
-                    <option value="intensive">Intensive</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                    Status
-                  </label>
-                  <select
-                    value={form.status ?? "todo"}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        status: e.target.value as Task["status"],
-                      })
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  >
-                    <option value="todo">To Do</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="done">Done</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                    Assignee
-                  </label>
-                  <select
-                    value={filterOrgId}
-                    onChange={(e) =>
-                      changeOrganizationContext(
-                        e.target.value as typeof filterOrgId,
-                      )
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  >
-                    <option value="all">Anyone</option>
-                    {orgOptions.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <label className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={form.isFixed}
-                  onChange={(e) =>
-                    setForm({ ...form, isFixed: e.target.checked })
-                  }
-                />
-                <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-semibold text-slate-100">
-                    Fixed timeslot
-                  </span>
-                  <span className="text-[11px] text-slate-500">
-                    Use for standups and meetings that must stay at their time.
-                  </span>
-                </div>
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                    {form.isFixed ? "Start time" : "Deadline"}
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={form.isFixed ? form.fixedStart : form.deadline}
-                    onChange={(e) =>
-                      setForm(
-                        form.isFixed
-                          ? { ...form, fixedStart: e.target.value }
-                          : { ...form, deadline: e.target.value },
-                      )
-                    }
-                    className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                  />
-                </div>
-                {form.isFixed && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                      End time
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={form.deadline}
-                      onChange={(e) =>
-                        setForm({ ...form, deadline: e.target.value })
-                      }
-                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                  Dependencies
-                </label>
-                <div className="flex max-h-36 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                  {dependencyOptions.length === 0 && (
-                    <div className="text-xs text-slate-500">
-                      No tasks available yet.
-                    </div>
-                  )}
-                  {dependencyOptions.map((dep) => {
-                    const checked = form.dependencies.includes(dep.name);
-                    return (
-                      <label
-                        key={dep.name}
-                        className="flex items-center gap-2 text-sm text-slate-200"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const next = e.target.checked
-                              ? [...form.dependencies, dep.name]
-                              : form.dependencies.filter((n) => n !== dep.name);
-                            setForm({ ...form, dependencies: next });
-                          }}
-                        />
-                        <span>{dep.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {error && <div className="text-sm text-rose-300">{error}</div>}
-              {status && (
-                <div className="text-sm text-emerald-200">{status}</div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={submitTask}
-                  className="rounded-full border border-emerald-300/60 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-sm transition hover:bg-emerald-400/25"
-                >
-                  Add task
-                </button>
-                <button
-                  onClick={() => {
-                    setCalendarDialogOpen(false);
-                    setError(undefined);
-                    setStatus(undefined);
-                  }}
-                  className="rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-slate-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+          initialValues={{
+            startDate: form.fixedStart || undefined,
+            endDate: form.deadline || undefined,
+            isFixed: form.isFixed,
+          }}
+          workProfileId={workProfileId ?? undefined}
+        />
       )}
 
       {editingTask && (
@@ -1449,6 +1193,81 @@ const Tasks: FC = () => {
                   </span>
                 </div>
               </label>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Intensity
+                </label>
+                <select
+                  value={editForm.intensity}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      intensity: e.target.value as Task["intensity"],
+                    })
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-50 ring-emerald-400/40 outline-none focus:border-emerald-400/60 focus:ring"
+                >
+                  <option value="light">Light</option>
+                  <option value="normal">Normal</option>
+                  <option value="intensive">Intensive</option>
+                </select>
+              </div>
+
+              <div className="col-span-2 flex flex-col gap-2">
+                <label className="text-xs tracking-[0.14em] text-slate-500 uppercase">
+                  Dependencies
+                </label>
+                {/*
+                  Only same-org tasks can be selected as dependencies. Cross-org
+                  predecessors live in a different work profile and would be
+                  silently filtered out by the backend DependencyAnalyzer, so
+                  the planner would not respect them anyway.
+                */}
+                <div className="flex max-h-44 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                  {(() => {
+                    const depCandidates = (user.tasks ?? []).filter(
+                      (t) =>
+                        t.id
+                        && t.id !== editingTask.id
+                        && (t.org ?? "") === (editForm.organizationId ?? ""),
+                    );
+                    if (depCandidates.length === 0) {
+                      return (
+                        <span className="text-xs text-slate-500">
+                          Keine weiteren Aufgaben in dieser Organisation verfügbar.
+                        </span>
+                      );
+                    }
+                    return depCandidates.map((dep) => {
+                      const checked = editForm.dependencies.includes(dep.id!);
+                      return (
+                        <label
+                          key={dep.id}
+                          className="flex items-center gap-2 text-sm text-slate-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...editForm.dependencies, dep.id!]
+                                : editForm.dependencies.filter(
+                                  (n) => n !== dep.id!,
+                                );
+                              setEditForm({
+                                ...editForm,
+                                dependencies: next,
+                              });
+                            }}
+                          />
+                          <span>{dep.name}</span>
+                        </label>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
             </div>
 
             {editError && (
@@ -1494,6 +1313,52 @@ const Tasks: FC = () => {
           </div>
         </div>
       )}
+      {editingBlocker && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setEditingBlocker(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-violet-800/40 bg-slate-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-xs tracking-[0.18em] text-violet-300 uppercase">
+                  Blocker
+                </div>
+                <div className="text-lg font-semibold text-slate-50">
+                  {editingBlocker.name}
+                </div>
+                <div className="mt-0.5 text-sm text-slate-400">
+                  {editingBlocker.days.split(",").join(", ")} &mdash; {editingBlocker.startTime}&ndash;{editingBlocker.endTime}
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingBlocker(null)}
+                className="rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex justify-between gap-3 pt-2">
+              <button
+                onClick={deleteBlocker}
+                className="rounded-full border border-rose-800/60 bg-rose-900/30 px-4 py-2 text-sm text-rose-300 hover:bg-rose-900/50"
+              >
+                Löschen
+              </button>
+              <button
+                onClick={() => setEditingBlocker(null)}
+                className="rounded-full border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:border-slate-600"
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingBreak && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"

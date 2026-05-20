@@ -23,6 +23,7 @@ export type UserProfile = {
   timezone: string;
   // These are serialized as JSON strings for storage; parsed by color-prefs utilities
   breakColor?: string | null;
+  blockerColor?: string | null;
   orgColors?: string | null;
 };
 
