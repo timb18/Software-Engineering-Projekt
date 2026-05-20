@@ -35,8 +35,8 @@ var jsonStringEnumConverter = new JsonStringEnumConverter(
     false);
 var auth0Config = builder.Configuration.GetSection("Auth0").Get<Auth0Config>();
 
-/// Configure Swagger/OpenAPI documentation and API explorers
-/// Includes OAuth2 security scheme if Auth0 is configured
+// Configure Swagger/OpenAPI documentation and API explorers
+// Includes OAuth2 security scheme if Auth0 is configured
 builder.Services.AddEndpointsApiExplorer()
     .ConfigureHttpJsonOptions(options =>
     {
@@ -53,7 +53,7 @@ builder.Services.AddEndpointsApiExplorer()
         // Define the API documentation with version and description
         o.SwaggerDoc("v1",
             new OpenApiInfo
-                { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
+            { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
 
         // Add OAuth2/Auth0 security scheme if Auth0 is available
         if (auth0Config is not null)
@@ -74,11 +74,11 @@ builder.Services.AddEndpointsApiExplorer()
     // Configure CORS to allow requests from any origin with any method and headers
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
 
-/// Configure database connectivity with multiple fallback strategies
-/// 1. First: Try to use ConnectionString from appsettings configuration
-/// 2. Second: Parse DATABASE_URL environment variable (Railway deployment)
-/// 3. Third: Build from discrete POSTGRES_* or PGHOST/* environment variables
-/// 4. Last: Use in-memory database for development if no connection available
+// Configure database connectivity with multiple fallback strategies
+// 1. First: Try to use ConnectionString from appsettings configuration
+// 2. Second: Parse DATABASE_URL environment variable (Railway deployment)
+// 3. Third: Build from discrete POSTGRES_* or PGHOST/* environment variables
+// 4. Last: Use in-memory database for development if no connection available
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // Attempt to parse Railway DATABASE_URL environment variable if configuration is empty
@@ -89,9 +89,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
         connectionString = TryBuildConnectionStringFromDatabaseUrl(databaseUrl);
 }
 
-/// Configure authentication and authorization
-/// Uses Auth0 JWT bearer tokens if Auth0 config is provided,
-/// otherwise runs in development mode with authentication disabled
+// Configure authentication and authorization
+// Uses Auth0 JWT bearer tokens if Auth0 config is provided,
+// otherwise runs in development mode with authentication disabled
 if (auth0Config is not null)
 {
     // Register Auth0 configuration, API authentication, management client
@@ -136,8 +136,8 @@ var useInMemory = string.IsNullOrWhiteSpace(connectionString);
 if (useInMemory)
     Console.WriteLine("[DEV] No connection string found — using in-memory database.");
 
-/// Parse Railway DATABASE_URL format (jdbc:postgresql://user:pass@host:port/db) into EF Core connection string.
-/// Supports various fallback environment variables (PGHOST, PGUSER, PGPASSWORD, etc.)
+// Parse Railway DATABASE_URL format (jdbc:postgresql://user:pass@host:port/db) into EF Core connection string.
+// Supports various fallback environment variables (PGHOST, PGUSER, PGPASSWORD, etc.)
 static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
 {
     // Remove "jdbc:" prefix if present (common in Railway DATABASE_URL format)
@@ -195,8 +195,8 @@ static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
         $"Host={uri.Host};Port={uri.Port};Database={databaseName};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
 }
 
-/// Build connection string from discrete PostgreSQL environment variables (PGHOST, PGUSER, etc.)
-/// Uses standard PostgreSQL environment variable names as fallbacks
+// Build connection string from discrete PostgreSQL environment variables (PGHOST, PGUSER, etc.)
+// Uses standard PostgreSQL environment variable names as fallbacks
 static string? TryBuildConnectionStringFromDiscreteEnvironmentVariables()
 {
     // Resolve each connection component from environment variables
@@ -230,8 +230,8 @@ static string? TryBuildConnectionStringFromDiscreteEnvironmentVariables()
         $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
 }
 
-/// Return the first non-empty/non-null string from a list of candidates.
-/// Used for resolving configuration values with multiple fallback sources.
+// Return the first non-empty/non-null string from a list of candidates.
+// Used for resolving configuration values with multiple fallback sources.
 static string? GetFirstNonEmpty(params string?[] values)
 {
     return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
@@ -255,8 +255,8 @@ static Dictionary<string, string> ParseQueryString(string query)
     return result;
 }
 
-/// Register database context and all repository implementations.
-/// Configures either in-memory database (development) or PostgreSQL with enum type mappings.
+// Register database context and all repository implementations.
+// Configures either in-memory database (development) or PostgreSQL with enum type mappings.
 builder.Services.AddDbContext<TeapotDbContext>(options =>
     {
         if (useInMemory)
