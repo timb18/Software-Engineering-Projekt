@@ -246,7 +246,8 @@ const Orgs: FC = () => {
       return;
     }
     try {
-      await acceptInvite(invite.id, { userId: user.id });
+      const token = await getAccessTokenSilently();
+      await acceptInvite(invite.id, { userId: user.id }, token);
     } catch (error) {
       alert(
         error instanceof Error
@@ -637,11 +638,12 @@ const Orgs: FC = () => {
     setIsRenamingOrg(true);
 
     try {
+      const token = await getAccessTokenSilently();
       await renameOrganization({
         initiatorUserId: user.id,
         organizationId: org.id,
         name: nextName,
-      });
+      }, token);
 
       const updatedOrg: Org = {
         ...org,

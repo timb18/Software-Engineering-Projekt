@@ -93,7 +93,7 @@ export const initForUser = async (
     let workProfile = null;
 
     try {
-      workProfile = (await fetchWorkProfile(userId)) ?? null;
+      workProfile = (await fetchWorkProfile(userId, token)) ?? null;
       activeWorkProfileId = workProfile?.id ?? activeWorkProfileId;
     } catch (error) {
       console.error("fetchWorkProfile failed during initForUser", error);
@@ -229,9 +229,9 @@ const useUserStore = () => {
       return;
     }
 
-    const workProfile = state.user.workProfile ?? (await fetchWorkProfile(state.user.id)) ?? null;
-    const selectedWorkProfileId = workProfile?.id ?? state.workProfileId ?? selectedOrganization.workProfileId ?? null;
     const token = await getAccessTokenSilently();
+    const workProfile = state.user.workProfile ?? (await fetchWorkProfile(state.user.id, token)) ?? null;
+    const selectedWorkProfileId = workProfile?.id ?? state.workProfileId ?? selectedOrganization.workProfileId ?? null;
     const tasks = selectedWorkProfileId
       ? assignTasksToOrganization(
           await fetchTasks(selectedWorkProfileId, token),

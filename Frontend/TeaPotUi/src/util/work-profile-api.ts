@@ -91,7 +91,7 @@ export async function fetchWorkProfile(
 export async function saveWorkProfile(
   userId: string,
   profile: WorkProfile,
-  _organizationId?: string | null,
+  _organizationId: string | null | undefined,
   token: string,
 ): Promise<WorkProfile> {
   const url = `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`;

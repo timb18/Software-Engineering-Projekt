@@ -10,7 +10,7 @@ import {
 } from "../util/pending-invitation";
 
 const Login: FC = () => {
-  const { loginWithRedirect: login, isAuthenticated, isLoading, user } = useAuth0();
+  const { loginWithRedirect: login, isAuthenticated, isLoading, user, getAccessTokenSilently } = useAuth0();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -55,8 +55,10 @@ const Login: FC = () => {
       return;
     }
 
+    const token = await getAccessTokenSilently();
+
     // Synchronize the authenticated Auth0 identity with the local app state first.
-    const { userId } = await initForUser(user.sub, user.email, user.name, user.picture);
+    const { userId } = await initForUser(token, user.sub, user.email, user.name, user.picture);
 
     const pendingInvitation = invitationId
       ? { invitationId, email: invitedEmail }
@@ -64,15 +66,15 @@ const Login: FC = () => {
 
     if (pendingInvitation) {
       // Automatically accept the pending invitation once the account is known locally.
-      await acceptInvite(pendingInvitation.invitationId, { userId });
+      await acceptInvite(pendingInvitation.invitationId, { userId }, token);
       clearPendingInvitation();
-      await initForUser(user.sub, user.email, user.name, user.picture).catch(console.error);
+      await initForUser(token, user.sub, user.email, user.name, user.picture).catch(console.error);
       navigate("/teams");
       return;
     }
 
     navigate("/");
-  }, [invitationId, invitedEmail, navigate, user]);
+  }, [invitationId, invitedEmail, navigate, user, getAccessTokenSilently]);
 
   useEffect(() => {
     if (isLoading || !isAuthenticated) {

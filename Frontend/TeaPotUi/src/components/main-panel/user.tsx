@@ -279,6 +279,7 @@ const User: FC = () => {
             plannerViewEnd: nextUser.plannerViewEnd,
             maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
           },
+          null,
           token,
         );
         const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
