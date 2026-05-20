@@ -8,9 +8,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Auth0.AspNetCore.Authentication.Api" Version="1.0.0-beta.5" />
-        <PackageReference Include="Auth0.ManagementApi" Version="8.2.0" />
-        <PackageReference Include="Auth0Net.DependencyInjection" Version="6.0.0" />
+        <PackageReference Include="Auth0.AspNetCore.Authentication.Api" Version="1.0.0-beta.5"/>
+        <PackageReference Include="Auth0.ManagementApi" Version="8.2.0"/>
+        <PackageReference Include="Auth0Net.DependencyInjection" Version="6.0.0"/>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.6"/>
         <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7"/>
@@ -28,11 +28,11 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Services\Services.csproj" />
+        <ProjectReference Include="..\Services\Services.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Services\Services.csproj" />
+        <ProjectReference Include="..\Services\Services.csproj"/>
     </ItemGroup>
 
 </Project>

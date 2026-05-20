@@ -17,15 +17,10 @@ public class MembershipController(IMembershipService membershipService) : Contro
         [FromBody] RemoveMembershipRequest request,
         CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(request.UserId, out var userId))
-        {
-            return BadRequest("UserId must be a valid GUID.");
-        }
+        if (!Guid.TryParse(request.UserId, out var userId)) return BadRequest("UserId must be a valid GUID.");
 
         if (!Guid.TryParse(request.OrganizationId, out var organizationId))
-        {
             return BadRequest("OrganizationId must be a valid GUID.");
-        }
 
         try
         {
@@ -56,23 +51,17 @@ public class MembershipController(IMembershipService membershipService) : Contro
         CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(request.InitiatorUserId, out var initiatorUserId))
-        {
             return BadRequest("InitiatorUserId must be a valid GUID.");
-        }
 
-        if (!Guid.TryParse(request.UserId, out var userId))
-        {
-            return BadRequest("UserId must be a valid GUID.");
-        }
+        if (!Guid.TryParse(request.UserId, out var userId)) return BadRequest("UserId must be a valid GUID.");
 
         if (!Guid.TryParse(request.OrganizationId, out var organizationId))
-        {
             return BadRequest("OrganizationId must be a valid GUID.");
-        }
 
         try
         {
-            await membershipService.RemoveUserFromOrganizationAsync(initiatorUserId, userId, organizationId, cancellationToken);
+            await membershipService.RemoveUserFromOrganizationAsync(initiatorUserId, userId, organizationId,
+                cancellationToken);
             return NoContent();
         }
         catch (UnauthorizedAccessException)
@@ -104,23 +93,17 @@ public class MembershipController(IMembershipService membershipService) : Contro
         CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(request.InitiatorUserId, out var initiatorUserId))
-        {
             return BadRequest("InitiatorUserId must be a valid GUID.");
-        }
 
-        if (!Guid.TryParse(request.UserId, out var userId))
-        {
-            return BadRequest("UserId must be a valid GUID.");
-        }
+        if (!Guid.TryParse(request.UserId, out var userId)) return BadRequest("UserId must be a valid GUID.");
 
         if (!Guid.TryParse(request.OrganizationId, out var organizationId))
-        {
             return BadRequest("OrganizationId must be a valid GUID.");
-        }
 
         try
         {
-            await membershipService.UpdateRoleAsync(initiatorUserId, userId, organizationId, request.Role, cancellationToken);
+            await membershipService.UpdateRoleAsync(initiatorUserId, userId, organizationId, request.Role,
+                cancellationToken);
             return NoContent();
         }
         catch (UnauthorizedAccessException)

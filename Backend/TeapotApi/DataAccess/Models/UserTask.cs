@@ -3,20 +3,19 @@
 namespace DataAccess.Models;
 
 /// <summary>
-/// Represents a task assigned to a user within an organization's work profile.
-/// Tasks have priorities, deadlines, estimated durations, and can depend on other tasks.
+///     Represents a task assigned to a user within an organization's work profile.
+///     Tasks have priorities, deadlines, estimated durations, and can depend on other tasks.
 /// </summary>
 /// <remarks>
-/// Tasks support:
-/// - Different priority levels (Low, Medium, High) and intensity levels (Light, Normal, Intensive)
-/// - Optional deadlines for completion
-/// - Task dependencies (one task must complete before another starts)
-/// - Status tracking (todo, in-progress, done)
-/// - Fixed or flexible scheduling (fixed tasks must be done on specific dates)
-/// 
-/// The scheduling algorithm uses task information to automatically create time blocks
-/// within the user's available work time. EarlyStart/EarlyFinish and LateStart/LateFinish
-/// are computed during the scheduling process using critical path analysis.
+///     Tasks support:
+///     - Different priority levels (Low, Medium, High) and intensity levels (Light, Normal, Intensive)
+///     - Optional deadlines for completion
+///     - Task dependencies (one task must complete before another starts)
+///     - Status tracking (todo, in-progress, done)
+///     - Fixed or flexible scheduling (fixed tasks must be done on specific dates)
+///     The scheduling algorithm uses task information to automatically create time blocks
+///     within the user's available work time. EarlyStart/EarlyFinish and LateStart/LateFinish
+///     are computed during the scheduling process using critical path analysis.
 /// </remarks>
 public class UserTask
 {
@@ -27,8 +26,8 @@ public class UserTask
     public Guid WorkProfileId { get; set; }
 
     /// <summary>
-    /// Optional organization the task is assigned to. The scheduler will only use shifts
-    /// tagged with this org. Null means: use the workprofile's owning (personal) org.
+    ///     Optional organization the task is assigned to. The scheduler will only use shifts
+    ///     tagged with this org. Null means: use the workprofile's owning (personal) org.
     /// </summary>
     public Guid? OrganizationId { get; set; }
 

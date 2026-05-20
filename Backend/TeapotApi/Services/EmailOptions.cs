@@ -1,12 +1,12 @@
 namespace Services;
 
 /// <summary>
-/// SMTP and URL settings used by the email sender implementations.
+///     SMTP and URL settings used by the email sender implementations.
 /// </summary>
 public class EmailOptions
 {
     /// <summary>
-    /// Configuration section name used by the options binder.
+    ///     Configuration section name used by the options binder.
     /// </summary>
     public const string SectionName = "EMailOptions";
 
@@ -20,12 +20,12 @@ public class EmailOptions
 }
 
 /// <summary>
-/// Resend-specific settings used by the Resend email sender.
+///     Resend-specific settings used by the Resend email sender.
 /// </summary>
 public class ResendOptions
 {
     /// <summary>
-    /// Configuration section name used by the options binder.
+    ///     Configuration section name used by the options binder.
     /// </summary>
     public const string SectionName = "Resend";
 

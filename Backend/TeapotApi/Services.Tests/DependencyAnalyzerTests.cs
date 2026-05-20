@@ -1,14 +1,10 @@
 using DataAccess.Models;
-using Services.Planning;
 
 namespace Services.Tests;
 
 [TestFixture]
 public class DependencyAnalyzerTests
 {
-    private DependencyAnalyzer _analyzer = null!;
-    private DateTime _projectStart;
-
     [SetUp]
     public void SetUp()
     {
@@ -16,9 +12,13 @@ public class DependencyAnalyzerTests
         _projectStart = new DateTime(2026, 5, 3, 8, 0, 0, DateTimeKind.Utc);
     }
 
+    private DependencyAnalyzer _analyzer = null!;
+    private DateTime _projectStart;
+
     private static UserTask MakeTask(Guid id, int estimateMinutes = 60, DateTime? deadline = null,
         ETaskIntensity intensity = ETaskIntensity.Normal, ETaskPriority priority = ETaskPriority.Medium)
-        => new()
+    {
+        return new UserTask
         {
             Id = id,
             Name = $"Task-{id}",
@@ -29,6 +29,7 @@ public class DependencyAnalyzerTests
             CreatedAt = DateTime.UtcNow,
             Status = "todo"
         };
+    }
 
     // ── Empty input ───────────────────────────────────────────────────────────
 
@@ -143,8 +144,8 @@ public class DependencyAnalyzerTests
         var bId = Guid.NewGuid();
         var tasks = new List<UserTask>
         {
-            MakeTask(aId, estimateMinutes: 120),
-            MakeTask(bId, estimateMinutes: 30)
+            MakeTask(aId, 120),
+            MakeTask(bId, 30)
         };
 
         var result = _analyzer.Analyze(tasks, [], _projectStart);
@@ -165,8 +166,8 @@ public class DependencyAnalyzerTests
         var deadline = _projectStart.AddHours(1);
         var tasks = new List<UserTask>
         {
-            MakeTask(aId, estimateMinutes: 24 * 60),
-            MakeTask(bId, estimateMinutes: 60, deadline: deadline)
+            MakeTask(aId, 24 * 60),
+            MakeTask(bId, 60, deadline)
         };
         var deps = new List<TaskDependency>
         {
@@ -181,7 +182,7 @@ public class DependencyAnalyzerTests
     {
         var taskId = Guid.NewGuid();
         var deadline = _projectStart.AddDays(3);
-        var task = MakeTask(taskId, estimateMinutes: 60, deadline: deadline);
+        var task = MakeTask(taskId, 60, deadline);
 
         Assert.DoesNotThrow(() => _analyzer.Analyze([task], [], _projectStart));
     }
@@ -232,7 +233,7 @@ public class DependencyAnalyzerTests
         var aId = Guid.NewGuid();
         var bId = Guid.NewGuid();
         var cId = Guid.NewGuid();
-        var tasks = new List<UserTask> { MakeTask(aId, 60), MakeTask(bId, 60), MakeTask(cId, 60) };
+        var tasks = new List<UserTask> { MakeTask(aId), MakeTask(bId), MakeTask(cId) };
         var deps = new List<TaskDependency>
         {
             new() { TaskId = bId, DependsOnTaskId = aId },
@@ -257,7 +258,7 @@ public class DependencyAnalyzerTests
         var dId = Guid.NewGuid();
         var tasks = new List<UserTask>
         {
-            MakeTask(aId, 60), MakeTask(bId, 60), MakeTask(cId, 60), MakeTask(dId, 60)
+            MakeTask(aId), MakeTask(bId), MakeTask(cId), MakeTask(dId)
         };
         var deps = new List<TaskDependency>
         {
@@ -286,10 +287,10 @@ public class DependencyAnalyzerTests
         var dId = Guid.NewGuid();
         var tasks = new List<UserTask>
         {
-            MakeTask(aId, 60),
+            MakeTask(aId),
             MakeTask(bId, 120),
             MakeTask(cId, 30),
-            MakeTask(dId, 60)
+            MakeTask(dId)
         };
         var deps = new List<TaskDependency>
         {

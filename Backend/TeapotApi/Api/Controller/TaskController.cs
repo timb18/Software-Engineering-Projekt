@@ -24,6 +24,7 @@ public class TaskController(IUserTaskService taskService) : ControllerBase
             return NotFound();
         return Ok(task);
     }
+
     /// <summary>Returns all tasks for the given work profile in a single list.</summary>
     [HttpGet("")]
     [ProducesResponseType(typeof(IEnumerable<UserTask>), StatusCodes.Status200OK)]

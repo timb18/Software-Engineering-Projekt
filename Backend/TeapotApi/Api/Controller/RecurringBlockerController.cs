@@ -13,7 +13,7 @@ public class RecurringBlockerController(IRecurringBlockerRepository repository) 
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
     /// <summary>
-    /// Retrieves a collection of recurring blockers for the specified work profile.
+    ///     Retrieves a collection of recurring blockers for the specified work profile.
     /// </summary>
     /// <param name="workProfileId">The unique identifier of the work profile to filter the blockers by.</param>
     /// <param name="cancellationToken">A cancellation token that allows the operation to be cancelled if necessary.</param>
@@ -98,7 +98,8 @@ public class RecurringBlockerController(IRecurringBlockerRepository repository) 
         if (string.IsNullOrWhiteSpace(blocker.StartTime) || string.IsNullOrWhiteSpace(blocker.EndTime))
             return "StartTime and EndTime are required.";
 
-        var days = blocker.DaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var days = blocker.DaysOfWeek.Split(',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (days.Length == 0 || days.Any(d => !ValidDays.Contains(d, StringComparer.OrdinalIgnoreCase)))
             return $"DaysOfWeek must be comma-separated values from: {string.Join(", ", ValidDays)}.";
 

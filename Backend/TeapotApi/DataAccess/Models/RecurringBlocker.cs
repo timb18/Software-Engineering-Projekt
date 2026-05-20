@@ -29,6 +29,5 @@ public class RecurringBlocker
 
     public DateTime? EditedAt { get; set; }
 
-    [JsonIgnore]
-    public virtual WorkProfile? WorkProfile { get; set; }
+    [JsonIgnore] public virtual WorkProfile? WorkProfile { get; set; }
 }

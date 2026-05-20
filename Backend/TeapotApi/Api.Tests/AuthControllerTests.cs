@@ -11,8 +11,8 @@ namespace Api.Tests;
 [Category("Integration")]
 public class AuthControllerTests
 {
-    private TeapotDbContext _dbContext = null!;
     private AuthController _controller = null!;
+    private TeapotDbContext _dbContext = null!;
 
     [SetUp]
     public void Setup()

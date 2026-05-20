@@ -1,17 +1,16 @@
 namespace DataAccess.Models;
 
 /// <summary>
-/// Represents the work schedule for a specific day of the week (e.g., Monday, Tuesday, etc.)
-/// Contains work availability blocks and break times for that day.
+///     Represents the work schedule for a specific day of the week (e.g., Monday, Tuesday, etc.)
+///     Contains work availability blocks and break times for that day.
 /// </summary>
 /// <remarks>
-/// Part of a WorkProfile, each WorkDayProfile defines:
-/// - The day of the week (Mon, Tue, Wed, etc.)
-/// - Work availability blocks (when the user is available to work)
-/// - Break times during the work day
-/// 
-/// Multiple work blocks can exist for a single day (e.g., 9-12, 2-5 with a lunch break 12-2).
-/// The scheduling algorithm uses these to find free time for task allocation.
+///     Part of a WorkProfile, each WorkDayProfile defines:
+///     - The day of the week (Mon, Tue, Wed, etc.)
+///     - Work availability blocks (when the user is available to work)
+///     - Break times during the work day
+///     Multiple work blocks can exist for a single day (e.g., 9-12, 2-5 with a lunch break 12-2).
+///     The scheduling algorithm uses these to find free time for task allocation.
 /// </remarks>
 public class WorkDayProfile
 {

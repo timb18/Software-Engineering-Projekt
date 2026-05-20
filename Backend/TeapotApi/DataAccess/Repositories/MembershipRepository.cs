@@ -5,28 +5,40 @@ namespace DataAccess.Repositories;
 
 public class MembershipRepository(TeapotDbContext context) : IMembershipRepository
 {
-    public Task<Membership?> FindAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default) =>
-        context.Memberships
+    public Task<Membership?> FindAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        return context.Memberships
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrganizationId == organizationId, cancellationToken);
+    }
 
-    public Task<Membership?> FindWithWorkProfileAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default) =>
-        context.Memberships
+    public Task<Membership?> FindWithWorkProfileAsync(Guid userId, Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        return context.Memberships
             .Include(m => m.WorkProfile)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrganizationId == organizationId, cancellationToken);
+    }
 
-    public Task<Membership?> FindOrganizerAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default) =>
-        context.Memberships
+    public Task<Membership?> FindOrganizerAsync(Guid organizationId, Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return context.Memberships
             .FirstOrDefaultAsync(m =>
                 m.OrganizationId == organizationId &&
                 m.UserId == userId &&
                 m.Role == ERole.Organizer, cancellationToken);
+    }
 
-    public Task<bool> IsMemberByEmailAsync(Guid organizationId, string normalizedEmail, CancellationToken cancellationToken = default) =>
-        context.Memberships
+    public Task<bool> IsMemberByEmailAsync(Guid organizationId, string normalizedEmail,
+        CancellationToken cancellationToken = default)
+    {
+        return context.Memberships
             .AnyAsync(m => m.OrganizationId == organizationId && m.User.Email == normalizedEmail, cancellationToken);
+    }
 
-    public Task<Membership?> FindPersonalAsync(Guid userId, CancellationToken cancellationToken = default) =>
-        context.Memberships
+    public Task<Membership?> FindPersonalAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return context.Memberships
             .Include(m => m.Organization)
             .Where(m => m.UserId == userId)
             .OrderByDescending(m =>
@@ -34,6 +46,7 @@ public class MembershipRepository(TeapotDbContext context) : IMembershipReposito
                 m.Organization.MaxUsers == 1)
             .ThenBy(m => m.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
     public async Task AddAsync(Membership membership, CancellationToken cancellationToken = default)
     {
@@ -41,10 +54,13 @@ public class MembershipRepository(TeapotDbContext context) : IMembershipReposito
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        context.SaveChangesAsync(cancellationToken);
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return context.SaveChangesAsync(cancellationToken);
+    }
 
-    public async Task DeleteWithWorkProfileDataAsync(Membership membership, CancellationToken cancellationToken = default)
+    public async Task DeleteWithWorkProfileDataAsync(Membership membership,
+        CancellationToken cancellationToken = default)
     {
         if (membership.WorkProfile is not null)
         {
@@ -87,7 +103,9 @@ public class MembershipRepository(TeapotDbContext context) : IMembershipReposito
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public Task<int> CountOrganizersAsync(Guid organizationId, CancellationToken cancellationToken = default) =>
-        context.Memberships
+    public Task<int> CountOrganizersAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        return context.Memberships
             .CountAsync(m => m.OrganizationId == organizationId && m.Role == ERole.Organizer, cancellationToken);
+    }
 }

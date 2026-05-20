@@ -4,7 +4,7 @@ using DataAccess.Repositories;
 namespace Services.WorkProfiles;
 
 /// <summary>
-/// Manages the personal work profile and its daily schedule layout.
+///     Manages the personal work profile and its daily schedule layout.
 /// </summary>
 public class WorkProfileService(
     IWorkProfileRepository workProfileRepository,
@@ -13,9 +13,10 @@ public class WorkProfileService(
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
     /// <summary>
-    /// Loads the personal work profile and fills any missing weekday entries.
+    ///     Loads the personal work profile and fills any missing weekday entries.
     /// </summary>
-    public async Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null, CancellationToken cancellationToken = default)
+    public async Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null,
+        CancellationToken cancellationToken = default)
     {
         var profile = await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
         if (profile is null) return null;
@@ -31,9 +32,10 @@ public class WorkProfileService(
     }
 
     /// <summary>
-    /// Creates or updates the user's work profile and keeps nested day, block, and break graphs consistent.
+    ///     Creates or updates the user's work profile and keeps nested day, block, and break graphs consistent.
     /// </summary>
-    public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null, CancellationToken cancellationToken = default)
+    public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null,
+        CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeProfile(profile);
         ValidateProfile(normalized);
@@ -55,7 +57,8 @@ public class WorkProfileService(
         }
 
         var oldDays = existing.Days.ToList();
-        var scheduleChanged = HasSchedulingInputChanged(existing.MaxDailyLoad, oldDays, normalized.MaxDailyLoad, normalized.Days);
+        var scheduleChanged =
+            HasSchedulingInputChanged(existing.MaxDailyLoad, oldDays, normalized.MaxDailyLoad, normalized.Days);
 
         existing.MaxDailyLoad = normalized.MaxDailyLoad;
         existing.PlannerViewStart = normalized.PlannerViewStart;
@@ -72,11 +75,13 @@ public class WorkProfileService(
                 if (block.Id == Guid.Empty) block.Id = Guid.NewGuid();
                 block.WorkDayProfileId = day.Id;
             }
+
             foreach (var workBreak in day.Breaks)
             {
                 if (workBreak.Id == Guid.Empty) workBreak.Id = Guid.NewGuid();
                 workBreak.WorkDayProfileId = day.Id;
             }
+
             return day;
         }).ToList();
 
@@ -88,7 +93,7 @@ public class WorkProfileService(
     }
 
     /// <summary>
-    /// Deletes the current user's work profile and its dependent data.
+    ///     Deletes the current user's work profile and its dependent data.
     /// </summary>
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -96,13 +101,13 @@ public class WorkProfileService(
             throw new ArgumentException("UserId is required.", nameof(userId));
 
         var profile = await workProfileRepository.GetForDeleteByUserIdAsync(userId, cancellationToken)
-            ?? throw new KeyNotFoundException("Work profile not found.");
+                      ?? throw new KeyNotFoundException("Work profile not found.");
 
         await workProfileRepository.DeleteAsync(profile, cancellationToken);
     }
 
     /// <summary>
-    /// Deletes the work profile identified by the given email address.
+    ///     Deletes the work profile identified by the given email address.
     /// </summary>
     public async Task DeleteByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
@@ -112,7 +117,7 @@ public class WorkProfileService(
         var normalizedEmail = email.Trim().ToLowerInvariant();
 
         var profile = await workProfileRepository.GetForDeleteByEmailAsync(normalizedEmail, cancellationToken)
-            ?? throw new KeyNotFoundException("Work profile not found.");
+                      ?? throw new KeyNotFoundException("Work profile not found.");
 
         await workProfileRepository.DeleteAsync(profile, cancellationToken);
     }
@@ -152,9 +157,11 @@ public class WorkProfileService(
                 if (string.IsNullOrWhiteSpace(block.CompanyName))
                     throw new ArgumentException($"{DayName(day.Day)} work block {blockIndex} needs a company.");
                 if (end <= start)
-                    throw new ArgumentException($"{DayName(day.Day)} work block {blockIndex} must end after it starts.");
+                    throw new ArgumentException(
+                        $"{DayName(day.Day)} work block {blockIndex} must end after it starts.");
                 if (previousBlockEnd > start)
-                    throw new ArgumentException($"{DayName(day.Day)} contains overlapping work blocks. Please keep each work block separate.");
+                    throw new ArgumentException(
+                        $"{DayName(day.Day)} contains overlapping work blocks. Please keep each work block separate.");
 
                 previousBlockEnd = end;
             }
@@ -170,7 +177,8 @@ public class WorkProfileService(
                 if (end <= start)
                     throw new ArgumentException($"{DayName(day.Day)} break {breakIndex} must end after it starts.");
                 if (previousBreakEnd > start)
-                    throw new ArgumentException($"{DayName(day.Day)} contains overlapping breaks. Please keep each break separate.");
+                    throw new ArgumentException(
+                        $"{DayName(day.Day)} contains overlapping breaks. Please keep each break separate.");
 
                 previousBreakEnd = end;
             }
@@ -188,17 +196,20 @@ public class WorkProfileService(
         return parsed;
     }
 
-    private static string DayName(string day) => day switch
+    private static string DayName(string day)
     {
-        "Mon" => "Monday",
-        "Tue" => "Tuesday",
-        "Wed" => "Wednesday",
-        "Thu" => "Thursday",
-        "Fri" => "Friday",
-        "Sat" => "Saturday",
-        "Sun" => "Sunday",
-        _ => day
-    };
+        return day switch
+        {
+            "Mon" => "Monday",
+            "Tue" => "Tuesday",
+            "Wed" => "Wednesday",
+            "Thu" => "Thursday",
+            "Fri" => "Friday",
+            "Sat" => "Saturday",
+            "Sun" => "Sunday",
+            _ => day
+        };
+    }
 
     private static void PrepareProfileGraph(WorkProfile profile)
     {

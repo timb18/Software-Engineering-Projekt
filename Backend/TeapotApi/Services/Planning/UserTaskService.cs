@@ -4,12 +4,15 @@ using DataAccess.Repositories;
 namespace Services.Planning;
 
 /// <summary>
-/// Implements CRUD operations for user tasks and keeps dependencies and fixed blocks in sync.
+///     Implements CRUD operations for user tasks and keeps dependencies and fixed blocks in sync.
 /// </summary>
-public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDependencyRepository taskDependencyRepository, ITaskBlockRepository taskBlockRepository) : IUserTaskService
+public class UserTaskService(
+    IUserTaskRepository userTaskRepository,
+    ITaskDependencyRepository taskDependencyRepository,
+    ITaskBlockRepository taskBlockRepository) : IUserTaskService
 {
     /// <summary>
-    /// Loads all tasks for a work profile and attaches dependency ids to each task.
+    ///     Loads all tasks for a work profile and attaches dependency ids to each task.
     /// </summary>
     public async Task<IEnumerable<UserTask>> GetTasksAsync(
         Guid workProfileId, CancellationToken cancellationToken = default)
@@ -28,16 +31,17 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
     }
 
     /// <summary>
-    /// Loads a single task for the given work profile.
+    ///     Loads a single task for the given work profile.
     /// </summary>
-    public async Task<UserTask> GetTaskAsync(Guid workProfileId, Guid taskId, CancellationToken cancellationToken = default)
+    public async Task<UserTask> GetTaskAsync(Guid workProfileId, Guid taskId,
+        CancellationToken cancellationToken = default)
     {
         return await userTaskRepository.FindAsync(taskId, workProfileId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Task {taskId} not found.");
+               ?? throw new KeyNotFoundException($"Task {taskId} not found.");
     }
 
     /// <summary>
-    /// Creates a new task, stores dependencies, and persists fixed task blocks when needed.
+    ///     Creates a new task, stores dependencies, and persists fixed task blocks when needed.
     /// </summary>
     public async Task<UserTask> CreateTaskAsync(
         Guid workProfileId, UserTask task, CancellationToken cancellationToken = default)
@@ -52,18 +56,19 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         if (dependsOnIds.Count > 0)
             await taskDependencyRepository.ReplaceForTaskAsync(task.Id, dependsOnIds, cancellationToken);
         if (task.IsFixed)
-            await taskBlockRepository.UpsertFixedBlockAsync(task.Id, task.EarlyStart, task.EarlyFinish, cancellationToken);
+            await taskBlockRepository.UpsertFixedBlockAsync(task.Id, task.EarlyStart, task.EarlyFinish,
+                cancellationToken);
         return task;
     }
 
     /// <summary>
-    /// Updates a task and synchronizes its dependencies and fixed blocks.
+    ///     Updates a task and synchronizes its dependencies and fixed blocks.
     /// </summary>
     public async Task<UserTask> UpdateTaskAsync(
         Guid workProfileId, Guid taskId, UserTask updated, CancellationToken cancellationToken = default)
     {
         var existing = await userTaskRepository.FindAsync(taskId, workProfileId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Task {taskId} not found.");
+                       ?? throw new KeyNotFoundException($"Task {taskId} not found.");
 
         existing.Name = updated.Name;
         existing.Description = updated.Description;
@@ -83,7 +88,8 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
         await userTaskRepository.UpdateAsync(existing, cancellationToken);
         await taskDependencyRepository.ReplaceForTaskAsync(taskId, updated.DependsOnTaskIds, cancellationToken);
         if (existing.IsFixed)
-            await taskBlockRepository.UpsertFixedBlockAsync(taskId, existing.EarlyStart, existing.EarlyFinish, cancellationToken);
+            await taskBlockRepository.UpsertFixedBlockAsync(taskId, existing.EarlyStart, existing.EarlyFinish,
+                cancellationToken);
         else
             await taskBlockRepository.DeleteForTaskAsync(taskId, cancellationToken);
         existing.DependsOnTaskIds = updated.DependsOnTaskIds;
@@ -91,13 +97,13 @@ public class UserTaskService(IUserTaskRepository userTaskRepository, ITaskDepend
     }
 
     /// <summary>
-    /// Deletes a task and removes any dependent scheduling data first.
+    ///     Deletes a task and removes any dependent scheduling data first.
     /// </summary>
     public async Task DeleteTaskAsync(
         Guid workProfileId, Guid taskId, CancellationToken cancellationToken = default)
     {
         var task = await userTaskRepository.FindAsync(taskId, workProfileId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Task {taskId} not found.");
+                   ?? throw new KeyNotFoundException($"Task {taskId} not found.");
 
         await taskBlockRepository.DeleteForTaskAsync(taskId, cancellationToken);
         // Wipe every dependency row that mentions this task – both directions – so the

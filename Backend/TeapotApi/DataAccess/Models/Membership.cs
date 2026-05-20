@@ -1,17 +1,16 @@
 ﻿namespace DataAccess.Models;
 
 /// <summary>
-/// Represents a user's membership in an organization with an assigned role.
-/// Links users to organizations and defines their permissions within that organization.
+///     Represents a user's membership in an organization with an assigned role.
+///     Links users to organizations and defines their permissions within that organization.
 /// </summary>
 /// <remarks>
-/// Each membership has:
-/// - Role (User or Organizer): Determines what actions the member can perform
-/// - Optional WorkProfile: The user's work schedule and task planning profile for this organization
-/// 
-/// A user can have multiple memberships (one per organization).
-/// Organizers can manage invitations, add/remove members, and configure organization settings.
-/// Regular users can only view and edit their own tasks and schedule.
+///     Each membership has:
+///     - Role (User or Organizer): Determines what actions the member can perform
+///     - Optional WorkProfile: The user's work schedule and task planning profile for this organization
+///     A user can have multiple memberships (one per organization).
+///     Organizers can manage invitations, add/remove members, and configure organization settings.
+///     Regular users can only view and edit their own tasks and schedule.
 /// </remarks>
 public class Membership
 {
@@ -39,6 +38,9 @@ public class Membership
     /// <summary>Navigation property: the user for this membership</summary>
     public virtual User User { get; set; } = null!;
 
-    /// <summary>Navigation property: optional work profile with schedule and task planning for this membership (null if not created)</summary>
+    /// <summary>
+    ///     Navigation property: optional work profile with schedule and task planning for this membership (null if not
+    ///     created)
+    /// </summary>
     public virtual WorkProfile? WorkProfile { get; set; }
 }

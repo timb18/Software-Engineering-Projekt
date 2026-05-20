@@ -9,8 +9,8 @@ namespace Api.Controller;
 [Authorize(AuthenticationSchemes = "Auth0")]
 public class InvitationController : ControllerBase
 {
-    private readonly IInvitationService _invitationService;
     private readonly EmailOptions _emailOptions;
+    private readonly IInvitationService _invitationService;
 
     public InvitationController(IInvitationService invitationService, IOptions<EmailOptions> emailOptions)
     {
@@ -19,11 +19,12 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Sends a new invitation email for a user and returns the created invitation data.
-    /// The response includes the invitation state so the client can update the UI immediately.
+    ///     Sends a new invitation email for a user and returns the created invitation data.
+    ///     The response includes the invitation state so the client can update the UI immediately.
     /// </summary>
     [HttpPost("send")]
-    public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SendInvitationAsync([FromBody] SendInvitationRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -51,27 +52,22 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Accepts an invitation either by authenticated user ID or by email address.
-    /// The endpoint supports both flows so the frontend can reuse the same action after login
-    /// and from the invitation link workflow.
+    ///     Accepts an invitation either by authenticated user ID or by email address.
+    ///     The endpoint supports both flows so the frontend can reuse the same action after login
+    ///     and from the invitation link workflow.
     /// </summary>
     [HttpPost("{invitationId:guid}/accept")]
-    public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId, [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> AcceptInvitationAsync([FromRoute] Guid invitationId,
+        [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
     {
         try
         {
             if (request.UserId.HasValue)
-            {
                 await _invitationService.AcceptInvitationAsync(invitationId, request.UserId.Value, cancellationToken);
-            }
             else if (!string.IsNullOrWhiteSpace(request.Email))
-            {
                 await _invitationService.AcceptInvitationByEmailAsync(invitationId, request.Email, cancellationToken);
-            }
             else
-            {
                 return BadRequest(new { success = false, message = "UserId or Email is required." });
-            }
 
             return Ok(new { success = true, message = "Invite accepted" });
         }
@@ -93,12 +89,13 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Rejects an invitation and returns a simple success or error payload for the client.
-    /// This keeps the rejection flow lightweight for both API consumers and email link usage.
+    ///     Rejects an invitation and returns a simple success or error payload for the client.
+    ///     This keeps the rejection flow lightweight for both API consumers and email link usage.
     /// </summary>
     [HttpPost("{invitationId:guid}/reject")]
     [AllowAnonymous]
-    public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
+    public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -116,7 +113,8 @@ public class InvitationController : ControllerBase
     }
 
     [HttpGet("{invitationId:guid}/reject-link")]
-    public async Task<IActionResult> RejectInvitationLink([FromRoute] Guid invitationId, CancellationToken cancellationToken)
+    public async Task<IActionResult> RejectInvitationLink([FromRoute] Guid invitationId,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -125,16 +123,18 @@ public class InvitationController : ControllerBase
         }
         catch (Exception)
         {
-            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "error", message: "Unable to process the invitation."));
+            return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "error",
+                message: "Unable to process the invitation."));
         }
     }
 
     /// <summary>
-    /// Retrieves all open invitations for a specific email address.
-    /// The result is filtered server-side so the frontend does not need to duplicate invitation state logic.
+    ///     Retrieves all open invitations for a specific email address.
+    ///     The result is filtered server-side so the frontend does not need to duplicate invitation state logic.
     /// </summary>
     [HttpGet("pending")]
-    public async Task<IActionResult> GetPendingInvitationsAsync([FromQuery] string email, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetPendingInvitationsAsync([FromQuery] string email,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -152,15 +152,17 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves all invitations that belong to a specific organization.
-    /// This endpoint is used to render the organization's invitation overview in the UI.
+    ///     Retrieves all invitations that belong to a specific organization.
+    ///     This endpoint is used to render the organization's invitation overview in the UI.
     /// </summary>
     [HttpGet("organization/{organizationId:guid}")]
-    public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetOrganizationInvitationsAsync([FromRoute] Guid organizationId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var invitations = await _invitationService.GetInvitationsForOrganizationAsync(organizationId, cancellationToken);
+            var invitations =
+                await _invitationService.GetInvitationsForOrganizationAsync(organizationId, cancellationToken);
             return Ok(new { success = true, data = invitations });
         }
         catch (Exception)
@@ -170,9 +172,10 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Builds a frontend redirect URL with the invitation status and optional context parameters.
+    ///     Builds a frontend redirect URL with the invitation status and optional context parameters.
     /// </summary>
-    private static string BuildFrontendRedirect(string configuredBaseUrl, string status, Guid? invitationId = null, string? email = null, string? message = null)
+    private static string BuildFrontendRedirect(string configuredBaseUrl, string status, Guid? invitationId = null,
+        string? email = null, string? message = null)
     {
         var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
             ? "http://127.0.0.1:5173/"
@@ -193,8 +196,8 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Resolves the public API base URL that is embedded into invitation links.
-    /// When the configured value is local or empty, the current request host is used instead.
+    ///     Resolves the public API base URL that is embedded into invitation links.
+    ///     When the configured value is local or empty, the current request host is used instead.
     /// </summary>
     private string ResolvePublicApiBaseUrl()
     {
@@ -208,7 +211,7 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Builds the public base URL from forwarded request headers or the current request host.
+    ///     Builds the public base URL from forwarded request headers or the current request host.
     /// </summary>
     private string BuildRequestBaseUrl()
     {
@@ -230,18 +233,23 @@ public class InvitationController : ControllerBase
     }
 
     /// <summary>
-    /// Returns true when the supplied base URL points to a local development host.
+    ///     Returns true when the supplied base URL points to a local development host.
     /// </summary>
-    private static bool IsLocalBaseUrl(string url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-        (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-         uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-         uri.Host.Equals("[::1]", StringComparison.OrdinalIgnoreCase));
+    private static bool IsLocalBaseUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+               (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                uri.Host.Equals("[::1]", StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>
-    /// Removes any trailing slash so URL concatenation stays consistent.
+    ///     Removes any trailing slash so URL concatenation stays consistent.
     /// </summary>
-    private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
+    private static string TrimTrailingSlash(string url)
+    {
+        return url.TrimEnd('/');
+    }
 }
 
 public class SendInvitationRequest

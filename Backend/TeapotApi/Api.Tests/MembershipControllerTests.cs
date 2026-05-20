@@ -182,24 +182,20 @@ public class MembershipControllerTests
         public Guid? LastOrganizationId { get; private set; }
         public string? LastRole { get; private set; }
 
-        public Task LeaveOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+        public Task LeaveOrganizationAsync(Guid userId, Guid organizationId,
+            CancellationToken cancellationToken = default)
         {
-            if (ExceptionToThrow is not null)
-            {
-                throw ExceptionToThrow;
-            }
+            if (ExceptionToThrow is not null) throw ExceptionToThrow;
 
             LastUserId = userId;
             LastOrganizationId = organizationId;
             return Task.CompletedTask;
         }
 
-        public Task RemoveUserFromOrganizationAsync(Guid initiatorUserId, Guid userId, Guid organizationId, CancellationToken cancellationToken = default)
+        public Task RemoveUserFromOrganizationAsync(Guid initiatorUserId, Guid userId, Guid organizationId,
+            CancellationToken cancellationToken = default)
         {
-            if (ExceptionToThrow is not null)
-            {
-                throw ExceptionToThrow;
-            }
+            if (ExceptionToThrow is not null) throw ExceptionToThrow;
 
             LastInitiatorUserId = initiatorUserId;
             LastUserId = userId;
@@ -207,12 +203,10 @@ public class MembershipControllerTests
             return Task.CompletedTask;
         }
 
-        public Task UpdateRoleAsync(Guid initiatorUserId, Guid userId, Guid organizationId, string role, CancellationToken cancellationToken = default)
+        public Task UpdateRoleAsync(Guid initiatorUserId, Guid userId, Guid organizationId, string role,
+            CancellationToken cancellationToken = default)
         {
-            if (ExceptionToThrow is not null)
-            {
-                throw ExceptionToThrow;
-            }
+            if (ExceptionToThrow is not null) throw ExceptionToThrow;
 
             LastInitiatorUserId = initiatorUserId;
             LastUserId = userId;

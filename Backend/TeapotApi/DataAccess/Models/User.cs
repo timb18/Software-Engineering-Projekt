@@ -1,14 +1,15 @@
 ﻿namespace DataAccess.Models;
 
 /// <summary>
-/// Represents a user account in the Teapot system.
-/// Users can join multiple organizations and have distinct roles within each.
+///     Represents a user account in the Teapot system.
+///     Users can join multiple organizations and have distinct roles within each.
 /// </summary>
 /// <remarks>
-/// A user has either Auth0-authenticated identity (via AuthProviderSubject) or a traditional username/email combination.
-/// The display name is shown in the UI while email is used for invitations and account recovery.
-/// Timezone determines how dates and scheduled times are displayed to the user.
-/// BreakColor and OrgColors store user UI preferences for work breaks and organization color schemes.
+///     A user has either Auth0-authenticated identity (via AuthProviderSubject) or a traditional username/email
+///     combination.
+///     The display name is shown in the UI while email is used for invitations and account recovery.
+///     Timezone determines how dates and scheduled times are displayed to the user.
+///     BreakColor and OrgColors store user UI preferences for work breaks and organization color schemes.
 /// </remarks>
 public class User
 {
@@ -37,6 +38,7 @@ public class User
     public string? BreakColor { get; set; }
 
     public string? BlockerColor { get; set; }
+
     /// <summary>Serialized organization color preferences (JSON mapping organization IDs to colors)</summary>
     public string? OrgColors { get; set; }
 

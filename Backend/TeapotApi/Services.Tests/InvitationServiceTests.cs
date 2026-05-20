@@ -159,7 +159,8 @@ public class InvitationServiceTests
         });
         await _dbContext.SaveChangesAsync();
 
-        foreach (var invalidEmail in new[] { "testemail", "user@", "@example.com", "user@example", "user @example.com" })
+        foreach (var invalidEmail in new[]
+                     { "testemail", "user@", "@example.com", "user@example", "user @example.com" })
         {
             var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
                 await _service.SendInvitationAsync(
@@ -350,8 +351,11 @@ public class InvitationServiceTests
 
         Assert.That(accepted, Is.True);
         Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(2));
-        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1), "Joining another organization must reuse the user's single WorkProfile");
-        Assert.That(_dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id), Is.EqualTo(1));
+        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1),
+            "Joining another organization must reuse the user's single WorkProfile");
+        Assert.That(
+            _dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id),
+            Is.EqualTo(1));
     }
 
     [Test]
@@ -511,11 +515,15 @@ public class InvitationServiceTests
 public sealed class NullEmailSender : IEmailSender
 {
     public Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    {
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class FailingEmailSender : IEmailSender
 {
     public Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
-        => throw new InvalidOperationException("SMTP failed");
+    {
+        throw new InvalidOperationException("SMTP failed");
+    }
 }
