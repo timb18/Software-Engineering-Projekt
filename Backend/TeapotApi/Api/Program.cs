@@ -37,7 +37,6 @@ var jsonStringEnumConverter = new JsonStringEnumConverter(
     JsonNamingPolicy.CamelCase,
     false);
 var auth0Config = builder.Configuration.GetSection("Auth0").Get<Auth0Config>();
-var isAuth0Configured = IsAuth0Configured(auth0Config);
 
 /// Configure Swagger/OpenAPI documentation and API explorers
 /// Includes OAuth2 security scheme if Auth0 is configured
@@ -60,7 +59,7 @@ builder.Services.AddEndpointsApiExplorer()
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
         
         // Add OAuth2/Auth0 security scheme if Auth0 is available
-        if (isAuth0Configured)
+        if (auth0Config is not null)
         {
             o.AddSecurityDefinition("Auth0", new OpenApiSecurityScheme
             {
@@ -69,7 +68,7 @@ builder.Services.AddEndpointsApiExplorer()
                 {
                     AuthorizationCode = new OpenApiOAuthFlow
                     {
-                        AuthorizationUrl = new Uri($"https://{auth0Config!.Domain}/authorize"),
+                        AuthorizationUrl = new Uri($"https://{auth0Config.Domain}/authorize"),
                         TokenUrl = new Uri($"https://{auth0Config.Domain}/oauth/token")
                     }
                 },
@@ -100,19 +99,19 @@ if (string.IsNullOrWhiteSpace(connectionString))
 /// Configure authentication and authorization
 /// Uses Auth0 JWT bearer tokens if Auth0 config is provided,
 /// otherwise runs in development mode with authentication disabled
-if (isAuth0Configured)
+if (auth0Config is not null)
 {
     // Register Auth0 configuration, API authentication, management client
-    builder.Services.AddSingleton(auth0Config!).AddAuth0ApiAuthentication(options =>
+    builder.Services.AddSingleton(auth0Config).AddAuth0ApiAuthentication(options =>
     {
-        options.Domain = auth0Config!.Domain;
+        options.Domain = auth0Config.Domain;
         options.JwtBearerOptions = new JwtBearerOptions
         {
             Audience = auth0Config.Audience
         };
     }).Services.AddAuth0AuthenticationClient(config =>
     {
-        config.Domain = auth0Config!.Domain;
+        config.Domain = auth0Config.Domain;
         config.ClientId = auth0Config.ClientId;
         config.ClientSecret = auth0Config.ClientSecret;
     }).Services.AddAuth0ManagementClient();
@@ -145,13 +144,6 @@ if (string.IsNullOrWhiteSpace(connectionString))
 var useInMemory = string.IsNullOrWhiteSpace(connectionString);
 if (useInMemory)
     Console.WriteLine("[DEV] No connection string found — using in-memory database.");
-
-static bool IsAuth0Configured(Auth0Config? config) =>
-    config is not null &&
-    !string.IsNullOrWhiteSpace(config.Domain) &&
-    !string.IsNullOrWhiteSpace(config.Audience) &&
-    !string.IsNullOrWhiteSpace(config.ClientId) &&
-    !string.IsNullOrWhiteSpace(config.ClientSecret);
 
 /// Parse Railway DATABASE_URL format (jdbc:postgresql://user:pass@host:port/db) into EF Core connection string.
 /// Supports various fallback environment variables (PGHOST, PGUSER, PGPASSWORD, etc.)
