@@ -9,17 +9,17 @@ using Services.WorkProfiles;
 namespace Services;
 
 /// <summary>
-/// Registers the service-layer dependencies used by the API.
+///     Registers the service-layer dependencies used by the API.
 /// </summary>
 public static class DependencyInjectionExtension
 {
     extension(IServiceCollection services)
     {
         /// <summary>
-        /// Adds all Teapot service registrations to the dependency injection container.
+        ///     Adds all Teapot service registrations to the dependency injection container.
         /// </summary>
-        public IServiceCollection AddTeapotServices() {
-
+        public IServiceCollection AddTeapotServices()
+        {
             // Core infrastructure services.
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddHttpClient<ResendEmailSender>();

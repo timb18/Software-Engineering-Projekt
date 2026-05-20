@@ -3,17 +3,17 @@ using DataAccess.Models;
 namespace DataAccess.Repositories;
 
 /// <summary>
-/// Data access interface for TaskDependency entity operations.
-/// Manages precedence relationships between tasks.
+///     Data access interface for TaskDependency entity operations.
+///     Manages precedence relationships between tasks.
 /// </summary>
 /// <remarks>
-/// TaskDependencies define which tasks must be completed before others can start.
-/// Used by the scheduling algorithm for critical path analysis and task sequencing.
+///     TaskDependencies define which tasks must be completed before others can start.
+///     Used by the scheduling algorithm for critical path analysis and task sequencing.
 /// </remarks>
 public interface ITaskDependencyRepository
 {
     /// <summary>
-    /// Gets all task dependencies within a work profile.
+    ///     Gets all task dependencies within a work profile.
     /// </summary>
     /// <param name="workProfileId">The work profile GUID</param>
     /// <param name="cancellationToken">Token to observe for cancellation requests</param>
@@ -23,23 +23,23 @@ public interface ITaskDependencyRepository
         Guid workProfileId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Replaces all dependencies for a specific task with a new set of dependencies.
+    ///     Replaces all dependencies for a specific task with a new set of dependencies.
     /// </summary>
     /// <param name="taskId">The task GUID</param>
     /// <param name="dependsOnIds">List of task IDs that this task depends on (prerequisites)</param>
     /// <param name="cancellationToken">Token to observe for cancellation requests</param>
     /// <remarks>
-    /// First deletes all existing dependencies for this task,
-    /// then creates new dependencies for each ID in the list.
-    /// Used when a user updates task dependencies.
+    ///     First deletes all existing dependencies for this task,
+    ///     then creates new dependencies for each ID in the list.
+    ///     Used when a user updates task dependencies.
     /// </remarks>
     Task ReplaceForTaskAsync(
         Guid taskId, IEnumerable<Guid> dependsOnIds, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes every dependency row that references <paramref name="taskId"/> either as the
-    /// dependent task or as the predecessor. Required before deleting a task so the FK
-    /// constraint does not reject the delete when other tasks still point at it.
+    ///     Removes every dependency row that references <paramref name="taskId" /> either as the
+    ///     dependent task or as the predecessor. Required before deleting a task so the FK
+    ///     constraint does not reject the delete when other tasks still point at it.
     /// </summary>
     Task DeleteAllReferencesAsync(
         Guid taskId, CancellationToken cancellationToken = default);

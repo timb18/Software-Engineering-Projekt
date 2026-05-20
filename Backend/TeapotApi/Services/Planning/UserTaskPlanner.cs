@@ -1,11 +1,11 @@
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
-using DataAccess;
 
 namespace Services.Planning;
 
 /// <summary>
-/// Diagram 3: Work plan generation – orchestrates dependency analysis and recursive scheduling.
+///     Diagram 3: Work plan generation – orchestrates dependency analysis and recursive scheduling.
 /// </summary>
 public class UserTaskPlanner(
     IUserTaskRepository taskRepository,
@@ -17,7 +17,6 @@ public class UserTaskPlanner(
     GreedyScheduler greedyScheduler,
     IUnitOfWork unitOfWork) : IUserTaskPlanner
 {
-
     public async Task<PlanningResult> ScheduleAsync(
         Guid workProfileId, CancellationToken cancellationToken = default)
     {
@@ -26,10 +25,10 @@ public class UserTaskPlanner(
 
         // Auto-complete: if all scheduled blocks of a task are in the past, mark it as done
         var now = DateTime.UtcNow;
-        var existingBlocks = (await taskBlockRepository.GetByWorkProfileAsync(workProfileId, cancellationToken)).ToList();
+        var existingBlocks =
+            (await taskBlockRepository.GetByWorkProfileAsync(workProfileId, cancellationToken)).ToList();
         var blocksByTask = existingBlocks.GroupBy(b => b.TaskId).ToDictionary(g => g.Key, g => g.ToList());
         foreach (var task in allTasks.Where(t => t.Status != "done"))
-        {
             if (blocksByTask.TryGetValue(task.Id, out var taskBlocks)
                 && taskBlocks.Count > 0
                 && taskBlocks.All(b => b.EndDate <= now))
@@ -37,7 +36,6 @@ public class UserTaskPlanner(
                 task.Status = "done";
                 await taskRepository.UpdateAsync(task, cancellationToken);
             }
-        }
 
         var openTasks = allTasks.Where(t => t.Status != "done").ToList();
 
@@ -53,7 +51,8 @@ public class UserTaskPlanner(
         var blockings = await workProfileRepository.GetTimeIntervalsAsync(workProfileId, cancellationToken);
 
         // Load recurring blockers
-        var recurringBlockers = await recurringBlockerRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
+        var recurringBlockers =
+            await recurringBlockerRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
 
         // Load task dependencies
         var dependencies = await dependencyRepository.GetByWorkProfileAsync(workProfileId, cancellationToken);
@@ -108,7 +107,8 @@ public class UserTaskPlanner(
         DependencyAnalysisResult analysis;
         try
         {
-            analysis = dependencyAnalyzer.Analyze(openTasks, dependencies, projectStart, fixedTaskTimes, effectiveDurations);
+            analysis = dependencyAnalyzer.Analyze(openTasks, dependencies, projectStart, fixedTaskTimes,
+                effectiveDurations);
         }
         catch (InvalidOperationException ex)
         {
@@ -130,10 +130,8 @@ public class UserTaskPlanner(
         // Remove slots that are already in the past so tasks are never scheduled retroactively
         freeSlots.RemoveAll(s => s.End <= now);
         for (var i = 0; i < freeSlots.Count; i++)
-        {
             if (freeSlots[i].Start < now)
                 freeSlots[i] = new TimeSlot(now, freeSlots[i].End, freeSlots[i].OrganizationId);
-        }
 
         // Remove blocking intervals from free slots
         foreach (var blocking in blockings)
@@ -187,7 +185,7 @@ public class UserTaskPlanner(
         {
             // Do NOT overwrite the existing plan in the DB. Report which tasks could not be planned.
             var msg = "Folgende Aufgaben konnten nicht vor ihrer Deadline eingeplant werden: "
-                     + string.Join(", ", infeasible);
+                      + string.Join(", ", infeasible);
             return new PlanningResult(false, msg, 0, plannedBlocks, []);
         }
 
@@ -223,20 +221,34 @@ public class UserTaskPlanner(
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Resolves the timezone for interpreting work-block wall-clock strings.
-    /// Falls back to Europe/Berlin (the DB default) and finally UTC if even that fails.
+    ///     Resolves the timezone for interpreting work-block wall-clock strings.
+    ///     Falls back to Europe/Berlin (the DB default) and finally UTC if even that fails.
     /// </summary>
     private static TimeZoneInfo ResolveUserTimezone(WorkProfile workProfile)
     {
         var tzId = workProfile.Membership?.User?.Timezone;
         if (!string.IsNullOrWhiteSpace(tzId))
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(tzId);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                /* fall through */
+            }
+            catch (InvalidTimeZoneException)
+            {
+                /* fall through */
+            }
+
+        try
         {
-            try { return TimeZoneInfo.FindSystemTimeZoneById(tzId); }
-            catch (TimeZoneNotFoundException) { /* fall through */ }
-            catch (InvalidTimeZoneException) { /* fall through */ }
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
         }
-        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin"); }
-        catch { return TimeZoneInfo.Utc; }
+        catch
+        {
+            return TimeZoneInfo.Utc;
+        }
     }
 
     private static List<TimeSlot> GenerateTimeSlots(
@@ -272,7 +284,7 @@ public class UserTaskPlanner(
 
                 // Resolve the block's org tag. Empty/unparsable CompanyId falls back to the
                 // workprofile's own (personal) org so legacy blocks behave as before.
-                Guid? blockOrgId = ownOrgId;
+                var blockOrgId = ownOrgId;
                 if (!string.IsNullOrWhiteSpace(block.CompanyId)
                     && Guid.TryParse(block.CompanyId, out var parsed))
                     blockOrgId = parsed;
@@ -293,6 +305,7 @@ public class UserTaskPlanner(
                         slots.Add(new TimeSlot(cursor, brk.Start, blockOrgId));
                     cursor = brk.End;
                 }
+
                 if (cursor < blockEnd)
                     slots.Add(new TimeSlot(cursor, blockEnd, blockOrgId));
             }
@@ -302,8 +315,8 @@ public class UserTaskPlanner(
     }
 
     /// <summary>
-    /// Converts a wall-clock "HH:mm" string on the given local date into a UTC <see cref="DateTime"/>
-    /// using the supplied timezone. Result has Kind=Utc so it compares safely with UtcNow and DB timestamps.
+    ///     Converts a wall-clock "HH:mm" string on the given local date into a UTC <see cref="DateTime" />
+    ///     using the supplied timezone. Result has Kind=Utc so it compares safely with UtcNow and DB timestamps.
     /// </summary>
     private static DateTime ParseLocalTimeAsUtc(DateTime localDate, string hhMm, TimeZoneInfo tz)
     {
@@ -343,17 +356,20 @@ public class UserTaskPlanner(
         }
     }
 
-    private static string ToDayAbbreviation(DayOfWeek day) => day switch
+    private static string ToDayAbbreviation(DayOfWeek day)
     {
-        DayOfWeek.Monday => "Mon",
-        DayOfWeek.Tuesday => "Tue",
-        DayOfWeek.Wednesday => "Wed",
-        DayOfWeek.Thursday => "Thu",
-        DayOfWeek.Friday => "Fri",
-        DayOfWeek.Saturday => "Sat",
-        DayOfWeek.Sunday => "Sun",
-        _ => throw new ArgumentOutOfRangeException(nameof(day))
-    };
+        return day switch
+        {
+            DayOfWeek.Monday => "Mon",
+            DayOfWeek.Tuesday => "Tue",
+            DayOfWeek.Wednesday => "Wed",
+            DayOfWeek.Thursday => "Thu",
+            DayOfWeek.Friday => "Fri",
+            DayOfWeek.Saturday => "Sat",
+            DayOfWeek.Sunday => "Sun",
+            _ => throw new ArgumentOutOfRangeException(nameof(day))
+        };
+    }
 
     /// <summary>Removes a busy interval from the free-slot list, splitting where necessary.</summary>
     private static void SubtractInterval(
@@ -371,5 +387,4 @@ public class UserTaskPlanner(
                 slots.Insert(i + (s.Start < busyStart ? 1 : 0), new TimeSlot(busyEnd, s.End, s.OrganizationId));
         }
     }
-
 }

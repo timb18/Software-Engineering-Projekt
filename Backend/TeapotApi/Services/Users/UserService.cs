@@ -1,13 +1,12 @@
+using System.ComponentModel.DataAnnotations;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Repositories;
-using System.ComponentModel.DataAnnotations;
-using Auth0.ManagementApi;
 
 namespace Services.Users;
 
 /// <summary>
-/// Implements user profile creation, synchronization, and updates.
+///     Implements user profile creation, synchronization, and updates.
 /// </summary>
 public class UserService(
     IUserRepository userRepository,
@@ -17,7 +16,7 @@ public class UserService(
     private static readonly EmailAddressAttribute EmailValidator = new();
 
     /// <summary>
-    /// Ensures a matching user account exists and returns the linked work profile when available.
+    ///     Ensures a matching user account exists and returns the linked work profile when available.
     /// </summary>
     public async Task<(Guid UserId, Guid? WorkProfileId)> EnsureUserAsync(
         string email,
@@ -47,7 +46,7 @@ public class UserService(
     }
 
     /// <summary>
-    /// Loads the public profile for the given user id.
+    ///     Loads the public profile for the given user id.
     /// </summary>
     public async Task<UserProfileDto> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -58,7 +57,7 @@ public class UserService(
     }
 
     /// <summary>
-    /// Updates the editable profile fields for the given user.
+    ///     Updates the editable profile fields for the given user.
     /// </summary>
     public async Task<UserProfileDto> UpdateProfileAsync(Guid userId, UpdateUserProfileCommand command,
         CancellationToken cancellationToken = default)
@@ -94,7 +93,7 @@ public class UserService(
     }
 
     /// <summary>
-    /// Finds the existing user or creates a new one from the supplied identity data.
+    ///     Finds the existing user or creates a new one from the supplied identity data.
     /// </summary>
     private async Task<User> FindOrCreateUserAsync(string normalizedEmail, string? authProviderSubject,
         string? displayName, string? profileImageUrl, CancellationToken cancellationToken)
@@ -116,7 +115,7 @@ public class UserService(
                 Username = BuildUsername(normalizedEmail, displayName),
                 ProfileImageUrl = NormalizeOptional(profileImageUrl),
                 Timezone = "Europe/Berlin",
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
             };
             await userRepository.AddAsync(user, cancellationToken);
         }
@@ -143,41 +142,42 @@ public class UserService(
         return user;
     }
 
-    private static UserProfileDto MapProfile(User user) => new(
-        user.Id,
-        user.Username ?? BuildUsername(user.Email, user.DisplayName),
-        user.DisplayName ?? user.Username ?? BuildUsername(user.Email, user.DisplayName),
-        user.Email,
-        user.ProfileImageUrl,
-        user.Timezone ?? "Europe/Berlin",
-        user.BreakColor,
-        user.BlockerColor,
-        user.OrgColors);
+    private static UserProfileDto MapProfile(User user)
+    {
+        return new UserProfileDto(
+            user.Id,
+            user.Username ?? BuildUsername(user.Email, user.DisplayName),
+            user.DisplayName ?? user.Username ?? BuildUsername(user.Email, user.DisplayName),
+            user.Email,
+            user.ProfileImageUrl,
+            user.Timezone ?? "Europe/Berlin",
+            user.BreakColor,
+            user.BlockerColor,
+            user.OrgColors);
+    }
 
     private static string BuildUsername(string email, string? displayName)
     {
         var preferred = NormalizeOptional(displayName);
-        if (!string.IsNullOrWhiteSpace(preferred))
-        {
-            return preferred;
-        }
+        if (!string.IsNullOrWhiteSpace(preferred)) return preferred;
 
         return NormalizeOptional(email.Split('@')[0]) ?? "user";
     }
 
-    private static string NormalizeRequired(string? value, string errorMessage) =>
-        NormalizeOptional(value) ?? throw new ArgumentException(errorMessage);
+    private static string NormalizeRequired(string? value, string errorMessage)
+    {
+        return NormalizeOptional(value) ?? throw new ArgumentException(errorMessage);
+    }
 
-    private static string? NormalizeOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 
     private static string NormalizeEmail(string email)
     {
         var normalized = NormalizeRequired(email, "Email is required.").ToLowerInvariant();
-        if (!EmailValidator.IsValid(normalized))
-        {
-            throw new ArgumentException("Email format is invalid.");
-        }
+        if (!EmailValidator.IsValid(normalized)) throw new ArgumentException("Email format is invalid.");
 
         return normalized;
     }
@@ -203,15 +203,10 @@ public class UserService(
 
     private static void ValidateProfileImageUrl(string? profileImageUrl)
     {
-        if (string.IsNullOrWhiteSpace(profileImageUrl))
-        {
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(profileImageUrl)) return;
 
         if (!Uri.TryCreate(profileImageUrl, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-        {
             throw new ArgumentException("Profile image URL is invalid.");
-        }
     }
 }

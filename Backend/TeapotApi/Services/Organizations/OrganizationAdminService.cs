@@ -6,7 +6,7 @@ using DataAccess.Repositories;
 namespace Services.Organizations;
 
 /// <summary>
-/// Implements administrative organization creation workflows.
+///     Implements administrative organization creation workflows.
 /// </summary>
 public class OrganizationAdminService(
     IOrganizationRepository organizationRepository,
@@ -17,7 +17,7 @@ public class OrganizationAdminService(
     private static readonly EmailAddressAttribute EmailValidator = new();
 
     /// <summary>
-    /// Creates a new organization, creates the organizer account if necessary, and links both records in one transaction.
+    ///     Creates a new organization, creates the organizer account if necessary, and links both records in one transaction.
     /// </summary>
     public async Task<CreateOrganizationResult> CreateOrganizationAsync(
         CreateOrganizationRequest request,
@@ -27,7 +27,8 @@ public class OrganizationAdminService(
 
         await using var tx = await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        var existingOrganization = await organizationRepository.FindByNameAsync(request.OrganizationName, cancellationToken);
+        var existingOrganization =
+            await organizationRepository.FindByNameAsync(request.OrganizationName, cancellationToken);
         if (existingOrganization is not null)
             throw new InvalidOperationException("Organization name already exists.");
 
@@ -37,7 +38,7 @@ public class OrganizationAdminService(
         {
             organizer = new User
             {
-                Email = normalizedEmail,
+                Email = normalizedEmail
             };
             await userRepository.AddAsync(organizer, cancellationToken);
         }
@@ -64,7 +65,7 @@ public class OrganizationAdminService(
         return new CreateOrganizationResult
         {
             OrganizationId = organization.Id,
-            OrganizerUserId = organizer.Id,
+            OrganizerUserId = organizer.Id
         };
     }
 

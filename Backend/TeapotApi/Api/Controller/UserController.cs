@@ -9,8 +9,8 @@ namespace Api.Controller;
 public class UserController(IUserService userService) : ControllerBase
 {
     /// <summary>
-    /// Retrieves the public profile data for a user.
-    /// The endpoint is used by the profile page and by other UI screens that need display information.
+    ///     Retrieves the public profile data for a user.
+    ///     The endpoint is used by the profile page and by other UI screens that need display information.
     /// </summary>
     [HttpGet("")]
     [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
@@ -29,8 +29,8 @@ public class UserController(IUserService userService) : ControllerBase
     }
 
     /// <summary>
-    /// Updates editable profile fields such as display name, email, avatar URL, and UI preferences.
-    /// Returns the updated profile so the frontend can refresh its local state immediately.
+    ///     Updates editable profile fields such as display name, email, avatar URL, and UI preferences.
+    ///     Returns the updated profile so the frontend can refresh its local state immediately.
     /// </summary>
     [HttpPut("")]
     [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
@@ -67,16 +67,19 @@ public class UserController(IUserService userService) : ControllerBase
         }
     }
 
-    private static UserProfileResponse ToResponse(UserProfileDto profile) => new(
-        profile.Id,
-        profile.Username,
-        profile.DisplayName,
-        profile.Email,
-        profile.ProfileImageUrl,
-        profile.Timezone,
-        profile.BreakColor,
-        profile.BlockerColor,
-        profile.OrgColors);
+    private static UserProfileResponse ToResponse(UserProfileDto profile)
+    {
+        return new UserProfileResponse(
+            profile.Id,
+            profile.Username,
+            profile.DisplayName,
+            profile.Email,
+            profile.ProfileImageUrl,
+            profile.Timezone,
+            profile.BreakColor,
+            profile.BlockerColor,
+            profile.OrgColors);
+    }
 }
 
 public sealed record UpdateUserProfileRequest(

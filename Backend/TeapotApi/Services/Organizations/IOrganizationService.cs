@@ -1,28 +1,29 @@
 namespace Services.Organizations;
 
 /// <summary>
-/// Read and maintenance operations for organizations visible to the current user.
+///     Read and maintenance operations for organizations visible to the current user.
 /// </summary>
 public interface IOrganizationService
 {
     /// <summary>
-    /// Returns all organizations together with members, invitations, and the caller's work profile reference.
+    ///     Returns all organizations together with members, invitations, and the caller's work profile reference.
     /// </summary>
-    Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default);
+    Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Renames an organization after validating organizer permissions.
+    ///     Renames an organization after validating organizer permissions.
     /// </summary>
     Task RenameOrganizationAsync(RenameOrganizationCommand command, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes an organization after checking organizer permissions and safety constraints.
+    ///     Deletes an organization after checking organizer permissions and safety constraints.
     /// </summary>
     Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Command used to rename an organization.
+///     Command used to rename an organization.
 /// </summary>
 public sealed record RenameOrganizationCommand(
     Guid OrganizationId,
@@ -30,7 +31,7 @@ public sealed record RenameOrganizationCommand(
     string Name);
 
 /// <summary>
-/// Command used to delete an organization.
+///     Command used to delete an organization.
 /// </summary>
 public sealed record DeleteOrganizationCommand(
     Guid OrganizationId,
@@ -38,7 +39,7 @@ public sealed record DeleteOrganizationCommand(
     string ConfirmationText);
 
 /// <summary>
-/// Aggregated organization details returned to the client.
+///     Aggregated organization details returned to the client.
 /// </summary>
 public sealed record OrganizationDetailsDto
 {
@@ -52,7 +53,7 @@ public sealed record OrganizationDetailsDto
 }
 
 /// <summary>
-/// Member snapshot included in organization details.
+///     Member snapshot included in organization details.
 /// </summary>
 public sealed record OrganizationUserDto
 {

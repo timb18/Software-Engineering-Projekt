@@ -26,9 +26,9 @@ public record TaskBlockResponse(
 public class PlanningController(IUserTaskPlanner taskPlanner, ITaskBlockRepository taskBlockRepository) : ControllerBase
 {
     /// <summary>
-    /// Generates a work plan for all open tasks in the given work profile.
-    /// Internally this runs dependency analysis, critical path calculation, and recursive scheduling
-    /// so the frontend receives a single consolidated planning result.
+    ///     Generates a work plan for all open tasks in the given work profile.
+    ///     Internally this runs dependency analysis, critical path calculation, and recursive scheduling
+    ///     so the frontend receives a single consolidated planning result.
     /// </summary>
     [HttpPost("schedule")]
     [ProducesResponseType(typeof(PlanningResultResponse), StatusCodes.Status200OK)]
@@ -94,13 +94,14 @@ public record WorkBreakRequest(
 public class WorkProfileController(IWorkProfileService workProfileService) : ControllerBase
 {
     /// <summary>
-    /// Returns the work profile for a user.
-    /// Returns 204 No Content when the user has not created a work profile yet.
+    ///     Returns the work profile for a user.
+    ///     Returns 204 No Content when the user has not created a work profile yet.
     /// </summary>
     [HttpGet("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Get(Guid userId, [FromQuery] Guid? organizationId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(Guid userId, [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
     {
         var profile = await workProfileService.GetAsync(userId, organizationId, cancellationToken);
         if (profile is null)
@@ -110,13 +111,14 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
     }
 
     /// <summary>
-    /// Creates or replaces the work profile for a user.
-    /// The request is mapped into the internal work profile model before persistence.
+    ///     Creates or replaces the work profile for a user.
+    ///     The request is mapped into the internal work profile model before persistence.
     /// </summary>
     [HttpPut("")]
     [ProducesResponseType(typeof(WorkProfile), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Put(Guid userId, [FromQuery] Guid? organizationId, [FromBody] WorkProfileSaveRequest request,
+    public async Task<IActionResult> Put(Guid userId, [FromQuery] Guid? organizationId,
+        [FromBody] WorkProfileSaveRequest request,
         CancellationToken cancellationToken)
     {
         try
@@ -132,8 +134,8 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
     }
 
     /// <summary>
-    /// Deletes the work profile and any dependent planning data for a user.
-    /// This keeps the user's planning state consistent after profile removal.
+    ///     Deletes the work profile and any dependent planning data for a user.
+    ///     This keeps the user's planning state consistent after profile removal.
     /// </summary>
     [HttpDelete("")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -182,9 +184,7 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
         var maxDailyLoad = TimeSpan.Zero;
         if (!string.IsNullOrWhiteSpace(request.MaxDailyLoad) &&
             !TimeSpan.TryParse(request.MaxDailyLoad, out maxDailyLoad))
-        {
             throw new ArgumentException($"Invalid MaxDailyLoad format: '{request.MaxDailyLoad}'. Expected HH:mm:ss.");
-        }
 
         return new WorkProfile
         {
@@ -200,15 +200,15 @@ public class WorkProfileController(IWorkProfileService workProfileService) : Con
                     CompanyId = block.CompanyId ?? string.Empty,
                     CompanyName = block.CompanyName ?? string.Empty,
                     StartTime = string.IsNullOrWhiteSpace(block.StartTime) ? "09:00" : block.StartTime,
-                    EndTime = string.IsNullOrWhiteSpace(block.EndTime) ? "17:00" : block.EndTime,
+                    EndTime = string.IsNullOrWhiteSpace(block.EndTime) ? "17:00" : block.EndTime
                 }).ToList(),
                 Breaks = (day.Breaks ?? []).Select(workBreak => new WorkBreak
                 {
                     Id = workBreak.Id ?? Guid.Empty,
                     StartTime = string.IsNullOrWhiteSpace(workBreak.StartTime) ? "12:00" : workBreak.StartTime,
-                    EndTime = string.IsNullOrWhiteSpace(workBreak.EndTime) ? "12:30" : workBreak.EndTime,
-                }).ToList(),
-            }).ToList(),
+                    EndTime = string.IsNullOrWhiteSpace(workBreak.EndTime) ? "12:30" : workBreak.EndTime
+                }).ToList()
+            }).ToList()
         };
     }
 }

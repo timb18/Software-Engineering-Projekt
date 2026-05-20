@@ -3,13 +3,13 @@ using Auth0.ManagementApi;
 namespace Services.Users;
 
 /// <summary>
-/// Auth0-backed implementation of user management operations.
+///     Auth0-backed implementation of user management operations.
 /// </summary>
 public class UserManagementService(IManagementApiClient managementClient, Auth0Config auth0Config)
     : IUserManagementService
 {
     /// <summary>
-    /// Changes the password of a user in Auth0.
+    ///     Changes the password of a user in Auth0.
     /// </summary>
     /// <param name="changePasswordRequest">Contains the email address and new password.</param>
     /// <param name="cancellationToken">Cancellation token used for the Auth0 API request.</param>
@@ -28,10 +28,7 @@ public class UserManagementService(IManagementApiClient managementClient, Auth0C
 
         var user = users.CurrentPage.Items.FirstOrDefault(u => u.Email == changePasswordRequest.Email);
 
-        if (user?.UserId is null)
-        {
-            throw new KeyNotFoundException("User not found.");
-        }
+        if (user?.UserId is null) throw new KeyNotFoundException("User not found.");
 
         await managementClient.Users.UpdateAsync(user.UserId,
             new UpdateUserRequestContent

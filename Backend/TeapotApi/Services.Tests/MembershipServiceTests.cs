@@ -7,9 +7,6 @@ namespace Services.Tests;
 [TestFixture]
 public class MembershipServiceTests
 {
-    private TeapotDbContext _dbContext = null!;
-    private MembershipService _service = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -20,6 +17,15 @@ public class MembershipServiceTests
         _dbContext = new TeapotDbContext(options);
         _service = new MembershipService(new MembershipRepository(_dbContext));
     }
+
+    [TearDown]
+    public async Task TearDown()
+    {
+        await _dbContext.DisposeAsync();
+    }
+
+    private TeapotDbContext _dbContext = null!;
+    private MembershipService _service = null!;
 
     [Test]
     public async Task LeaveOrganizationAsync_Removes_Membership_And_Dependent_WorkProfile_Data()
@@ -220,18 +226,29 @@ public class MembershipServiceTests
         _dbContext.Users.AddRange(initiator, member);
         _dbContext.Organizations.Add(organization);
         _dbContext.Memberships.AddRange(
-            new Membership { Id = Guid.NewGuid(), UserId = initiator.Id, OrganizationId = organization.Id, Role = ERole.Organizer, CreatedAt = DateTime.UtcNow },
-            new Membership { Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = organization.Id, Role = ERole.User, CreatedAt = DateTime.UtcNow }
+            new Membership
+            {
+                Id = Guid.NewGuid(), UserId = initiator.Id, OrganizationId = organization.Id, Role = ERole.Organizer,
+                CreatedAt = DateTime.UtcNow
+            },
+            new Membership
+            {
+                Id = Guid.NewGuid(), UserId = member.Id, OrganizationId = organization.Id, Role = ERole.User,
+                CreatedAt = DateTime.UtcNow
+            }
         );
         await _dbContext.SaveChangesAsync();
 
         var membershipForMember = _dbContext.Memberships.Single(m => m.UserId == member.Id);
-        var wp = new WorkProfile { Id = Guid.NewGuid(), MembershipId = membershipForMember.Id, CreatedAt = DateTime.UtcNow };
+        var wp = new WorkProfile
+            { Id = Guid.NewGuid(), MembershipId = membershipForMember.Id, CreatedAt = DateTime.UtcNow };
         _dbContext.WorkProfiles.Add(wp);
 
         await _service.RemoveUserFromOrganizationAsync(initiator.Id, member.Id, organization.Id);
 
-        Assert.That(await _dbContext.Memberships.AnyAsync(m => m.UserId == member.Id && m.OrganizationId == organization.Id), Is.False);
+        Assert.That(
+            await _dbContext.Memberships.AnyAsync(m => m.UserId == member.Id && m.OrganizationId == organization.Id),
+            Is.False);
         Assert.That(await _dbContext.WorkProfiles.AnyAsync(w => w.MembershipId == membershipForMember.Id), Is.False);
     }
 
@@ -244,11 +261,5 @@ public class MembershipServiceTests
 
         Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
             await _service.RemoveUserFromOrganizationAsync(nonOrganizer, member, org));
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _dbContext.DisposeAsync();
     }
 }

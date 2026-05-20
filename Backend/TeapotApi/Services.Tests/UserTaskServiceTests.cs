@@ -7,10 +7,6 @@ namespace Services.Tests;
 [TestFixture]
 public class UserTaskServiceTests
 {
-    private TeapotDbContext _dbContext = null!;
-    private UserTaskService _service = null!;
-    private Guid _workProfileId;
-
     [SetUp]
     public void SetUp()
     {
@@ -22,7 +18,8 @@ public class UserTaskServiceTests
 
         // Seed the minimal entities required by foreign keys
         var user = new User { Email = "task-test@example.com", CreatedAt = DateTime.UtcNow };
-        var org = new Organization { Name = "Test Org", Description = "desc", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
+        var org = new Organization
+            { Name = "Test Org", Description = "desc", MaxUsers = 5, CreatedAt = DateTime.UtcNow };
         _dbContext.AddRange(user, org);
         _dbContext.SaveChanges();
 
@@ -31,7 +28,7 @@ public class UserTaskServiceTests
             UserId = user.Id,
             OrganizationId = org.Id,
             Role = ERole.User,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
         _dbContext.Add(membership);
         _dbContext.SaveChanges();
@@ -41,28 +38,39 @@ public class UserTaskServiceTests
         _dbContext.SaveChanges();
 
         _workProfileId = workProfile.Id;
-        _service = new UserTaskService(new UserTaskRepository(_dbContext), new TaskDependencyRepository(_dbContext), new TaskBlockRepository(_dbContext));
+        _service = new UserTaskService(new UserTaskRepository(_dbContext), new TaskDependencyRepository(_dbContext),
+            new TaskBlockRepository(_dbContext));
     }
 
     [TearDown]
-    public void TearDown() => _dbContext.Dispose();
+    public void TearDown()
+    {
+        _dbContext.Dispose();
+    }
+
+    private TeapotDbContext _dbContext = null!;
+    private UserTaskService _service = null!;
+    private Guid _workProfileId;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private UserTask MakeTask(string name = "Task", string status = "todo") => new()
+    private UserTask MakeTask(string name = "Task", string status = "todo")
     {
-        WorkProfileId = _workProfileId,
-        Name = name,
-        Description = "desc",
-        Priority = ETaskPriority.Medium,
-        Intensity = ETaskIntensity.Normal,
-        TimeEstimate = TimeSpan.FromHours(1),
-        Status = status,
-        EarlyStart = DateTime.UtcNow,
-        EarlyFinish = DateTime.UtcNow.AddHours(1),
-        LateStart = DateTime.UtcNow,
-        LateFinish = DateTime.UtcNow.AddHours(1),
-    };
+        return new UserTask
+        {
+            WorkProfileId = _workProfileId,
+            Name = name,
+            Description = "desc",
+            Priority = ETaskPriority.Medium,
+            Intensity = ETaskIntensity.Normal,
+            TimeEstimate = TimeSpan.FromHours(1),
+            Status = status,
+            EarlyStart = DateTime.UtcNow,
+            EarlyFinish = DateTime.UtcNow.AddHours(1),
+            LateStart = DateTime.UtcNow,
+            LateFinish = DateTime.UtcNow.AddHours(1)
+        };
+    }
 
     // ── GetTasksAsync ─────────────────────────────────────────────────────────
 
@@ -144,7 +152,7 @@ public class UserTaskServiceTests
     [Test]
     public async Task UpdateTaskAsync_Updates_Name_And_Status()
     {
-        var task = await _service.CreateTaskAsync(_workProfileId, MakeTask("Original", "todo"));
+        var task = await _service.CreateTaskAsync(_workProfileId, MakeTask("Original"));
 
         var updated = MakeTask("Renamed", "done");
         var result = await _service.UpdateTaskAsync(_workProfileId, task.Id, updated);

@@ -77,18 +77,21 @@ public class WorkProfileControllerTests
         public Guid? LastDeletedUserId { get; private set; }
         public WorkProfile? LastSavedProfile { get; private set; }
 
-        public Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null, CancellationToken cancellationToken = default) =>
-            Task.FromResult<WorkProfile?>(null);
+        public Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<WorkProfile?>(null);
+        }
 
-        public Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null, CancellationToken cancellationToken = default) =>
-            Task.FromResult(LastSavedProfile = profile);
+        public Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(LastSavedProfile = profile);
+        }
 
         public Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            if (ExceptionToThrow is not null)
-            {
-                throw ExceptionToThrow;
-            }
+            if (ExceptionToThrow is not null) throw ExceptionToThrow;
 
             LastDeletedUserId = userId;
             return Task.CompletedTask;
@@ -96,10 +99,7 @@ public class WorkProfileControllerTests
 
         public Task DeleteByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
-            if (ExceptionToThrow is not null)
-            {
-                throw ExceptionToThrow;
-            }
+            if (ExceptionToThrow is not null) throw ExceptionToThrow;
 
             return Task.CompletedTask;
         }

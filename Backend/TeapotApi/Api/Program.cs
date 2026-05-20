@@ -24,10 +24,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configure port from environment variable (supports Railway deployment)
 var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrWhiteSpace(port))
-{
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-}
+if (!string.IsNullOrWhiteSpace(port)) builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 // Register all business logic services from the Services layer (dependency injection)
 builder.Services.AddTeapotServices();
@@ -57,10 +54,9 @@ builder.Services.AddEndpointsApiExplorer()
         o.SwaggerDoc("v1",
             new OpenApiInfo
                 { Title = "OfficeDashboardApi", Version = "v1", Description = "Backend API for the Office Dashboard" });
-        
+
         // Add OAuth2/Auth0 security scheme if Auth0 is available
         if (auth0Config is not null)
-        {
             o.AddSecurityDefinition("Auth0", new OpenApiSecurityScheme
             {
                 Type = SecuritySchemeType.OAuth2,
@@ -74,7 +70,6 @@ builder.Services.AddEndpointsApiExplorer()
                 },
                 Scheme = "Auth0"
             });
-        }
     })
     // Configure CORS to allow requests from any origin with any method and headers
     .AddCors(options => options.AddDefaultPolicy(c => { c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }));
@@ -91,9 +86,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 {
     var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
     if (!string.IsNullOrWhiteSpace(databaseUrl))
-    {
         connectionString = TryBuildConnectionStringFromDatabaseUrl(databaseUrl);
-    }
 }
 
 /// Configure authentication and authorization
@@ -136,9 +129,7 @@ builder.Services.AddAuthorization();
 
 // Final fallback: try to build connection string from discrete PostgreSQL environment variables
 if (string.IsNullOrWhiteSpace(connectionString))
-{
     connectionString = TryBuildConnectionStringFromDiscreteEnvironmentVariables();
-}
 
 // If no connection string available, use in-memory database for development/testing
 var useInMemory = string.IsNullOrWhiteSpace(connectionString);
@@ -155,10 +146,7 @@ static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
         : databaseUrl;
 
     // Parse URL components
-    if (!Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri))
-    {
-        return null;
-    }
+    if (!Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri)) return null;
 
     // Extract query parameters and user credentials from URL
     var queryParams = ParseQueryString(uri.Query);
@@ -194,9 +182,7 @@ static string? TryBuildConnectionStringFromDatabaseUrl(string databaseUrl)
         string.IsNullOrWhiteSpace(username) ||
         string.IsNullOrWhiteSpace(password) ||
         string.IsNullOrWhiteSpace(databaseName))
-    {
         return null;
-    }
 
     // Determine SSL mode (default to Require for production)
     var sslMode = GetFirstNonEmpty(
@@ -236,9 +222,7 @@ static string? TryBuildConnectionStringFromDiscreteEnvironmentVariables()
         string.IsNullOrWhiteSpace(database) ||
         string.IsNullOrWhiteSpace(username) ||
         string.IsNullOrWhiteSpace(password))
-    {
         return null;
-    }
 
     // Build connection string with SSL mode
     var sslMode = GetFirstNonEmpty(Environment.GetEnvironmentVariable("PGSSLMODE"), "Require");
@@ -248,17 +232,16 @@ static string? TryBuildConnectionStringFromDiscreteEnvironmentVariables()
 
 /// Return the first non-empty/non-null string from a list of candidates.
 /// Used for resolving configuration values with multiple fallback sources.
-static string? GetFirstNonEmpty(params string?[] values) =>
-    values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+static string? GetFirstNonEmpty(params string?[] values)
+{
+    return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+}
 
 /// Parse URL query string into dictionary, handling URL decoding and empty values.
 static Dictionary<string, string> ParseQueryString(string query)
 {
     var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    if (string.IsNullOrWhiteSpace(query))
-    {
-        return result;
-    }
+    if (string.IsNullOrWhiteSpace(query)) return result;
 
     // Split by '&' to get key=value pairs, then parse each
     foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
@@ -277,20 +260,16 @@ static Dictionary<string, string> ParseQueryString(string query)
 builder.Services.AddDbContext<TeapotDbContext>(options =>
     {
         if (useInMemory)
-        {
             // Use in-memory database for development/testing, ignore transaction warnings
             options.UseInMemoryDatabase("TeapotDev")
                 .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
-        }
         else
-        {
             // Configure PostgreSQL with custom enum type mappings
             options.UseNpgsql(connectionString, o => o
                 .MapEnum<EInvitationStatus>("invitation_status")
                 .MapEnum<ERole>("role")
                 .MapEnum<ETaskPriority>("task_priority")
                 .MapEnum<ETaskIntensity>("task_intensity"));
-        }
     })
     // Register repository implementations with scoped lifetime
     .AddScoped<IUserRepository, UserRepository>()

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace Services.Organizations;
 
 /// <summary>
-/// Read and maintenance operations for organizations visible to the current user.
+///     Read and maintenance operations for organizations visible to the current user.
 /// </summary>
 public class OrganizationService(
     IOrganizationRepository organizationRepository,
@@ -17,9 +17,10 @@ public class OrganizationService(
     private readonly EmailOptions _emailOptions = emailOptions.Value;
 
     /// <summary>
-    /// Loads all organizations for a user and projects them into UI-friendly DTOs.
+    ///     Loads all organizations for a user and projects them into UI-friendly DTOs.
     /// </summary>
-    public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email,
+        CancellationToken cancellationToken = default)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var organizations = await organizationRepository.GetForUserAsync(normalizedEmail, cancellationToken);
@@ -68,15 +69,11 @@ public class OrganizationService(
         });
     }
 
-    private string BuildAcceptLink(Invitation invitation) =>
-        $"{TrimTrailingSlash(_emailOptions.ApiBaseUrl)}/api/Invitation/{invitation.Id}/accept-link?email={WebUtility.UrlEncode(invitation.Email)}";
-
-    private static string TrimTrailingSlash(string url) => url.TrimEnd('/');
-
     /// <summary>
-    /// Renames an organization after validating organizer permissions and uniqueness.
+    ///     Renames an organization after validating organizer permissions and uniqueness.
     /// </summary>
-    public async Task RenameOrganizationAsync(RenameOrganizationCommand command, CancellationToken cancellationToken = default)
+    public async Task RenameOrganizationAsync(RenameOrganizationCommand command,
+        CancellationToken cancellationToken = default)
     {
         if (command.OrganizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.", nameof(command.OrganizationId));
@@ -88,12 +85,14 @@ public class OrganizationService(
         if (string.IsNullOrWhiteSpace(normalizedName))
             throw new ArgumentException("Organization name is required.", nameof(command.Name));
 
-        var organization = await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId, cancellationToken)
+        var organization =
+            await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId,
+                cancellationToken)
             ?? throw new KeyNotFoundException("Organization not found.");
 
         var initiatorMembership = organization.Memberships
-            .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
-            ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
+                                      .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
+                                  ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
 
         if (initiatorMembership.Role != ERole.Organizer)
             throw new UnauthorizedAccessException("Only organizers can rename an organization.");
@@ -111,9 +110,10 @@ public class OrganizationService(
     }
 
     /// <summary>
-    /// Deletes an organization after checking organizer permissions and confirmation text.
+    ///     Deletes an organization after checking organizer permissions and confirmation text.
     /// </summary>
-    public async Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default)
+    public async Task DeleteOrganizationAsync(DeleteOrganizationCommand command,
+        CancellationToken cancellationToken = default)
     {
         if (command.OrganizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.", nameof(command.OrganizationId));
@@ -121,7 +121,9 @@ public class OrganizationService(
         if (command.InitiatorUserId == Guid.Empty)
             throw new ArgumentException("InitiatorUserId is required.", nameof(command.InitiatorUserId));
 
-        var organization = await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId, cancellationToken)
+        var organization =
+            await organizationRepository.GetWithMembershipsAndInvitationsAsync(command.OrganizationId,
+                cancellationToken)
             ?? throw new KeyNotFoundException("Organization not found.");
 
         if (organization.MaxUsers == 1 &&
@@ -129,8 +131,8 @@ public class OrganizationService(
             throw new InvalidOperationException("Personal workspaces cannot be deleted.");
 
         var initiatorMembership = organization.Memberships
-            .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
-            ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
+                                      .FirstOrDefault(m => m.UserId == command.InitiatorUserId)
+                                  ?? throw new KeyNotFoundException("Initiator is not a member of this organization.");
 
         if (initiatorMembership.Role != ERole.Organizer)
             throw new UnauthorizedAccessException("Only organizers can delete an organization.");
@@ -146,5 +148,16 @@ public class OrganizationService(
             throw new ArgumentException("Confirmation text does not match the organization name.");
 
         await organizationRepository.DeleteWithCascadeAsync(organization, cancellationToken);
+    }
+
+    private string BuildAcceptLink(Invitation invitation)
+    {
+        return
+            $"{TrimTrailingSlash(_emailOptions.ApiBaseUrl)}/api/Invitation/{invitation.Id}/accept-link?email={WebUtility.UrlEncode(invitation.Email)}";
+    }
+
+    private static string TrimTrailingSlash(string url)
+    {
+        return url.TrimEnd('/');
     }
 }

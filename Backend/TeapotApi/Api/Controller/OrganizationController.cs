@@ -81,9 +81,8 @@ public class OrganizationController(
         CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(organizationId, out var parsedOrganizationId))
-        {
-            return BadRequest("OrganizationId must be a valid GUID. Reload organizations from the backend before editing.");
-        }
+            return BadRequest(
+                "OrganizationId must be a valid GUID. Reload organizations from the backend before editing.");
 
         try
         {
@@ -158,4 +157,5 @@ public class OrganizationController(
 }
 
 public sealed record RenameOrganizationRequest(Guid InitiatorUserId, string Name);
+
 public sealed record DeleteOrganizationRequest(Guid InitiatorUserId, string ConfirmationText);

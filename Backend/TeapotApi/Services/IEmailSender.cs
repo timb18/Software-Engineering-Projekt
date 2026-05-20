@@ -11,12 +11,12 @@ using Microsoft.Extensions.Options;
 namespace Services;
 
 /// <summary>
-/// Sends an email message through the configured delivery provider.
+///     Sends an email message through the configured delivery provider.
 /// </summary>
 public interface IEmailSender
 {
     /// <summary>
-    /// Sends a plain-text email message to the given recipient.
+    ///     Sends a plain-text email message to the given recipient.
     /// </summary>
     Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default);
 }
@@ -31,9 +31,8 @@ public class SmtpEmailSender(IOptions<EmailOptions> emailOptions, ILogger<SmtpEm
             string.IsNullOrWhiteSpace(_options.SmtpUsername) ||
             string.IsNullOrWhiteSpace(_options.SmtpPassword) ||
             string.IsNullOrWhiteSpace(_options.FromEmail))
-        {
-            throw new InvalidOperationException("Email configuration is incomplete. Check EMailOptions SMTP variables.");
-        }
+            throw new InvalidOperationException(
+                "Email configuration is incomplete. Check EMailOptions SMTP variables.");
 
         using var smtpClient = new SmtpClient(_options.SmtpHost, _options.SmtpPort)
         {
@@ -80,15 +79,12 @@ public class ResendEmailSender(
     {
         var apiKey = ResolveResendApiKey(_resendOptions);
         if (string.IsNullOrWhiteSpace(apiKey))
-        {
             throw new InvalidOperationException("Resend API key is missing. Set Resend__ApiKey or RESEND_API_KEY.");
-        }
 
         var fromEmail = ResolveResendFromEmail(_resendOptions, _emailOptions);
         if (string.IsNullOrWhiteSpace(fromEmail))
-        {
-            throw new InvalidOperationException("Email sender is missing. Set Resend__FromEmail, RESEND_FROM_EMAIL, or EMailOptions__FromEmail.");
-        }
+            throw new InvalidOperationException(
+                "Email sender is missing. Set Resend__FromEmail, RESEND_FROM_EMAIL, or EMailOptions__FromEmail.");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -113,17 +109,23 @@ public class ResendEmailSender(
         logger.LogInformation("Email sent to {To} via Resend.", to);
     }
 
-    public static string ResolveResendApiKey(ResendOptions resendOptions) =>
-        FirstConfigured(resendOptions.ApiKey, Environment.GetEnvironmentVariable("RESEND_API_KEY"));
+    public static string ResolveResendApiKey(ResendOptions resendOptions)
+    {
+        return FirstConfigured(resendOptions.ApiKey, Environment.GetEnvironmentVariable("RESEND_API_KEY"));
+    }
 
-    public static string ResolveResendFromEmail(ResendOptions resendOptions, EmailOptions emailOptions) =>
-        FirstConfigured(
+    public static string ResolveResendFromEmail(ResendOptions resendOptions, EmailOptions emailOptions)
+    {
+        return FirstConfigured(
             resendOptions.FromEmail,
             Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL"),
             emailOptions.FromEmail);
+    }
 
-    private static string FirstConfigured(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? string.Empty;
+    private static string FirstConfigured(params string?[] values)
+    {
+        return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? string.Empty;
+    }
 }
 
 public class ConfiguredEmailSender(

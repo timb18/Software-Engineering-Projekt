@@ -1,12 +1,12 @@
 namespace Services.Organizations;
 
 /// <summary>
-/// Administrative organization operations, such as creating a new workspace.
+///     Administrative organization operations, such as creating a new workspace.
 /// </summary>
 public interface IOrganizationAdminService
 {
     /// <summary>
-    /// Creates a new organization and ensures the organizer exists.
+    ///     Creates a new organization and ensures the organizer exists.
     /// </summary>
     Task<CreateOrganizationResult> CreateOrganizationAsync(
         CreateOrganizationRequest request,
@@ -14,7 +14,7 @@ public interface IOrganizationAdminService
 }
 
 /// <summary>
-/// Command object used to create a new organization.
+///     Command object used to create a new organization.
 /// </summary>
 public record CreateOrganizationRequest
 {
@@ -28,7 +28,7 @@ public record CreateOrganizationRequest
 }
 
 /// <summary>
-/// Result returned after a successful organization creation.
+///     Result returned after a successful organization creation.
 /// </summary>
 public record CreateOrganizationResult
 {

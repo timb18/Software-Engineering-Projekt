@@ -1,15 +1,14 @@
 ﻿namespace DataAccess.Models;
 
 /// <summary>
-/// Represents a team or organization workspace in the Teapot system.
-/// Organizations contain members with different roles and manage collaborative work planning.
+///     Represents a team or organization workspace in the Teapot system.
+///     Organizations contain members with different roles and manage collaborative work planning.
 /// </summary>
 /// <remarks>
-/// An organization can be either:
-/// - A shared team workspace (MaxUsers > 1): For teams collaborating on work planning
-/// - A personal workspace (MaxUsers = 1): Auto-created personal workspace for individual users
-/// 
-/// Organizations have members (via Membership) and can invite new users (via Invitation).
+///     An organization can be either:
+///     - A shared team workspace (MaxUsers > 1): For teams collaborating on work planning
+///     - A personal workspace (MaxUsers = 1): Auto-created personal workspace for individual users
+///     Organizations have members (via Membership) and can invite new users (via Invitation).
 /// </remarks>
 public class Organization
 {

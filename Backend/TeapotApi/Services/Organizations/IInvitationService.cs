@@ -3,7 +3,7 @@
 public interface IInvitationService
 {
     /// <summary>
-    /// Creates a new invitation and sends an email.
+    ///     Creates a new invitation and sends an email.
     /// </summary>
     Task<InvitationDto> SendInvitationAsync(
         string email,
@@ -17,37 +17,40 @@ public interface IInvitationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Accepts an invitation and adds the user to the organization.
+    ///     Accepts an invitation and adds the user to the organization.
     /// </summary>
     Task<bool> AcceptInvitationAsync(Guid invitationId, Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Accepts an invitation through the email link.
+    ///     Accepts an invitation through the email link.
     /// </summary>
-    Task<bool> AcceptInvitationByEmailAsync(Guid invitationId, string email, CancellationToken cancellationToken = default);
+    Task<bool> AcceptInvitationByEmailAsync(Guid invitationId, string email,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Rejects an invitation.
+    ///     Rejects an invitation.
     /// </summary>
     Task<bool> RejectInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Finds an invitation by ID.
+    ///     Finds an invitation by ID.
     /// </summary>
     Task<InvitationDto?> GetInvitationAsync(Guid invitationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Finds all open invitations for an email address.
+    ///     Finds all open invitations for an email address.
     /// </summary>
-    Task<IEnumerable<InvitationDto>> GetPendingInvitationsForEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<IEnumerable<InvitationDto>> GetPendingInvitationsForEmailAsync(string email,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Finds all invitations for an organization.
+    ///     Finds all invitations for an organization.
     /// </summary>
-    Task<IEnumerable<InvitationDto>> GetInvitationsForOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<InvitationDto>> GetInvitationsForOrganizationAsync(Guid organizationId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Marks expired invitations as expired.
+    ///     Marks expired invitations as expired.
     /// </summary>
     Task<int> CleanupExpiredInvitationsAsync(CancellationToken cancellationToken = default);
 }

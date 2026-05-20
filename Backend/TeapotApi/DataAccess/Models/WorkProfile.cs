@@ -1,18 +1,17 @@
 ﻿namespace DataAccess.Models;
 
 /// <summary>
-/// Defines a user's work availability and task planning configuration within an organization.
-/// Contains daily work schedules and maximum daily workload limits.
+///     Defines a user's work availability and task planning configuration within an organization.
+///     Contains daily work schedules and maximum daily workload limits.
 /// </summary>
 /// <remarks>
-/// A WorkProfile is created when a user first configures their work schedule in an organization.
-/// It contains:
-/// - Daily work schedules (days of the week with work blocks and breaks)
-/// - Maximum daily workload to prevent overallocation
-/// - Planner view time range (start/end times for the UI calendar view)
-/// - All tasks assigned to this user in the organization
-/// 
-/// The scheduling algorithm uses WorkProfile information to plan tasks within available working time.
+///     A WorkProfile is created when a user first configures their work schedule in an organization.
+///     It contains:
+///     - Daily work schedules (days of the week with work blocks and breaks)
+///     - Maximum daily workload to prevent overallocation
+///     - Planner view time range (start/end times for the UI calendar view)
+///     - All tasks assigned to this user in the organization
+///     The scheduling algorithm uses WorkProfile information to plan tasks within available working time.
 /// </remarks>
 public class WorkProfile
 {

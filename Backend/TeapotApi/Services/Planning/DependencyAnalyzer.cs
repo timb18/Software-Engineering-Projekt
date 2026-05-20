@@ -3,14 +3,14 @@ using DataAccess.Models;
 namespace Services.Planning;
 
 /// <summary>
-/// Diagram 1: Dependency check and critical path analysis.
-/// Validates the dependency graph, performs topological sort, and marks critical tasks.
+///     Diagram 1: Dependency check and critical path analysis.
+///     Validates the dependency graph, performs topological sort, and marks critical tasks.
 /// </summary>
 public class DependencyAnalyzer
 {
     /// <summary>
-    /// Analyzes a list of tasks and their dependencies to calculate the project schedule,
-    /// critical path, and topological ordering.
+    ///     Analyzes a list of tasks and their dependencies to calculate the project schedule,
+    ///     critical path, and topological ordering.
     /// </summary>
     /// <param name="tasks">The list of user tasks to be analyzed.</param>
     /// <param name="dependencies">The list of task dependencies defining task relationships.</param>
@@ -25,10 +25,12 @@ public class DependencyAnalyzer
         IReadOnlyDictionary<Guid, (DateTime Start, DateTime End)>? fixedTaskTimes = null,
         IReadOnlyDictionary<Guid, TimeSpan>? effectiveDurations = null)
     {
-        TimeSpan DurationOf(UserTask t) =>
-            effectiveDurations != null && effectiveDurations.TryGetValue(t.Id, out var d)
+        TimeSpan DurationOf(UserTask t)
+        {
+            return effectiveDurations != null && effectiveDurations.TryGetValue(t.Id, out var d)
                 ? d
                 : t.TimeEstimate;
+        }
 
         if (tasks.Count == 0)
             return new DependencyAnalysisResult([], new HashSet<Guid>(), new Dictionary<Guid, IReadOnlyList<Guid>>());
@@ -57,10 +59,8 @@ public class DependencyAnalyzer
             var taskId = queue.Dequeue();
             topOrder.Add(taskId);
             foreach (var succ in successors[taskId])
-            {
                 if (--inDegree[succ] == 0)
                     queue.Enqueue(succ);
-            }
         }
 
         if (topOrder.Count != tasks.Count)

@@ -74,7 +74,7 @@ public class TaskBlockRepository(TeapotDbContext context) : ITaskBlockRepository
             }
             else
             {
-                var newTaskBlock = new TaskBlock()
+                var newTaskBlock = new TaskBlock
                 {
                     TaskId = taskId,
                     StartDate = start,
@@ -83,12 +83,12 @@ public class TaskBlockRepository(TeapotDbContext context) : ITaskBlockRepository
                 };
                 await context.TaskBlocks.AddAsync(newTaskBlock, cancellationToken);
             }
+
             await context.SaveChangesAsync(cancellationToken);
         }
         catch (Exception e)
         {
             throw e.InnerException;
         }
-        
     }
 }

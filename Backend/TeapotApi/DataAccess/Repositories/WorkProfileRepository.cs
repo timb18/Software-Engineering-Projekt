@@ -5,8 +5,9 @@ namespace DataAccess.Repositories;
 
 public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileRepository
 {
-    public Task<WorkProfile?> GetPersonalAsync(Guid userId, CancellationToken cancellationToken = default) =>
-        context.WorkProfiles
+    public Task<WorkProfile?> GetPersonalAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
             .Include(wp => wp.Membership).ThenInclude(m => m.Organization)
@@ -16,9 +17,11 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
                 wp.Membership.Organization.MaxUsers == 1)
             .ThenBy(wp => wp.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
-    public Task<WorkProfile?> GetPersonalNoTrackingAsync(Guid userId, CancellationToken cancellationToken = default) =>
-        context.WorkProfiles
+    public Task<WorkProfile?> GetPersonalNoTrackingAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return context.WorkProfiles
             .AsNoTracking()
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
@@ -29,37 +32,51 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
                 wp.Membership.Organization.MaxUsers == 1)
             .ThenBy(wp => wp.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
-    public Task<WorkProfile?> GetByUserAndOrganizationAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default) =>
-        GetPersonalAsync(userId, cancellationToken);
+    public Task<WorkProfile?> GetByUserAndOrganizationAsync(Guid userId, Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        return GetPersonalAsync(userId, cancellationToken);
+    }
 
-    public Task<WorkProfile?> GetByUserAndOrganizationNoTrackingAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default) =>
-        GetPersonalNoTrackingAsync(userId, cancellationToken);
+    public Task<WorkProfile?> GetByUserAndOrganizationNoTrackingAsync(Guid userId, Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        return GetPersonalNoTrackingAsync(userId, cancellationToken);
+    }
 
-    public Task<WorkProfile?> FindByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
-        context.WorkProfiles
+    public Task<WorkProfile?> FindByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return context.WorkProfiles
             .Where(wp => wp.Membership.UserId == userId)
             .OrderByDescending(wp =>
                 wp.Membership.Role == ERole.Organizer &&
                 wp.Membership.Organization.MaxUsers == 1)
             .ThenBy(wp => wp.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
-    public Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default) =>
-        context.WorkProfiles
+    public Task<WorkProfile?> GetByIdAsync(Guid workProfileId, CancellationToken cancellationToken = default)
+    {
+        return context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
             .Include(wp => wp.Membership).ThenInclude(m => m.User)
             .FirstOrDefaultAsync(wp => wp.Id == workProfileId, cancellationToken);
+    }
 
     public async Task<IReadOnlyList<WorkProfileTimeInterval>> GetTimeIntervalsAsync(
-        Guid workProfileId, CancellationToken cancellationToken = default) =>
-        await context.WorkProfileTimeIntervals
+        Guid workProfileId, CancellationToken cancellationToken = default)
+    {
+        return await context.WorkProfileTimeIntervals
             .Where(i => i.WorkProfileId == workProfileId)
             .ToListAsync(cancellationToken);
+    }
 
-    public Task<WorkProfile?> GetForDeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
-        context.WorkProfiles
+    public Task<WorkProfile?> GetForDeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
             .Where(wp => wp.Membership.UserId == userId)
@@ -68,9 +85,12 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
                 wp.Membership.Organization.MaxUsers == 1)
             .ThenBy(wp => wp.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
-    public Task<WorkProfile?> GetForDeleteByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
-        context.WorkProfiles
+    public Task<WorkProfile?> GetForDeleteByEmailAsync(string normalizedEmail,
+        CancellationToken cancellationToken = default)
+    {
+        return context.WorkProfiles
             .Include(wp => wp.Days).ThenInclude(d => d.Blocks)
             .Include(wp => wp.Days).ThenInclude(d => d.Breaks)
             .Where(wp => wp.Membership.User.Email == normalizedEmail)
@@ -79,6 +99,7 @@ public class WorkProfileRepository(TeapotDbContext context) : IWorkProfileReposi
                 wp.Membership.Organization.MaxUsers == 1)
             .ThenBy(wp => wp.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
     public async Task AddAsync(WorkProfile profile, CancellationToken cancellationToken = default)
     {

@@ -3,17 +3,12 @@ using DataAccess.Models;
 using DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Storage;
-using Services.Users;
 
 namespace Services.Tests;
 
 [TestFixture]
 public class UserServiceTests
 {
-    private TeapotDbContext _dbContext = null!;
-    private UserService _service = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -27,12 +22,21 @@ public class UserServiceTests
     }
 
     [TearDown]
-    public void TearDown() => _dbContext.Dispose();
+    public void TearDown()
+    {
+        _dbContext.Dispose();
+    }
 
-    private static UserService BuildService(TeapotDbContext db) => new(
-        new UserRepository(db),
-        new WorkProfileRepository(db),
-        new UnitOfWork(db));
+    private TeapotDbContext _dbContext = null!;
+    private UserService _service = null!;
+
+    private static UserService BuildService(TeapotDbContext db)
+    {
+        return new UserService(
+            new UserRepository(db),
+            new WorkProfileRepository(db),
+            new UnitOfWork(db));
+    }
 
     // ── EnsureUserAsync – new user ────────────────────────────────────────────
 

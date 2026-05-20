@@ -5,14 +5,19 @@ namespace DataAccess.Repositories;
 
 public class UserTaskRepository(TeapotDbContext context) : IUserTaskRepository
 {
-    public async Task<IEnumerable<UserTask>> GetByWorkProfileAsync(Guid workProfileId, CancellationToken cancellationToken = default) =>
-        await context.UserTasks
+    public async Task<IEnumerable<UserTask>> GetByWorkProfileAsync(Guid workProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        return await context.UserTasks
             .Where(t => t.WorkProfileId == workProfileId)
             .ToListAsync(cancellationToken);
+    }
 
-    public Task<UserTask?> FindAsync(Guid taskId, Guid workProfileId, CancellationToken cancellationToken = default) =>
-        context.UserTasks
+    public Task<UserTask?> FindAsync(Guid taskId, Guid workProfileId, CancellationToken cancellationToken = default)
+    {
+        return context.UserTasks
             .FirstOrDefaultAsync(t => t.Id == taskId && t.WorkProfileId == workProfileId, cancellationToken);
+    }
 
     public async Task AddAsync(UserTask task, CancellationToken cancellationToken = default)
     {

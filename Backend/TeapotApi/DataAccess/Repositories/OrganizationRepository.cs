@@ -5,26 +5,36 @@ namespace DataAccess.Repositories;
 
 public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepository
 {
-    public async Task<Organization?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        await context.Organizations.FindAsync([id], cancellationToken);
+    public async Task<Organization?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await context.Organizations.FindAsync([id], cancellationToken);
+    }
 
-    public Task<Organization?> FindByNameAsync(string name, CancellationToken cancellationToken = default) =>
-        context.Organizations.FirstOrDefaultAsync(o => o.Name == name, cancellationToken);
+    public Task<Organization?> FindByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        return context.Organizations.FirstOrDefaultAsync(o => o.Name == name, cancellationToken);
+    }
 
-    public async Task<IEnumerable<Organization>> GetForUserAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
-        await context.Organizations
+    public async Task<IEnumerable<Organization>> GetForUserAsync(string normalizedEmail,
+        CancellationToken cancellationToken = default)
+    {
+        return await context.Organizations
             .Include(o => o.Memberships).ThenInclude(m => m.User)
             .Include(o => o.Memberships).ThenInclude(m => m.WorkProfile)
             .Include(o => o.Invitations)
             .Where(o => o.Memberships.Any(m => m.User.Email == normalizedEmail))
             .OrderBy(o => o.Name)
             .ToListAsync(cancellationToken);
+    }
 
-    public Task<Organization?> GetWithMembershipsAndInvitationsAsync(Guid id, CancellationToken cancellationToken = default) =>
-        context.Organizations
+    public Task<Organization?> GetWithMembershipsAndInvitationsAsync(Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return context.Organizations
             .Include(o => o.Memberships).ThenInclude(m => m.WorkProfile)
             .Include(o => o.Invitations)
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
+    }
 
     public async Task AddAsync(Organization organization, CancellationToken cancellationToken = default)
     {
@@ -32,8 +42,10 @@ public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepo
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        context.SaveChangesAsync(cancellationToken);
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return context.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task DeleteWithCascadeAsync(Organization organization, CancellationToken cancellationToken = default)
     {

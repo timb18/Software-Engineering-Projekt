@@ -83,7 +83,12 @@ public class OrganizationControllerTests
     {
         var controller = new OrganizationController(
             new StubOrganizationAdminService(),
-            new StubOrganizationService { ExceptionToThrow = new InvalidOperationException("Die Organisation kann nicht gelöscht werden, solange es weitere Organizer gibt.") });
+            new StubOrganizationService
+            {
+                ExceptionToThrow =
+                    new InvalidOperationException(
+                        "Die Organisation kann nicht gelöscht werden, solange es weitere Organizer gibt.")
+            });
 
         var result = await controller.Delete(
             Guid.NewGuid(),
@@ -98,7 +103,8 @@ public class OrganizationControllerTests
     {
         var controller = new OrganizationController(
             new StubOrganizationAdminService(),
-            new StubOrganizationService { ExceptionToThrow = new UnauthorizedAccessException("Only organizers can delete an organization.") });
+            new StubOrganizationService
+                { ExceptionToThrow = new UnauthorizedAccessException("Only organizers can delete an organization.") });
 
         var result = await controller.Delete(
             Guid.NewGuid(),
@@ -117,7 +123,8 @@ public class OrganizationControllerTests
         public DeleteOrganizationCommand? LastCommand { get; private set; }
         public RenameOrganizationCommand? LastRenameCommand { get; private set; }
 
-        public Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email, CancellationToken cancellationToken = default)
+        public Task<IEnumerable<OrganizationDetailsDto>> GetOrganizationsForUserAsync(string email,
+            CancellationToken cancellationToken = default)
         {
             if (ExceptionToThrow is not null)
                 throw ExceptionToThrow;
@@ -126,7 +133,8 @@ public class OrganizationControllerTests
             return Task.FromResult(OrganizationsToReturn);
         }
 
-        public Task DeleteOrganizationAsync(DeleteOrganizationCommand command, CancellationToken cancellationToken = default)
+        public Task DeleteOrganizationAsync(DeleteOrganizationCommand command,
+            CancellationToken cancellationToken = default)
         {
             if (ExceptionToThrow is not null)
                 throw ExceptionToThrow;
@@ -135,7 +143,8 @@ public class OrganizationControllerTests
             return Task.CompletedTask;
         }
 
-        public Task RenameOrganizationAsync(RenameOrganizationCommand command, CancellationToken cancellationToken = default)
+        public Task RenameOrganizationAsync(RenameOrganizationCommand command,
+            CancellationToken cancellationToken = default)
         {
             if (ExceptionToThrow is not null)
                 throw ExceptionToThrow;
@@ -147,7 +156,10 @@ public class OrganizationControllerTests
 
     private sealed class StubOrganizationAdminService : IOrganizationAdminService
     {
-        public Task<CreateOrganizationResult> CreateOrganizationAsync(CreateOrganizationRequest request, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new CreateOrganizationResult());
+        public Task<CreateOrganizationResult> CreateOrganizationAsync(CreateOrganizationRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CreateOrganizationResult());
+        }
     }
 }

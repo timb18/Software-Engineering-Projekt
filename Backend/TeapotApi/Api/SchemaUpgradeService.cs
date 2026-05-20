@@ -4,24 +4,24 @@ using Microsoft.EntityFrameworkCore;
 namespace Api;
 
 /// <summary>
-/// Handles schema migrations and data cleanup for the Teapot database.
-/// Executed during application startup to ensure the database schema is up-to-date
-/// and to remove orphaned personal workspace data that should no longer exist.
+///     Handles schema migrations and data cleanup for the Teapot database.
+///     Executed during application startup to ensure the database schema is up-to-date
+///     and to remove orphaned personal workspace data that should no longer exist.
 /// </summary>
 public static class SchemaUpgradeService
 {
     /// <summary>
-    /// Applies all pending schema upgrades and data cleanup operations to the database.
-    /// This method is idempotent - it can be safely called multiple times without data loss.
-    /// Uses temporary tables to identify and safely delete orphaned personal workspace records.
+    ///     Applies all pending schema upgrades and data cleanup operations to the database.
+    ///     This method is idempotent - it can be safely called multiple times without data loss.
+    ///     Uses temporary tables to identify and safely delete orphaned personal workspace records.
     /// </summary>
     /// <param name="services">The service provider for resolving the database context</param>
     /// <remarks>
-    /// Operations performed:
-    /// 1. Schema updates: Modify user table columns and add missing fields (auth_provider_subject, display_name, etc.)
-    /// 2. Index creation: Add unique index on auth_provider_subject for efficient lookups
-    /// 3. Data cleanup: Identify and delete orphaned records from auto-created personal workspaces
-    /// Skips execution if the database is not relational (e.g., in-memory database for testing)
+    ///     Operations performed:
+    ///     1. Schema updates: Modify user table columns and add missing fields (auth_provider_subject, display_name, etc.)
+    ///     2. Index creation: Add unique index on auth_provider_subject for efficient lookups
+    ///     3. Data cleanup: Identify and delete orphaned records from auto-created personal workspaces
+    ///     Skips execution if the database is not relational (e.g., in-memory database for testing)
     /// </remarks>
     public static async Task ApplyAsync(IServiceProvider services)
     {
@@ -30,10 +30,7 @@ public static class SchemaUpgradeService
         var dbContext = scope.ServiceProvider.GetRequiredService<TeapotDbContext>();
 
         // Skip for non-relational databases (in-memory, SQLite, etc.)
-        if (!dbContext.Database.IsRelational())
-        {
-            return;
-        }
+        if (!dbContext.Database.IsRelational()) return;
 
         // Execute all schema upgrades and data cleanup in a single transaction
         // SQL operations are organized into two main sections: schema updates and data cleanup
@@ -105,13 +102,13 @@ public static class SchemaUpgradeService
                     ON DELETE CASCADE;
                 END IF;
             END $$;
-            
+
             -- Populate new user columns with sensible defaults if empty
             UPDATE users
             SET display_name = COALESCE(NULLIF(display_name, ''), username),
                 timezone = COALESCE(NULLIF(timezone, ''), 'Europe/Berlin')
             WHERE display_name IS NULL OR timezone IS NULL OR timezone = '';
-            
+
             -- Create unique index for Auth0 subject identifier (used for OAuth login)
             CREATE UNIQUE INDEX IF NOT EXISTS users_auth_provider_subject_key
             ON users(auth_provider_subject)
@@ -120,7 +117,7 @@ public static class SchemaUpgradeService
             -- ===== DATA CLEANUP: Remove orphaned personal workspace records =====
             -- Personal workspaces are auto-created single-user workspaces that should be cleaned up if no longer needed
             -- This section uses temporary tables to safely identify cascading dependencies before deletion
-            
+
             -- Drop any leftover temporary tables from previous runs
             DROP TABLE IF EXISTS teapot_personal_orgs_to_delete;
             DROP TABLE IF EXISTS teapot_personal_memberships_to_delete;

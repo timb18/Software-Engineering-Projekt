@@ -1,17 +1,16 @@
 namespace DataAccess.Models;
 
 /// <summary>
-/// Represents a continuous block of available work time on a specific day of the week.
-/// Part of a user's work schedule configuration.
+///     Represents a continuous block of available work time on a specific day of the week.
+///     Part of a user's work schedule configuration.
 /// </summary>
 /// <remarks>
-/// A work block defines when a user is available to work on a particular day.
-/// Examples:
-/// - 9:00 to 17:00 (standard 8-hour workday)
-/// - 9:00 to 12:00 and 14:00 to 17:00 (split day with lunch break)
-/// 
-/// The scheduling algorithm finds free time within these blocks to allocate tasks.
-/// Associated with a company/department for context (CompanyId, CompanyName).
+///     A work block defines when a user is available to work on a particular day.
+///     Examples:
+///     - 9:00 to 17:00 (standard 8-hour workday)
+///     - 9:00 to 12:00 and 14:00 to 17:00 (split day with lunch break)
+///     The scheduling algorithm finds free time within these blocks to allocate tasks.
+///     Associated with a company/department for context (CompanyId, CompanyName).
 /// </remarks>
 public class WorkBlock
 {

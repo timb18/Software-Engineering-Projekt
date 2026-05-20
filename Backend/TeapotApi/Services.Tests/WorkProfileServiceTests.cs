@@ -8,9 +8,6 @@ namespace Services.Tests;
 [TestFixture]
 public class WorkProfileServiceTests
 {
-    private TeapotDbContext _dbContext = null!;
-    private WorkProfileService _service = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -24,6 +21,15 @@ public class WorkProfileServiceTests
             new WorkProfileRepository(_dbContext),
             new MembershipRepository(_dbContext));
     }
+
+    [TearDown]
+    public async Task TearDown()
+    {
+        await _dbContext.DisposeAsync();
+    }
+
+    private TeapotDbContext _dbContext = null!;
+    private WorkProfileService _service = null!;
 
     [Test]
     public async Task DeleteAsync_Removes_WorkProfile_And_Dependent_Planning_Data()
@@ -451,15 +457,11 @@ public class WorkProfileServiceTests
             Assert.That(updated.PlannerViewEnd, Is.EqualTo("21:00"));
             Assert.That(updated.MaxDailyLoad, Is.EqualTo(TimeSpan.FromHours(6)));
             Assert.That(updated.Days.Single(day => day.Day == "Mon").Blocks, Is.Empty);
-            Assert.That(updated.Days.Single(day => day.Day == "Tue").Blocks.Select(block => block.StartTime), Is.EqualTo(["13:00"]));
-            Assert.That(updated.Days.Single(day => day.Day == "Tue").Breaks.Select(workBreak => workBreak.StartTime), Is.EqualTo(["15:00"]));
+            Assert.That(updated.Days.Single(day => day.Day == "Tue").Blocks.Select(block => block.StartTime),
+                Is.EqualTo(["13:00"]));
+            Assert.That(updated.Days.Single(day => day.Day == "Tue").Breaks.Select(workBreak => workBreak.StartTime),
+                Is.EqualTo(["15:00"]));
             Assert.That(_dbContext.TaskBlocks.Where(block => !block.IsFixed), Is.Empty);
         });
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _dbContext.DisposeAsync();
     }
 }

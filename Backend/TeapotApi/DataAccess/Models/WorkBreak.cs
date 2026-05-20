@@ -1,17 +1,16 @@
 namespace DataAccess.Models;
 
 /// <summary>
-/// Represents a break period during a work day (e.g., lunch break, coffee break).
-/// Breaks are subtracted from available work time when scheduling tasks.
+///     Represents a break period during a work day (e.g., lunch break, coffee break).
+///     Breaks are subtracted from available work time when scheduling tasks.
 /// </summary>
 /// <remarks>
-/// Breaks are defined within work blocks and are used by the scheduling algorithm
-/// to calculate actual available working time on a given day.
-/// 
-/// Example:
-/// - WorkBlock: 9:00-17:00
-/// - WorkBreak: 12:00-13:00 (lunch)
-/// - Available work time: 7 hours (not 8)
+///     Breaks are defined within work blocks and are used by the scheduling algorithm
+///     to calculate actual available working time on a given day.
+///     Example:
+///     - WorkBlock: 9:00-17:00
+///     - WorkBreak: 12:00-13:00 (lunch)
+///     - Available work time: 7 hours (not 8)
 /// </remarks>
 public class WorkBreak
 {

@@ -20,9 +20,9 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Finds an existing user by email or creates a new one when none exists.
-    /// Call this once after Auth0 login so the frontend can get the internal user ID
-    /// and, when available, the active work profile ID in a single round-trip.
+    ///     Finds an existing user by email or creates a new one when none exists.
+    ///     Call this once after Auth0 login so the frontend can get the internal user ID
+    ///     and, when available, the active work profile ID in a single round-trip.
     /// </summary>
     [HttpPost("ensure")]
     [ProducesResponseType(typeof(EnsureUserResponse), StatusCodes.Status200OK)]
@@ -44,11 +44,12 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Registers a user if the email is new, or returns the existing user if it already exists.
-    /// This keeps the operation idempotent for clients that may retry the request.
+    ///     Registers a user if the email is new, or returns the existing user if it already exists.
+    ///     This keeps the operation idempotent for clients that may retry the request.
     /// </summary>
     [HttpPost("register")]
-    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
             return BadRequest(new { success = false, message = "E-Mail ist erforderlich." });
@@ -58,7 +59,6 @@ public class AuthController : ControllerBase
         var existingUser = await _userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
 
         if (existingUser != null)
-        {
             return Ok(new
             {
                 success = true,
@@ -70,13 +70,14 @@ public class AuthController : ControllerBase
                     Username = existingUser.Username ?? normalizedEmail.Split('@')[0]
                 }
             });
-        }
 
         var user = new User
         {
             Id = Guid.NewGuid(),
             Email = normalizedEmail,
-            Username = string.IsNullOrWhiteSpace(request.Username) ? normalizedEmail.Split('@')[0] : request.Username.Trim(),
+            Username = string.IsNullOrWhiteSpace(request.Username)
+                ? normalizedEmail.Split('@')[0]
+                : request.Username.Trim(),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -101,6 +102,7 @@ public record EnsureUserRequest(
     string? AuthProviderSubject = null,
     string? DisplayName = null,
     string? ProfileImageUrl = null);
+
 public record EnsureUserResponse(Guid UserId, Guid? WorkProfileId);
 
 public class RegisterRequest

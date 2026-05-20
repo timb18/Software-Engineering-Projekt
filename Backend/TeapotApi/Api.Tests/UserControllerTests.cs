@@ -10,9 +10,6 @@ namespace Api.Tests;
 [TestFixture]
 public class UserControllerTests
 {
-    private TeapotDbContext _dbContext = null!;
-    private UserController _controller = null!;
-
     [SetUp]
     public void Setup()
     {
@@ -30,7 +27,13 @@ public class UserControllerTests
     }
 
     [TearDown]
-    public void TearDown() => _dbContext.Dispose();
+    public void TearDown()
+    {
+        _dbContext.Dispose();
+    }
+
+    private TeapotDbContext _dbContext = null!;
+    private UserController _controller = null!;
 
     [Test]
     public async Task GetProfile_Returns_Ok_For_Existing_User()
@@ -42,7 +45,7 @@ public class UserControllerTests
             Username = "profile",
             DisplayName = "Profile User",
             Timezone = "Europe/Berlin",
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
@@ -62,7 +65,7 @@ public class UserControllerTests
             Username = "profile",
             DisplayName = "Profile User",
             Timezone = "Europe/Berlin",
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
@@ -85,7 +88,7 @@ public class UserControllerTests
             Username = "profile",
             DisplayName = "Profile User",
             Timezone = "Europe/Berlin",
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
