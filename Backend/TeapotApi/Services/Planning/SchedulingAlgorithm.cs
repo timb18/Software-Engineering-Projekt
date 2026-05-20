@@ -68,7 +68,7 @@ public class SchedulingAlgorithm
         // must not cross day boundaries.
         if (state.NeedsLightTaskAfter && state.LastIntensiveDay.HasValue && state.FreeSlots.Count > 0)
         {
-            var nextSlotDay = DateOnly.FromDateTime(state.FreeSlots[0].Start);
+            var nextSlotDay = state.FreeSlots[0].Day;
             if (nextSlotDay > state.LastIntensiveDay.Value)
                 state.NeedsLightTaskAfter = false;
         }
@@ -167,7 +167,7 @@ public class SchedulingAlgorithm
             if (effectiveDuration < MinBlockMinutes)
                 continue;
 
-            var day = DateOnly.FromDateTime(slot.Start);
+            var day = slot.Day;
             if (!state.DailyBudgets.TryGetValue(day, out var budget))
                 continue;
 
@@ -227,7 +227,7 @@ public class SchedulingAlgorithm
             TimeSlot? trimmedSlot = null;
             if (blockEnd < slot.End)
             {
-                trimmedSlot = new TimeSlot(blockEnd, slot.End);
+                trimmedSlot = new TimeSlot(blockEnd, slot.End, slot.WorkDay);
                 state.FreeSlots.Insert(i, trimmedSlot);
             }
 

@@ -64,14 +64,20 @@ public class UserTaskPlanner(
         // Fixed tasks already have their time locked in fixed blocks; exclude from dynamic scheduling
         var tasksToSchedule = openTasks.Where(t => !t.IsFixed).ToList();
 
-        // Determine planning period: today → latest deadline + 1 day (fallback: 30 days)
-        var projectStart = DateTime.UtcNow.Date;
-        var projectEnd = openTasks
+        var timeZone = ResolveWorkProfileTimeZone(workProfile);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(now, timeZone));
+
+        // Determine planning period in the user's local calendar: today → latest deadline + 1 day
+        // (fallback: 30 days). Work profile times are wall-clock times, so the UTC instants are
+        // derived only after the local day/time has been selected.
+        var projectStart = LocalStartOfDayUtc(today, timeZone);
+        var projectEndDay = openTasks
             .Where(t => t.Deadline.HasValue)
-            .Select(t => t.Deadline!.Value.Date)
-            .DefaultIfEmpty(projectStart.AddDays(30))
+            .Select(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(ToUtc(t.Deadline!.Value), timeZone)))
+            .DefaultIfEmpty(today.AddDays(30))
             .Max()
             .AddDays(1);
+        var projectEnd = LocalStartOfDayUtc(projectEndDay, timeZone);
 
         // Build fixed-task time map: for each fixed task, determine its actual time window
         // from the earliest fixed block start to the latest fixed block end.
@@ -99,7 +105,7 @@ public class UserTaskPlanner(
         }
 
         // Generate free time slots from work profile
-        var freeSlots = GenerateTimeSlots(workProfile, projectStart, projectEnd);
+        var freeSlots = GenerateTimeSlots(workProfile, today, projectEndDay, timeZone);
 
         // Ensure slots are sorted chronologically. GenerateTimeSlots produces them in order,
         // but explicit sorting guards against any edge-case (e.g., overlapping work blocks on the
@@ -111,7 +117,7 @@ public class UserTaskPlanner(
         for (var i = 0; i < freeSlots.Count; i++)
         {
             if (freeSlots[i].Start < now)
-                freeSlots[i] = new TimeSlot(now, freeSlots[i].End);
+                freeSlots[i] = new TimeSlot(now, freeSlots[i].End, freeSlots[i].WorkDay);
         }
 
         // Remove blocking intervals from free slots
@@ -221,8 +227,8 @@ public class UserTaskPlanner(
     // Time-slot generation
     // -------------------------------------------------------------------------
 
-    internal static List<TimeSlot> GenerateTimeSlots(
-        WorkProfile workProfile, DateTime from, DateTime to)
+    private static List<TimeSlot> GenerateTimeSlots(
+        WorkProfile workProfile, DateOnly from, DateOnly to, TimeZoneInfo timeZone)
     {
         var slots = new List<TimeSlot>();
         var dayMap = workProfile.Days.ToDictionary(d => d.Day, StringComparer.OrdinalIgnoreCase);
@@ -231,7 +237,7 @@ public class UserTaskPlanner(
         // Other companies' blocks represent committed time for those organizations, not free slots.
         var ownOrgId = workProfile.Membership?.OrganizationId.ToString();
 
-        for (var date = from.Date; date < to.Date; date = date.AddDays(1))
+        for (var date = from; date < to; date = date.AddDays(1))
         {
             var dayAbbrev = ToDayAbbreviation(date.DayOfWeek);
             if (!dayMap.TryGetValue(dayAbbrev, out var dayProfile))
@@ -244,17 +250,17 @@ public class UserTaskPlanner(
             var daySlots = new List<TimeSlot>();
             foreach (var block in ownBlocks)
             {
-                var blockStart = ParseTime(date, block.StartTime);
-                var blockEnd = ParseTime(date, block.EndTime);
+                var blockStart = ParseLocalTimeAsUtc(date, block.StartTime, timeZone);
+                var blockEnd = ParseLocalTimeAsUtc(date, block.EndTime, timeZone);
                 if (blockEnd <= blockStart) continue;
 
-                daySlots.Add(new TimeSlot(blockStart, blockEnd));
+                daySlots.Add(new TimeSlot(blockStart, blockEnd, date));
             }
 
             foreach (var workBreak in dayProfile.Breaks)
             {
-                var breakStart = ParseTime(date, workBreak.StartTime);
-                var breakEnd = ParseTime(date, workBreak.EndTime);
+                var breakStart = ParseLocalTimeAsUtc(date, workBreak.StartTime, timeZone);
+                var breakEnd = ParseLocalTimeAsUtc(date, workBreak.EndTime, timeZone);
                 if (breakEnd <= breakStart) continue;
 
                 SubtractInterval(daySlots, breakStart, breakEnd);
@@ -266,12 +272,41 @@ public class UserTaskPlanner(
         return slots;
     }
 
-    private static DateTime ParseTime(DateTime date, string hhMm)
+    private static DateTime ParseLocalTimeAsUtc(DateOnly date, string hhMm, TimeZoneInfo timeZone)
     {
         var parts = hhMm.Split(':');
-        return date.Date
-            .AddHours(int.Parse(parts[0]))
-            .AddMinutes(int.Parse(parts[1]));
+        var localDateTime = date.ToDateTime(new TimeOnly(int.Parse(parts[0]), int.Parse(parts[1])));
+        return TimeZoneInfo.ConvertTimeToUtc(localDateTime, timeZone);
+    }
+
+    private static DateTime LocalStartOfDayUtc(DateOnly date, TimeZoneInfo timeZone) =>
+        TimeZoneInfo.ConvertTimeToUtc(date.ToDateTime(TimeOnly.MinValue), timeZone);
+
+    private static DateTime ToUtc(DateTime value) =>
+        value.Kind == DateTimeKind.Utc
+            ? value
+            : value.Kind == DateTimeKind.Local
+                ? value.ToUniversalTime()
+                : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+    private static TimeZoneInfo ResolveWorkProfileTimeZone(WorkProfile workProfile)
+    {
+        var timezone = workProfile.Membership?.User?.Timezone;
+        if (string.IsNullOrWhiteSpace(timezone))
+            timezone = "Europe/Berlin";
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timezone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+        }
     }
 
     private static string ToDayAbbreviation(DayOfWeek day) => day switch
@@ -297,9 +332,9 @@ public class UserTaskPlanner(
 
             slots.RemoveAt(i);
             if (s.Start < busyStart)
-                slots.Insert(i, new TimeSlot(s.Start, busyStart));
+                slots.Insert(i, new TimeSlot(s.Start, busyStart, s.WorkDay));
             if (busyEnd < s.End)
-                slots.Insert(i + (s.Start < busyStart ? 1 : 0), new TimeSlot(busyEnd, s.End));
+                slots.Insert(i + (s.Start < busyStart ? 1 : 0), new TimeSlot(busyEnd, s.End, s.WorkDay));
         }
     }
 
@@ -311,7 +346,7 @@ public class UserTaskPlanner(
 
         // Sum available slot minutes per day
         var slotMinutesPerDay = slots
-            .GroupBy(s => DateOnly.FromDateTime(s.Start))
+            .GroupBy(s => s.Day)
             .ToDictionary(g => g.Key, g => g.Sum(s => s.DurationMinutes));
 
         var result = new Dictionary<DateOnly, DailyBudget>();

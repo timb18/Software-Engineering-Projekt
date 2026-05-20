@@ -2,15 +2,13 @@ using DataAccess.Models;
 
 namespace Services.Planning;
 
-/// <summary>
-/// Represents a free time window that can be used for scheduling.
-/// </summary>
-public record TimeSlot(DateTime Start, DateTime End)
+public record TimeSlot(DateTime Start, DateTime End, DateOnly? WorkDay = null)
 {
     /// <summary>
     /// Duration of the slot in whole minutes.
     /// </summary>
     public int DurationMinutes => (int)(End - Start).TotalMinutes;
+    public DateOnly Day => WorkDay ?? DateOnly.FromDateTime(Start);
 }
 
 /// <summary>
