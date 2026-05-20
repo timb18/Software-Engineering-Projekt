@@ -1,16 +1,23 @@
 using DataAccess.Models;
 using DataAccess.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controller;
 
 [Route("api/recurring-blocker/{workProfileId:guid}")]
 [ApiController]
+[Authorize(AuthenticationSchemes = "Auth0")]
 public class RecurringBlockerController(IRecurringBlockerRepository repository) : ControllerBase
 {
     private static readonly string[] ValidDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-    /// <summary>Returns all recurring blockers for the given work profile.</summary>
+    /// <summary>
+    /// Retrieves a collection of recurring blockers for the specified work profile.
+    /// </summary>
+    /// <param name="workProfileId">The unique identifier of the work profile to filter the blockers by.</param>
+    /// <param name="cancellationToken">A cancellation token that allows the operation to be cancelled if necessary.</param>
+    /// <returns>An IActionResult containing the list of recurring blockers associated with the work profile.</returns>
     [HttpGet("")]
     [ProducesResponseType(typeof(IEnumerable<RecurringBlocker>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(Guid workProfileId, CancellationToken cancellationToken)

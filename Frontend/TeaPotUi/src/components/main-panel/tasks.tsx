@@ -107,11 +107,17 @@ const Tasks: FC = () => {
   // These cross-org buckets are merged into the calendar view below.
   const [crossOrgTasks, setCrossOrgTasks] = useState<Task[]>([]);
   const [crossOrgBlocks, setCrossOrgBlocks] = useState<TaskBlock[]>([]);
-  const [recurringBlockers, setRecurringBlockers] = useState<{
-    id?: string; name: string; daysOfWeek: string;
-    startTime: string; endTime: string;
-    validFrom?: string; validUntil?: string;
-  }[]>([]);
+  const [recurringBlockers, setRecurringBlockers] = useState<
+    {
+      id?: string;
+      name: string;
+      daysOfWeek: string;
+      startTime: string;
+      endTime: string;
+      validFrom?: string;
+      validUntil?: string;
+    }[]
+  >([]);
   const [editingBreak, setEditingBreak] = useState<{
     breakId: string;
     weekDay: WorkWeekDay;
@@ -172,12 +178,19 @@ const Tasks: FC = () => {
   }, [getAccessTokenSilently, workProfileId]);
 
   useEffect(() => {
+    const fetchRecurringBlocker = async () => {
+      const token = getAccessTokenSilently();
+      fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setRecurringBlockers)
+        .catch(() => setRecurringBlockers([]));
+    };
+
     if (!workProfileId) return;
-    fetch(`${API_BASE}/api/recurring-blocker/${workProfileId}`)
-      .then((r) => r.ok ? r.json() : [])
-      .then(setRecurringBlockers)
-      .catch(() => setRecurringBlockers([]));
-  }, [workProfileId]);
+    fetchRecurringBlocker();
+  }, [getAccessTokenSilently, workProfileId]);
 
   // Fetch the shared work-profile task/blocks when "All assignees" is selected.
   // Organization membership is now a task/block tag, not a separate work-profile board.
@@ -379,8 +392,14 @@ const Tasks: FC = () => {
         while (date.day() !== targetDow) date = date.add(1, "day");
         while (date.isBefore(windowEnd)) {
           const dateStr = date.format("YYYY-MM-DD");
-          if (b.validFrom && dateStr < b.validFrom) { date = date.add(7, "day"); continue; }
-          if (b.validUntil && dateStr > b.validUntil) { date = date.add(7, "day"); continue; }
+          if (b.validFrom && dateStr < b.validFrom) {
+            date = date.add(7, "day");
+            continue;
+          }
+          if (b.validUntil && dateStr > b.validUntil) {
+            date = date.add(7, "day");
+            continue;
+          }
           blockerEvents.push({
             id: `blocker-${b.id ?? b.name}-${dateStr}`,
             title: b.name,
@@ -391,7 +410,14 @@ const Tasks: FC = () => {
             textColor: readableTextColor(getBlockerColor()),
             classNames: ["blocker-event"],
             editable: false,
-            extendedProps: { type: "blocker", blockerId: b.id, blockerName: b.name, blockerDays: b.daysOfWeek, blockerStart: b.startTime, blockerEnd: b.endTime },
+            extendedProps: {
+              type: "blocker",
+              blockerId: b.id,
+              blockerName: b.name,
+              blockerDays: b.daysOfWeek,
+              blockerStart: b.startTime,
+              blockerEnd: b.endTime,
+            },
           });
           date = date.add(7, "day");
         }
@@ -410,27 +436,31 @@ const Tasks: FC = () => {
     const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
     const isDarkTask = isDarkColor(c);
     void colorVersion; // reactive dependency
-    return [{
-      id: `${b.taskId}-${b.startDate.toISOString()}`,
-      title: t.name,
-      start: b.startDate,
-      end: b.endDate,
-      backgroundColor: rgbToCss(c, 0.22),
-      borderColor: b.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
-      textColor: readableTextColor(c),
-      classNames: [
-        "task-event",
-        isDarkTask ? "is-dark-event-color" : "is-light-event-color",
-        b.isFixed ? "task-fixed" : "",
-        (t.status ?? "todo") === "done" ? "task-done" : "",
-      ].filter(Boolean),
-      editable: true,
-      extendedProps: { task: t },
-    }];
+    return [
+      {
+        id: `${b.taskId}-${b.startDate.toISOString()}`,
+        title: t.name,
+        start: b.startDate,
+        end: b.endDate,
+        backgroundColor: rgbToCss(c, 0.22),
+        borderColor: b.isFixed ? rgbToCss(c, 0.65) : rgbToCss(c, 0.45),
+        textColor: readableTextColor(c),
+        classNames: [
+          "task-event",
+          isDarkTask ? "is-dark-event-color" : "is-light-event-color",
+          b.isFixed ? "task-fixed" : "",
+          (t.status ?? "todo") === "done" ? "task-done" : "",
+        ].filter(Boolean),
+        editable: true,
+        extendedProps: { task: t },
+      },
+    ];
   });
 
   const taskFallbackEvents: EventInput[] = filteredTasks
-    .filter((t) => t.startDate && t.endDate && !taskIdsWithBlocks.has(t.id ?? ""))
+    .filter(
+      (t) => t.startDate && t.endDate && !taskIdsWithBlocks.has(t.id ?? ""),
+    )
     .filter((t) => t.isFixed) // only show fixed/manual tasks without blocks
     .map((t) => {
       const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
@@ -582,9 +612,14 @@ const Tasks: FC = () => {
     // blocks for this task are dropped locally so the fallback rendering uses
     // the task's own start/end instead of stale block positions.
     const newStart = arg.event.start!;
-    const newEnd = arg.event.end ?? dayjs(newStart)
-      .add(dayjs(task.endDate).diff(dayjs(task.startDate), "minute"), "minute")
-      .toDate();
+    const newEnd =
+      arg.event.end ??
+      dayjs(newStart)
+        .add(
+          dayjs(task.endDate).diff(dayjs(task.startDate), "minute"),
+          "minute",
+        )
+        .toDate();
     const updatedTask: Task = {
       ...task,
       startDate: newStart,
@@ -633,12 +668,15 @@ const Tasks: FC = () => {
 
   const deleteBlocker = async () => {
     if (!editingBlocker || !workProfileId) return;
+    const token = await getAccessTokenSilently();
     const res = await fetch(
       `${API_BASE}/api/recurring-blocker/${workProfileId}/${editingBlocker.id}`,
-      { method: "DELETE" },
+      { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
     );
     if (res.ok) {
-      setRecurringBlockers((prev) => prev.filter((b) => b.id !== editingBlocker.id));
+      setRecurringBlockers((prev) =>
+        prev.filter((b) => b.id !== editingBlocker.id),
+      );
       setEditingBlocker(null);
     }
   };
@@ -652,13 +690,12 @@ const Tasks: FC = () => {
       const gapMs = arg.event.extendedProps.gapMs as number;
       setBlocks((prev) =>
         prev.map((b) =>
-          b.taskId === nextTaskId &&
-            b.startDate.toISOString() === nextStartIso
+          b.taskId === nextTaskId && b.startDate.toISOString() === nextStartIso
             ? {
-              ...b,
-              startDate: new Date(b.startDate.getTime() - gapMs),
-              endDate: new Date(b.endDate.getTime() - gapMs),
-            }
+                ...b,
+                startDate: new Date(b.startDate.getTime() - gapMs),
+                endDate: new Date(b.endDate.getTime() - gapMs),
+              }
             : b,
         ),
       );
@@ -855,13 +892,12 @@ const Tasks: FC = () => {
       intensity: editForm.intensity,
       org: editForm.organizationId,
       isFixed: editForm.isFixed,
-      dependencies: (user.tasks ?? [])
-        .filter(
-          (t) =>
-            t.id
-            && editForm.dependencies.includes(t.id)
-            && (t.org ?? "") === (editForm.organizationId ?? ""),
-        ),
+      dependencies: (user.tasks ?? []).filter(
+        (t) =>
+          t.id &&
+          editForm.dependencies.includes(t.id) &&
+          (t.org ?? "") === (editForm.organizationId ?? ""),
+      ),
     };
 
     saveTask(updatedTask).catch((err: unknown) => setEditError(String(err)));
@@ -1325,14 +1361,15 @@ const Tasks: FC = () => {
                   {(() => {
                     const depCandidates = (user.tasks ?? []).filter(
                       (t) =>
-                        t.id
-                        && t.id !== editingTask.id
-                        && (t.org ?? "") === (editForm.organizationId ?? ""),
+                        t.id &&
+                        t.id !== editingTask.id &&
+                        (t.org ?? "") === (editForm.organizationId ?? ""),
                     );
                     if (depCandidates.length === 0) {
                       return (
                         <span className="text-xs text-slate-500">
-                          Keine weiteren Aufgaben in dieser Organisation verfügbar.
+                          Keine weiteren Aufgaben in dieser Organisation
+                          verfügbar.
                         </span>
                       );
                     }
@@ -1350,8 +1387,8 @@ const Tasks: FC = () => {
                               const next = e.target.checked
                                 ? [...editForm.dependencies, dep.id!]
                                 : editForm.dependencies.filter(
-                                  (n) => n !== dep.id!,
-                                );
+                                    (n) => n !== dep.id!,
+                                  );
                               setEditForm({
                                 ...editForm,
                                 dependencies: next,
@@ -1428,7 +1465,8 @@ const Tasks: FC = () => {
                   {editingBlocker.name}
                 </div>
                 <div className="mt-0.5 text-sm text-slate-400">
-                  {editingBlocker.days.split(",").join(", ")} &mdash; {editingBlocker.startTime}&ndash;{editingBlocker.endTime}
+                  {editingBlocker.days.split(",").join(", ")} &mdash;{" "}
+                  {editingBlocker.startTime}&ndash;{editingBlocker.endTime}
                 </div>
               </div>
               <button
