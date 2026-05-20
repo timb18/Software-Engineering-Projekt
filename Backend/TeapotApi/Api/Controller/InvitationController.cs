@@ -86,6 +86,7 @@ public class InvitationController : ControllerBase
     }
 
     [HttpGet("{invitationId:guid}/accept-link")]
+    [AllowAnonymous]
     public IActionResult AcceptInvitationLink([FromRoute] Guid invitationId, [FromQuery] string email)
     {
         return Redirect(BuildFrontendRedirect(_emailOptions.FrontendBaseUrl, "pending", invitationId, email));
@@ -96,6 +97,7 @@ public class InvitationController : ControllerBase
     /// This keeps the rejection flow lightweight for both API consumers and email link usage.
     /// </summary>
     [HttpPost("{invitationId:guid}/reject")]
+    [AllowAnonymous]
     public async Task<IActionResult> RejectInvitationAsync([FromRoute] Guid invitationId, CancellationToken cancellationToken)
     {
         try
