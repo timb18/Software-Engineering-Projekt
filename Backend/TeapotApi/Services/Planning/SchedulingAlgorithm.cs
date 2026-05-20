@@ -72,6 +72,12 @@ public class GreedyScheduler
         // before its predecessor is actually done.
         var unschedulable = new HashSet<Guid>();
 
+        // Earliest UTC instant the next block may start at. Bumped to (lastBlockEnd + breakLen)
+        // after each placement so consecutive blocks always have a recovery gap — even when
+        // the previous block ran exactly to a slot boundary or the next slot starts back-to-back
+        // (which is what made the planner emit pause-less back-to-back blocks before).
+        var earliestNextStart = DateTime.MinValue;
+
         while (true)
         {
             // Ready = all predecessors done, still has remaining work
@@ -96,6 +102,23 @@ public class GreedyScheduler
             for (var i = 0; i < freeSlots.Count && remainingMinutes[task.Id] > 0;)
             {
                 var slot = freeSlots[i];
+                // Enforce the recovery break across slot boundaries: if the previous block
+                // ended at (or near) this slot's start, push the effective start forward by
+                // the required break length. Without this, two adjacent slots (e.g. when work
+                // blocks are configured back-to-back, or when one task fills a slot exactly)
+                // would result in pause-less back-to-back blocks.
+                if (earliestNextStart > slot.Start)
+                {
+                    if (earliestNextStart >= slot.End)
+                    {
+                        // Entire slot consumed by the pending break — drop it.
+                        freeSlots.RemoveAt(i);
+                        continue;
+                    }
+                    slot = new TimeSlot(earliestNextStart, slot.End, slot.OrganizationId);
+                    freeSlots[i] = slot;
+                }
+
                 // Org constraint: a task tagged with an OrganizationId may only consume slots
                 // tagged with the same org. Tasks without an org (legacy) accept any slot.
                 if (task.OrganizationId.HasValue && slot.OrganizationId.HasValue
@@ -139,13 +162,22 @@ public class GreedyScheduler
                 remainingMinutes[task.Id] -= blockMinutes;
                 blocksPlacedThisTask++;
 
+                // Remember the recovery break required after this block so the next block
+                // (same or different task) starts no earlier than blockEnd + breakLen, even
+                // when crossing slot boundaries.
+                var breakAfter = BreakFor(task.Intensity);
+                if (breakAfter > 0)
+                    earliestNextStart = blockEnd.AddMinutes(breakAfter);
+                else
+                    earliestNextStart = blockEnd;
+
                 // Consume slot. Insert a recovery break of BreakFor(intensity) minutes after
                 // every block — covers intra-task pacing AND inter-task context switching.
                 // Light tasks have break=0 so no gap is inserted.
                 if (blockEnd < slot.End)
                 {
                     var taskHasMoreWork = remainingMinutes[task.Id] > 0;
-                    var breakLen = BreakFor(task.Intensity);
+                    var breakLen = breakAfter;
                     var nextStart = blockEnd;
 
                     if (breakLen > 0)

@@ -17,7 +17,7 @@ import { CreateTaskModal } from "./task-list";
 import useUserStore from "../../stores/user-store";
 import { fetchBlocks, fetchTasks, type TaskBlock } from "../../util/task-api";
 import type { Task, WorkBreak, WorkWeekDay } from "../../util/types";
-import { saveWorkProfile } from "../../util/work-profile-api";
+import { saveWorkProfile, fetchWorkProfile } from "../../util/work-profile-api";
 import {
   getBreakColor,
   getBlockerColor,
@@ -100,6 +100,11 @@ const Tasks: FC = () => {
     text: string;
   } | null>(null);
   const [blocks, setBlocks] = useState<TaskBlock[]>([]);
+  // When the assignee filter is "all", we additionally fetch tasks and blocks from every
+  // org the user belongs to (the user store only ever holds the *active* org's data).
+  // These cross-org buckets are merged into the calendar view below.
+  const [crossOrgTasks, setCrossOrgTasks] = useState<Task[]>([]);
+  const [crossOrgBlocks, setCrossOrgBlocks] = useState<TaskBlock[]>([]);
   const [recurringBlockers, setRecurringBlockers] = useState<{
     id?: string; name: string; daysOfWeek: string;
     startTime: string; endTime: string;
@@ -164,6 +169,71 @@ const Tasks: FC = () => {
       .catch(() => setRecurringBlockers([]));
   }, [workProfileId]);
 
+  // Fetch tasks + blocks for every org the user belongs to when "All assignees" is
+  // selected. The user store only holds data for the active org/workprofile, so without
+  // this we'd display nothing for the other orgs. Effect re-runs when the filter or the
+  // list of orgs changes.
+  useEffect(() => {
+    if (filterOrgId !== "all") {
+      // Stale cross-org data is harmless: taskPool / blockPool below only read it
+      // when filterOrgId === "all". Skipping the reset keeps this effect free of
+      // a synchronous setState call (which the react-hooks lint rule flags).
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await Promise.all(
+          (user.orgs ?? []).map(async (org) => {
+            // Resolve work-profile id: orgs other than the active one usually do not
+            // have it populated in the store, so fall back to fetchWorkProfile().
+            let wpId = org.workProfileId ?? null;
+            if (!wpId) {
+              try {
+                const wp = await fetchWorkProfile(user.id, org.id);
+                wpId = wp?.id ?? null;
+              } catch {
+                wpId = null;
+              }
+            }
+            if (!wpId) return { tasks: [] as Task[], blocks: [] as TaskBlock[] };
+            const [tasks, blocks] = await Promise.all([
+              fetchTasks(wpId).catch(() => [] as Task[]),
+              fetchBlocks(wpId).catch(() => [] as TaskBlock[]),
+            ]);
+            // Tag tasks with the org id so the existing filter / colouring logic
+            // (which keys off `task.org`) groups them correctly.
+            return {
+              tasks: tasks.map((t) => ({ ...t, org: org.id })),
+              blocks,
+            };
+          }),
+        );
+        if (cancelled) return;
+        // De-duplicate by id to avoid double-rendering the active org's data
+        // (which is already in user.tasks / blocks state).
+        const byTaskId = new Map<string, Task>();
+        results.flatMap((r) => r.tasks).forEach((t) => {
+          if (t.id) byTaskId.set(t.id, t);
+        });
+        setCrossOrgTasks([...byTaskId.values()]);
+        const blockKey = (b: TaskBlock) =>
+          `${b.taskId}|${b.startDate.toISOString()}`;
+        const byBlock = new Map<string, TaskBlock>();
+        results.flatMap((r) => r.blocks).forEach((b) => byBlock.set(blockKey(b), b));
+        setCrossOrgBlocks([...byBlock.values()]);
+      } catch {
+        if (!cancelled) {
+          setCrossOrgTasks([]);
+          setCrossOrgBlocks([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterOrgId, user.orgs, user.id]);
+
   useEffect(() => {
     setFilterOrgId(activeOrganizationId ?? "all");
   }, [activeOrganizationId]);
@@ -218,7 +288,31 @@ const Tasks: FC = () => {
       ? undefined
       : orgOptions.find((org) => org.id === filterOrgId);
 
-  const filteredTasks = (user.tasks ?? []).filter((t) => {
+  // Source pool: when "All assignees" is active, union the active-org tasks held in the
+  // user store with the cross-org tasks fetched above (de-duplicated by id). Computed
+  // unconditionally so this stays out of the rules-of-hooks blast radius (the surrounding
+  // component performs an early return above, which makes useMemo unsafe here).
+  const taskPool: Task[] = (() => {
+    const base = user.tasks ?? [];
+    if (filterOrgId !== "all") return base;
+    const byId = new Map<string, Task>();
+    [...base, ...crossOrgTasks].forEach((t) => {
+      if (t.id) byId.set(t.id, t);
+    });
+    return [...byId.values()];
+  })();
+
+  // Same union for blocks (calendar entries), de-duplicated on (taskId, startDate).
+  const blockPool: TaskBlock[] = (() => {
+    if (filterOrgId !== "all") return blocks;
+    const byKey = new Map<string, TaskBlock>();
+    [...blocks, ...crossOrgBlocks].forEach((b) =>
+      byKey.set(`${b.taskId}|${b.startDate.toISOString()}`, b),
+    );
+    return [...byKey.values()];
+  })();
+
+  const filteredTasks = taskPool.filter((t) => {
     const byStatus =
       filterStatus === "all" || (t.status ?? "todo") === filterStatus;
     const byOrg =
@@ -314,8 +408,8 @@ const Tasks: FC = () => {
   // (e.g. newly created, not yet scheduled) only appear in the Upcoming list.
   // Fallback: if no blocks were fetched at all, render tasks the old way so the
   // calendar still shows something (e.g. for is_fixed tasks set manually).
-  const taskIdsWithBlocks = new Set(blocks.map((b) => b.taskId));
-  const blockEvents: EventInput[] = blocks.flatMap((b) => {
+  const taskIdsWithBlocks = new Set(blockPool.map((b) => b.taskId));
+  const blockEvents: EventInput[] = blockPool.flatMap((b) => {
     const t = filteredTaskById.get(b.taskId);
     if (!t) return [];
     const c: RgbColor = t.org ? getOrgColor(t.org) : getOrgColor("");
