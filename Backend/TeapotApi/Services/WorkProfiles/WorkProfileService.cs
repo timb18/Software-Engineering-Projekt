@@ -17,9 +17,7 @@ public class WorkProfileService(
     /// </summary>
     public async Task<WorkProfile?> GetAsync(Guid userId, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
-        var profile = organizationId.HasValue
-            ? await workProfileRepository.GetByUserAndOrganizationNoTrackingAsync(userId, organizationId.Value, cancellationToken)
-            : await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
+        var profile = await workProfileRepository.GetPersonalNoTrackingAsync(userId, cancellationToken);
         if (profile is null) return null;
 
         var existingDays = profile.Days.ToDictionary(d => d.Day);
@@ -37,19 +35,17 @@ public class WorkProfileService(
     /// </summary>
     public async Task<WorkProfile> SaveAsync(Guid userId, WorkProfile profile, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
-        var existing = organizationId.HasValue
-            ? await workProfileRepository.GetByUserAndOrganizationAsync(userId, organizationId.Value, cancellationToken)
-            : await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
         var normalized = NormalizeProfile(profile);
+        ValidateProfile(normalized);
+
+        var existing = await workProfileRepository.GetPersonalAsync(userId, cancellationToken);
 
         if (existing is null)
         {
-            var membership = organizationId.HasValue
-                ? await membershipRepository.FindAsync(userId, organizationId.Value, cancellationToken)
-                : await membershipRepository.FindPersonalAsync(userId, cancellationToken);
+            var membership = await membershipRepository.FindPersonalAsync(userId, cancellationToken);
 
             if (membership is null)
-                throw new ArgumentException("No membership found for this user and organization.");
+                throw new ArgumentException("No membership found for this user.");
 
             normalized.MembershipId = membership.Id;
             normalized.CreatedAt = DateTime.UtcNow;
@@ -140,6 +136,69 @@ public class WorkProfileService(
         profile.Days = normalizedDays;
         return profile;
     }
+
+    private static void ValidateProfile(WorkProfile profile)
+    {
+        foreach (var day in profile.Days)
+        {
+            var previousBlockEnd = TimeSpan.MinValue;
+            var blockIndex = 0;
+            foreach (var block in day.Blocks.OrderBy(b => ParseTime(b.StartTime)))
+            {
+                blockIndex++;
+                var start = ParseTime(block.StartTime);
+                var end = ParseTime(block.EndTime);
+
+                if (string.IsNullOrWhiteSpace(block.CompanyName))
+                    throw new ArgumentException($"{DayName(day.Day)} work block {blockIndex} needs a company.");
+                if (end <= start)
+                    throw new ArgumentException($"{DayName(day.Day)} work block {blockIndex} must end after it starts.");
+                if (previousBlockEnd > start)
+                    throw new ArgumentException($"{DayName(day.Day)} contains overlapping work blocks. Please keep each work block separate.");
+
+                previousBlockEnd = end;
+            }
+
+            var previousBreakEnd = TimeSpan.MinValue;
+            var breakIndex = 0;
+            foreach (var workBreak in day.Breaks.OrderBy(b => ParseTime(b.StartTime)))
+            {
+                breakIndex++;
+                var start = ParseTime(workBreak.StartTime);
+                var end = ParseTime(workBreak.EndTime);
+
+                if (end <= start)
+                    throw new ArgumentException($"{DayName(day.Day)} break {breakIndex} must end after it starts.");
+                if (previousBreakEnd > start)
+                    throw new ArgumentException($"{DayName(day.Day)} contains overlapping breaks. Please keep each break separate.");
+
+                previousBreakEnd = end;
+            }
+        }
+    }
+
+    private static TimeSpan ParseTime(string value)
+    {
+        if (!TimeSpan.TryParse(value, out var parsed))
+            throw new ArgumentException($"Invalid time format: '{value}'. Expected HH:mm.");
+
+        if (parsed < TimeSpan.Zero || parsed >= TimeSpan.FromDays(1))
+            throw new ArgumentException($"Invalid time value: '{value}'. Expected a time between 00:00 and 23:59.");
+
+        return parsed;
+    }
+
+    private static string DayName(string day) => day switch
+    {
+        "Mon" => "Monday",
+        "Tue" => "Tuesday",
+        "Wed" => "Wednesday",
+        "Thu" => "Thursday",
+        "Fri" => "Friday",
+        "Sat" => "Saturday",
+        "Sun" => "Sunday",
+        _ => day
+    };
 
     private static void PrepareProfileGraph(WorkProfile profile)
     {

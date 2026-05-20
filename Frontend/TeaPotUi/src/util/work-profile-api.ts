@@ -32,16 +32,20 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
  * @returns Promise resolving to WorkProfile, or null if none saved
  * @throws Error if fetch fails (excluding 204)
  */
-const organizationQuery = (organizationId?: string | null) =>
-  organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
-
 export async function fetchWorkProfile(
   userId: string,
-  organizationId?: string | null,
+  _organizationId?: string | null,
 ): Promise<WorkProfile | null> {
-  const res = await fetch(
-    `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}${organizationQuery(organizationId)}`,
-  );
+  const url = `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`;
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch (error) {
+    throw new Error(
+      `Backend not reachable while loading the work profile. Make sure the API is running at ${API_BASE || "the Vite proxy target (http://localhost:5186)"}.`,
+      { cause: error },
+    );
+  }
 
   if (res.status === 204) return null; // No profile saved yet
   if (!res.ok) throw new Error(`Failed to fetch work profile: ${res.status} ${res.statusText}`);
@@ -79,13 +83,22 @@ export async function fetchWorkProfile(
 export async function saveWorkProfile(
   userId: string,
   profile: WorkProfile,
-  organizationId?: string | null,
+  _organizationId?: string | null,
 ): Promise<WorkProfile> {
-  const res = await fetch(`${API_BASE}/api/workprofile/${encodeURIComponent(userId)}${organizationQuery(organizationId)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(profile),
-  });
+  const url = `${API_BASE}/api/workprofile/${encodeURIComponent(userId)}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+  } catch (error) {
+    throw new Error(
+      `Backend not reachable while saving the work profile. Make sure the API is running at ${API_BASE || "the Vite proxy target (http://localhost:5186)"}.`,
+      { cause: error },
+    );
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);

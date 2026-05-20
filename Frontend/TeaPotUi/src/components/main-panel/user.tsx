@@ -130,9 +130,7 @@ const User: FC = () => {
   const { logout } = useLoginStore();
   const {
     user: userFromDb,
-    activeOrganizationId,
     setUser,
-    setActiveOrganization,
   } = useUserStore();
   const { logout: authLogout, user: userFromAuth } = useAuth0();
   const navigate = useNavigate();
@@ -276,15 +274,10 @@ const User: FC = () => {
             plannerViewEnd: nextUser.plannerViewEnd,
             maxDailyLoad: toTimeSpanString(nextUser.workCapacityHours),
           },
-          activeOrganizationId,
         );
         const legacyWorkSettings = getLegacyWorkSettings(savedWorkProfile);
-        const orgs = activeOrganizationId
-          ? nextUser.orgs.map((org) =>
-              org.id === activeOrganizationId
-                ? { ...org, workProfileId: savedWorkProfile.id ?? org.workProfileId }
-                : org,
-            )
+        const orgs = savedWorkProfile.id
+          ? nextUser.orgs.map((org) => ({ ...org, workProfileId: savedWorkProfile.id }))
           : nextUser.orgs;
         setUser({
           ...nextUser,
@@ -719,10 +712,8 @@ const User: FC = () => {
         {tab === "work" && (
           <div className="flex flex-col gap-4">
             <WorkProfileConfigurator
-              key={`${activeOrganizationId ?? "no-org"}-${userFromDb.workProfile?.id ?? "new"}-${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
+              key={`${userFromDb.workProfile?.id ?? "new"}-${userFromDb.username}-${userFromDb.email}-${userFromDb.workCapacityHours ?? 8}-${userFromDb.workStart ?? "09:00"}-${userFromDb.workEnd ?? "17:00"}-${userFromDb.breakRules ?? "default"}-${userFromDb.workProfile?.days.length ?? 0}`}
               user={userFromDb}
-              activeOrganizationId={activeOrganizationId}
-              onActiveOrganizationChange={setActiveOrganization}
               onSaveUser={persist}
               onStatusChange={setStatus}
               onErrorChange={setError}
