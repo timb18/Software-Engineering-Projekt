@@ -28,7 +28,6 @@ public class InvitationServiceTests
             new OrganizationRepository(_dbContext),
             new UserRepository(_dbContext),
             new MembershipRepository(_dbContext),
-            new WorkProfileRepository(_dbContext),
             new UnitOfWork(_dbContext),
             new NullEmailSender(),
             Options.Create(new EmailOptions
@@ -198,7 +197,6 @@ public class InvitationServiceTests
             new OrganizationRepository(_dbContext),
             new UserRepository(_dbContext),
             new MembershipRepository(_dbContext),
-            new WorkProfileRepository(_dbContext),
             new UnitOfWork(_dbContext),
             new FailingEmailSender(),
             Options.Create(new EmailOptions { ApiBaseUrl = "http://localhost:5186" }));
@@ -352,7 +350,7 @@ public class InvitationServiceTests
 
         Assert.That(accepted, Is.True);
         Assert.That(_dbContext.Memberships.Count(), Is.EqualTo(2));
-        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(2), "A new WorkProfile must be created for the org membership");
+        Assert.That(_dbContext.WorkProfiles.Count(), Is.EqualTo(1), "Joining another organization must reuse the user's single WorkProfile");
         Assert.That(_dbContext.Memberships.Count(m => m.UserId == invitedUser.Id && m.OrganizationId == invitedOrganization.Id), Is.EqualTo(1));
     }
 

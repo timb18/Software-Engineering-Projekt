@@ -16,7 +16,6 @@ public class InvitationService(
     IOrganizationRepository organizationRepository,
     IUserRepository userRepository,
     IMembershipRepository membershipRepository,
-    IWorkProfileRepository workProfileRepository,
     IUnitOfWork unitOfWork,
     IEmailSender emailSender,
     IOptions<EmailOptions> emailOptions) : IInvitationService
@@ -134,14 +133,6 @@ public class InvitationService(
                 CreatedAt = DateTime.UtcNow
             };
             await membershipRepository.AddAsync(membership, cancellationToken);
-
-            var workProfile = new DataAccess.Models.WorkProfile
-            {
-                MembershipId = membership.Id,
-                MaxDailyLoad = TimeSpan.FromHours(8),
-                CreatedAt = DateTime.UtcNow,
-            };
-            await workProfileRepository.AddAsync(workProfile, cancellationToken);
 
             invitation.Status = EInvitationStatus.Accepted;
             invitation.EditedAt = DateTime.UtcNow;

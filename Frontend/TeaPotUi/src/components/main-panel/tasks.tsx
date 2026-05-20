@@ -169,10 +169,8 @@ const Tasks: FC = () => {
       .catch(() => setRecurringBlockers([]));
   }, [workProfileId]);
 
-  // Fetch tasks + blocks for every org the user belongs to when "All assignees" is
-  // selected. The user store only holds data for the active org/workprofile, so without
-  // this we'd display nothing for the other orgs. Effect re-runs when the filter or the
-  // list of orgs changes.
+  // Fetch the shared work-profile task/blocks when "All assignees" is selected.
+  // Organization membership is now a task/block tag, not a separate work-profile board.
   useEffect(() => {
     if (filterOrgId !== "all") {
       // Stale cross-org data is harmless: taskPool / blockPool below only read it
@@ -183,44 +181,26 @@ const Tasks: FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const results = await Promise.all(
-          (user.orgs ?? []).map(async (org) => {
-            // Resolve work-profile id: orgs other than the active one usually do not
-            // have it populated in the store, so fall back to fetchWorkProfile().
-            let wpId = org.workProfileId ?? null;
-            if (!wpId) {
-              try {
-                const wp = await fetchWorkProfile(user.id, org.id);
-                wpId = wp?.id ?? null;
-              } catch {
-                wpId = null;
-              }
-            }
-            if (!wpId) return { tasks: [] as Task[], blocks: [] as TaskBlock[] };
-            const [tasks, blocks] = await Promise.all([
-              fetchTasks(wpId).catch(() => [] as Task[]),
-              fetchBlocks(wpId).catch(() => [] as TaskBlock[]),
-            ]);
-            // Tag tasks with the org id so the existing filter / colouring logic
-            // (which keys off `task.org`) groups them correctly.
-            return {
-              tasks: tasks.map((t) => ({ ...t, org: org.id })),
-              blocks,
-            };
-          }),
-        );
+        let wpId = workProfileId;
+        if (!wpId) {
+          const wp = await fetchWorkProfile(user.id);
+          wpId = wp?.id ?? null;
+        }
+        if (!wpId) return;
+        const [tasks, blocks] = await Promise.all([
+          fetchTasks(wpId).catch(() => [] as Task[]),
+          fetchBlocks(wpId).catch(() => [] as TaskBlock[]),
+        ]);
         if (cancelled) return;
-        // De-duplicate by id to avoid double-rendering the active org's data
-        // (which is already in user.tasks / blocks state).
         const byTaskId = new Map<string, Task>();
-        results.flatMap((r) => r.tasks).forEach((t) => {
+        tasks.forEach((t) => {
           if (t.id) byTaskId.set(t.id, t);
         });
         setCrossOrgTasks([...byTaskId.values()]);
         const blockKey = (b: TaskBlock) =>
           `${b.taskId}|${b.startDate.toISOString()}`;
         const byBlock = new Map<string, TaskBlock>();
-        results.flatMap((r) => r.blocks).forEach((b) => byBlock.set(blockKey(b), b));
+        blocks.forEach((b) => byBlock.set(blockKey(b), b));
         setCrossOrgBlocks([...byBlock.values()]);
       } catch {
         if (!cancelled) {
@@ -232,7 +212,7 @@ const Tasks: FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [filterOrgId, user.orgs, user.id]);
+  }, [filterOrgId, user.id, workProfileId]);
 
   useEffect(() => {
     setFilterOrgId(activeOrganizationId ?? "all");

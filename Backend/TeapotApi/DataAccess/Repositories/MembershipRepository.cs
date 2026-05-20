@@ -5,8 +5,6 @@ namespace DataAccess.Repositories;
 
 public class MembershipRepository(TeapotDbContext context) : IMembershipRepository
 {
-    private const string PersonalWorkspaceDescription = "Auto-created personal workspace";
-
     public Task<Membership?> FindAsync(Guid userId, Guid organizationId, CancellationToken cancellationToken = default) =>
         context.Memberships
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrganizationId == organizationId, cancellationToken);
@@ -33,8 +31,8 @@ public class MembershipRepository(TeapotDbContext context) : IMembershipReposito
             .Where(m => m.UserId == userId)
             .OrderByDescending(m =>
                 m.Role == ERole.Organizer &&
-                m.Organization.MaxUsers == 1 &&
-                m.Organization.Description == PersonalWorkspaceDescription)
+                m.Organization.MaxUsers == 1)
+            .ThenBy(m => m.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
     public async Task AddAsync(Membership membership, CancellationToken cancellationToken = default)

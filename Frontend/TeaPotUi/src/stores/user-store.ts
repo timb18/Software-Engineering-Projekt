@@ -22,8 +22,7 @@ const initialState: UserStore = {
   activeOrganizationId: null,
 };
 
-const assignTasksToOrganization = (tasks: Task[], organizationId: string | null | undefined) =>
-  organizationId ? tasks.map((task) => ({ ...task, org: organizationId })) : tasks;
+const assignTasksToOrganization = (tasks: Task[], _organizationId: string | null | undefined) => tasks;
 
 const memoryStorage = {
   getItem: () => null,
@@ -74,27 +73,20 @@ export const initForUser = async (
           : [];
     const activeOrganization =
       orgs.find((org) => org.id === previousState.activeOrganizationId) ?? orgs[0] ?? null;
-    let activeWorkProfileId = activeOrganization
-      ? activeOrganization.workProfileId ?? null
-      : workProfileId ?? null;
+    let activeWorkProfileId = workProfileId ?? activeOrganization?.workProfileId ?? null;
     let workProfile = null;
 
     try {
-      workProfile = (await fetchWorkProfile(userId, activeOrganization?.id ?? null)) ?? null;
+      workProfile = (await fetchWorkProfile(userId)) ?? null;
       activeWorkProfileId = workProfile?.id ?? activeWorkProfileId;
     } catch (error) {
       console.error("fetchWorkProfile failed during initForUser", error);
     }
 
     const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
-    const orgsWithWorkProfile =
-      activeOrganization && workProfile?.id
-        ? orgs.map((org) =>
-            org.id === activeOrganization.id
-              ? { ...org, workProfileId: workProfile.id }
-              : org,
-          )
-        : orgs;
+    const orgsWithWorkProfile = workProfile?.id
+      ? orgs.map((org) => ({ ...org, workProfileId: workProfile.id }))
+      : orgs;
 
     let tasks: Task[] = [];
     if (activeWorkProfileId) {
@@ -210,8 +202,8 @@ const useUserStore = () => {
       return;
     }
 
-    const workProfile = (await fetchWorkProfile(state.user.id, selectedOrganization.id)) ?? null;
-    const selectedWorkProfileId = workProfile?.id ?? selectedOrganization.workProfileId ?? null;
+    const workProfile = state.user.workProfile ?? (await fetchWorkProfile(state.user.id)) ?? null;
+    const selectedWorkProfileId = workProfile?.id ?? state.workProfileId ?? selectedOrganization.workProfileId ?? null;
     const tasks = selectedWorkProfileId
       ? assignTasksToOrganization(
           await fetchTasks(selectedWorkProfileId),
@@ -220,9 +212,7 @@ const useUserStore = () => {
       : [];
     const legacyWorkSettings = workProfile ? getLegacyWorkSettings(workProfile) : undefined;
     const orgs = workProfile?.id
-      ? state.user.orgs.map((org) =>
-          org.id === selectedOrganization.id ? { ...org, workProfileId: workProfile.id } : org,
-        )
+      ? state.user.orgs.map((org) => ({ ...org, workProfileId: workProfile.id }))
       : state.user.orgs;
 
     userStore.setState({

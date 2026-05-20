@@ -21,6 +21,7 @@ public class OrganizationServiceTests
         _dbContext = new TeapotDbContext(options);
         _service = new OrganizationService(
             new OrganizationRepository(_dbContext),
+            new WorkProfileRepository(_dbContext),
             Options.Create(new EmailOptions { ApiBaseUrl = "https://api.example.test" }));
     }
 
