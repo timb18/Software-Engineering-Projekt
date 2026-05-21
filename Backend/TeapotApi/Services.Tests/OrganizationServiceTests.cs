@@ -352,7 +352,7 @@ public class OrganizationServiceTests
     }
 
     [Test]
-    public void DeleteOrganizationAsync_Throws_When_Organization_Has_Additional_Organizers()
+    public async Task DeleteOrganizationAsync_Removes_Organization_When_Initiator_Is_One_Of_Multiple_Organizers()
     {
         var organizer = new User
             { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };
@@ -376,9 +376,14 @@ public class OrganizationServiceTests
             });
         _dbContext.SaveChanges();
 
-        Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id,
-                organization.Name)));
+        await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id,
+            organization.Name));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_dbContext.Organizations.Any(), Is.False);
+            Assert.That(_dbContext.Memberships.Any(), Is.False);
+        });
     }
 
     [Test]

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchOrganizationsByUserEmail } from "./org-api";
+import { deleteOrganization, fetchOrganizationsByUserEmail } from "./org-api";
 
 const mockFetch = (data: unknown, ok = true, status = 200) =>
   vi.fn().mockResolvedValue({
@@ -75,5 +75,44 @@ describe("fetchOrganizationsByUserEmail", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("deleteOrganization", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sends initiator, confirmation text, and auth token", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      statusText: "No Content",
+      text: () => Promise.resolve(""),
+    });
+
+    await deleteOrganization(
+      {
+        initiatorUserId: "user-1",
+        organizationId: "org-1",
+        confirmationText: "Northwind Labs",
+      },
+      "test-token",
+    );
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/Organization/org-1"),
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-token",
+        },
+        body: JSON.stringify({
+          initiatorUserId: "user-1",
+          confirmationText: "Northwind Labs",
+        }),
+      },
+    );
   });
 });
