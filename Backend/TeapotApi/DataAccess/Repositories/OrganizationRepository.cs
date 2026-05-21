@@ -80,10 +80,30 @@ public class OrganizationRepository(TeapotDbContext context) : IOrganizationRepo
                     .ToListAsync(cancellationToken);
                 if (timeIntervals.Count > 0) context.WorkProfileTimeIntervals.RemoveRange(timeIntervals);
 
+                var recurringBlockers = await context.RecurringBlockers
+                    .Where(b => b.WorkProfileId == workProfileId)
+                    .ToListAsync(cancellationToken);
+                if (recurringBlockers.Count > 0) context.RecurringBlockers.RemoveRange(recurringBlockers);
+
                 var userTasks = await context.UserTasks
                     .Where(t => t.WorkProfileId == workProfileId)
                     .ToListAsync(cancellationToken);
-                if (userTasks.Count > 0) context.UserTasks.RemoveRange(userTasks);
+                if (userTasks.Count > 0)
+                {
+                    var taskIds = userTasks.Select(t => t.Id).ToList();
+
+                    var taskBlocks = await context.TaskBlocks
+                        .Where(b => taskIds.Contains(b.TaskId))
+                        .ToListAsync(cancellationToken);
+                    if (taskBlocks.Count > 0) context.TaskBlocks.RemoveRange(taskBlocks);
+
+                    var taskDependencies = await context.TaskDependencies
+                        .Where(d => taskIds.Contains(d.TaskId) || taskIds.Contains(d.DependsOnTaskId))
+                        .ToListAsync(cancellationToken);
+                    if (taskDependencies.Count > 0) context.TaskDependencies.RemoveRange(taskDependencies);
+
+                    context.UserTasks.RemoveRange(userTasks);
+                }
 
                 context.WorkProfiles.Remove(membership.WorkProfile);
             }

@@ -137,13 +137,6 @@ public class OrganizationService(
         if (initiatorMembership.Role != ERole.Organizer)
             throw new UnauthorizedAccessException("Only organizers can delete an organization.");
 
-        var otherOrganizers = organization.Memberships
-            .Where(m => m.UserId != command.InitiatorUserId && m.Role == ERole.Organizer)
-            .ToList();
-
-        if (otherOrganizers.Count > 0)
-            throw new InvalidOperationException("The organization cannot be deleted while there are other organizers.");
-
         if (!string.Equals(organization.Name, command.ConfirmationText?.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("Confirmation text does not match the organization name.");
 

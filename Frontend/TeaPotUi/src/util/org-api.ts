@@ -30,6 +30,12 @@ type RenameOrganizationRequest = {
   name: string;
 };
 
+type DeleteOrganizationRequest = {
+  initiatorUserId: string;
+  organizationId: string;
+  confirmationText: string;
+};
+
 /**
  * Request body for changing a user's role in an organization.
  *
@@ -332,6 +338,37 @@ export async function renameOrganization(
     throw new Error(
       message ||
         `Organization could not be renamed. (${res.status} ${res.statusText})`,
+    );
+  }
+}
+
+export async function deleteOrganization(
+  request: DeleteOrganizationRequest,
+  token: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/Organization/${request.organizationId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      initiatorUserId: request.initiatorUserId,
+      confirmationText: request.confirmationText,
+    }),
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    if (res.status === 404 && !message) {
+      throw new Error(
+        "Organization delete API route was not found. Restart the backend with the latest code and check VITE_API_BASE_URL.",
+      );
+    }
+
+    throw new Error(
+      message ||
+        `Organization could not be deleted. (${res.status} ${res.statusText})`,
     );
   }
 }
