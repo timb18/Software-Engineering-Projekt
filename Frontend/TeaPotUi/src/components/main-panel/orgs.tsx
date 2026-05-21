@@ -3,6 +3,7 @@ import useUserStore from "../../stores/user-store";
 import type { Invitation, Org, User } from "../../util/types";
 import acceptInvite from "../../util/accept-invite";
 import {
+  deleteOrganization,
   fetchOrganizationsByUserEmail,
   renameOrganization,
   removeUserFromOrganization,
@@ -707,21 +708,15 @@ const Orgs: FC = () => {
     setIsDeletingOrg(true);
 
     try {
-      const response = await fetch(apiUrl(`/api/Organization/${org.id}`), {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const token = await getAccessTokenSilently();
+      await deleteOrganization(
+        {
           initiatorUserId: user.id,
+          organizationId: org.id,
           confirmationText: deleteConfirm,
-        }),
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Organization could not be deleted.");
-      }
+        },
+        token,
+      );
 
       const nextOrgs = orgs.filter((t) => t.id !== org.id);
       const nextInvites = (user.invites ?? []).filter(

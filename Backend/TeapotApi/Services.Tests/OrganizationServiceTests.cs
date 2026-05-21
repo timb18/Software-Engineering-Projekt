@@ -104,6 +104,47 @@ public class OrganizationServiceTests
             Intensity = ETaskIntensity.Normal,
             IsFixed = false
         };
+        var dependentTask = new UserTask
+        {
+            Id = Guid.NewGuid(),
+            WorkProfileId = workProfile.Id,
+            Name = "Dependent",
+            CreatedAt = DateTime.UtcNow,
+            EarlyStart = DateTime.UtcNow,
+            EarlyFinish = DateTime.UtcNow.AddHours(1),
+            LateStart = DateTime.UtcNow,
+            LateFinish = DateTime.UtcNow.AddHours(1),
+            TimeEstimate = TimeSpan.FromHours(1),
+            Priority = ETaskPriority.Medium,
+            Intensity = ETaskIntensity.Normal,
+            IsFixed = false
+        };
+        var taskBlock = new TaskBlock
+        {
+            Id = Guid.NewGuid(),
+            TaskId = task.Id,
+            Task = task,
+            StartDate = DateTime.UtcNow,
+            EndDate = DateTime.UtcNow.AddHours(1),
+            IsFixed = false
+        };
+        var taskDependency = new TaskDependency
+        {
+            TaskId = dependentTask.Id,
+            DependsOnTaskId = task.Id,
+            Task = dependentTask,
+            DependsOnTask = task
+        };
+        var recurringBlocker = new RecurringBlocker
+        {
+            Id = Guid.NewGuid(),
+            WorkProfileId = workProfile.Id,
+            Name = "Standup",
+            DaysOfWeek = "Mon",
+            StartTime = "10:00",
+            EndTime = "10:30",
+            CreatedAt = DateTime.UtcNow
+        };
         var invitation = new Invitation
         {
             Id = Guid.NewGuid(),
@@ -122,7 +163,10 @@ public class OrganizationServiceTests
         _dbContext.WorkDayProfiles.Add(workDay);
         _dbContext.WorkBlocks.Add(workBlock);
         _dbContext.WorkBreaks.Add(workBreak);
-        _dbContext.UserTasks.Add(task);
+        _dbContext.UserTasks.AddRange(task, dependentTask);
+        _dbContext.TaskBlocks.Add(taskBlock);
+        _dbContext.TaskDependencies.Add(taskDependency);
+        _dbContext.RecurringBlockers.Add(recurringBlocker);
         _dbContext.Invitations.Add(invitation);
         await _dbContext.SaveChangesAsync();
 
@@ -138,6 +182,9 @@ public class OrganizationServiceTests
             Assert.That(_dbContext.WorkBlocks.Any(), Is.False);
             Assert.That(_dbContext.WorkBreaks.Any(), Is.False);
             Assert.That(_dbContext.UserTasks.Any(), Is.False);
+            Assert.That(_dbContext.TaskBlocks.Any(), Is.False);
+            Assert.That(_dbContext.TaskDependencies.Any(), Is.False);
+            Assert.That(_dbContext.RecurringBlockers.Any(), Is.False);
             Assert.That(_dbContext.Invitations.Any(), Is.False);
         });
     }
@@ -352,7 +399,7 @@ public class OrganizationServiceTests
     }
 
     [Test]
-    public void DeleteOrganizationAsync_Throws_When_Organization_Has_Additional_Organizers()
+    public async Task DeleteOrganizationAsync_Removes_Organization_When_Initiator_Is_One_Of_Multiple_Organizers()
     {
         var organizer = new User
             { Id = Guid.NewGuid(), Email = "organizer@example.com", Username = "org", CreatedAt = DateTime.UtcNow };
@@ -376,9 +423,14 @@ public class OrganizationServiceTests
             });
         _dbContext.SaveChanges();
 
-        Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id,
-                organization.Name)));
+        await _service.DeleteOrganizationAsync(new DeleteOrganizationCommand(organization.Id, organizer.Id,
+            organization.Name));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_dbContext.Organizations.Any(), Is.False);
+            Assert.That(_dbContext.Memberships.Any(), Is.False);
+        });
     }
 
     [Test]
