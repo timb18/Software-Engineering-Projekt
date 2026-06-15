@@ -13,7 +13,7 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState, type FC } from "react";
-import { CreateTaskModal } from "./task-list";
+import CreateTaskModal from "../create-task-modal";
 import useUserStore from "../../stores/user-store";
 import { fetchBlocks, fetchTasks, type TaskBlock } from "../../util/task-api";
 import type { Task, WorkBreak, WorkWeekDay } from "../../util/types";
@@ -241,11 +241,7 @@ const Tasks: FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [filterOrgId, user.id, workProfileId]);
-
-  if (!user) {
-    return <></>;
-  }
+  }, [filterOrgId, getAccessTokenSilently, user.id, workProfileId]);
 
   const triggerSchedule = async () => {
     if (!workProfileId) {
@@ -272,9 +268,11 @@ const Tasks: FC = () => {
         });
         const token = await getAccessTokenSilently();
         // Reload tasks and blocks so the calendar reflects the new schedule
-        const updated = await fetchTasks(workProfileId, token);
-        setUser({ ...user, tasks: updated });
-        const updatedBlocks = await fetchBlocks(workProfileId, token);
+        const [updatedTasks, updatedBlocks] = await Promise.all([
+          fetchTasks(workProfileId, token),
+          fetchBlocks(workProfileId, token),
+        ]);
+        setUser({ ...user, tasks: updatedTasks });
         setBlocks(updatedBlocks);
       } else {
         setScheduleMsg({
