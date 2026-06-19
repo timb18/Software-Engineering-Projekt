@@ -123,8 +123,6 @@ export const CreateTaskModal: FC<CreateTaskModalProps> = ({
     }
   }, [getAccessTokenSilently, workProfileId]);
 
-  if (modalMode === "blocker") fetchBlockersList();
-
   const toggleBlockerDay = (day: string) => {
     const current = blockerForm.daysOfWeek.split(",").filter(Boolean);
     const next = current.includes(day)

@@ -12,7 +12,14 @@ import interactionPlugin, {
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useRef, useState, type FC } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 import CreateTaskModal from "../create-task-modal";
 import useUserStore from "../../stores/user-store";
 import { fetchBlocks, fetchTasks, type TaskBlock } from "../../util/task-api";
@@ -923,6 +930,10 @@ const Tasks: FC = () => {
     }
   };
 
+  const handleCloseCreateModal = useCallback(() => {
+    setCalendarDialogOpen(false);
+  }, []);
+
   return (
     <div className="grid h-full w-full grid-rows-[3.5rem_1fr] gap-6 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-slate-50">
       <div className="flex items-center justify-between">
@@ -1186,7 +1197,7 @@ const Tasks: FC = () => {
       {calendarDialogOpen && (
         <CreateTaskModal
           onClose={() => {
-            setCalendarDialogOpen(false);
+            handleCloseCreateModal();
           }}
           initialValues={{
             startDate: form.fixedStart || undefined,
